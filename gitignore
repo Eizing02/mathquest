@@ -1,0 +1,40 @@
+# ─── OS & Editor ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# ─── Node (ถ้าเคย npm install บนเครื่อง) ─────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+
+# ─── Local env (ห้าม push ขึ้น Git เด็ดขาด!) ─────────
+.env
+.env.local
+.env.*.local
+
+# ─── Build output ────────────────────────────────────
+dist/
+build/
+.vercel/
+
+# ─── Migration / Development tools ───────────────────
+migrate_excel_to_supabase.ps1
+migration_dryrun.log
+migration_counts.json
+xlsx_summary.json
+*.xlsx
+*.xls
+
+# ─── Sensitive / debug files ─────────────────────────
+*.log
+secrets.*
+
+# ─── Legacy GAS files (ไม่ต้องใช้แล้ว) ────────────────
+Code_GS.ini
+Index.ini
