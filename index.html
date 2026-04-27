@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title id="pageTitle">ระบบเช็คชื่อนักเรียน</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="./style.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<!-- ════════ LOGIN ════════ -->
+<div id="loginSection" class="login-wrap">
+  <div class="login-card">
+    <div id="loginLogoWrap" class="login-logo-emoji">🏫</div>
+    <h4 id="loginAppName">ระบบเช็คชื่อนักเรียน</h4>
+    <p id="loginSchoolName">กำลังโหลด...</p>
+    <input type="text" id="username" class="form-control mb-3" placeholder="รหัสประจำตัว"
+           autocomplete="username" onkeydown="if(event.key==='Enter')login()">
+    <input type="password" id="password" class="form-control mb-4" placeholder="รหัสผ่าน (รหัส ปชช.)"
+           autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn-login" onclick="login()">
+      <i class="fa-solid fa-right-to-bracket me-2"></i>เข้าสู่ระบบ
+    </button>
+  </div>
+</div>
+
+<!-- ════════ STUDENT ════════ -->
+<div id="studentSection" class="hidden" data-tier="0">
+  <div class="container" style="max-width:460px;padding:16px 12px">
+    <div class="d-flex justify-content-end mb-2">
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()">
+        <i class="fa-solid fa-rotate-right" id="refreshIcon"></i>
+        <span id="refreshLabel">รีเฟรช</span>
+      </button>
+    </div>
+
+    <!-- Profile + Level Card -->
+    <div class="s-card mb-3" id="levelCard">
+      <div class="text-center">
+        <div class="photo-overlay mb-2">
+          <img id="studentPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='32' fill='%234f46e5'%3E👤%3C/text%3E%3C/svg%3E"
+               class="profile-photo" onclick="openPhotoUpload()" alt="profile">
+          <button class="photo-edit-btn" onclick="openPhotoUpload()">
+            <i class="fa-solid fa-camera" style="font-size:.65rem"></i>
+          </button>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoChange(event)">
+        <div class="ring-wrap mb-2">
+          <div class="level-ring" id="levelRing">
+            <div class="level-ring-inner">
+              <span class="lv-num" id="lvNum">0</span>
+              <span class="lv-label">LEVEL</span>
+            </div>
+          </div>
+        </div>
+        <div class="fw-bold" id="sNameDisp" style="font-size:1.05rem"></div>
+        <small id="sGradeDisp" style="opacity:.7"></small>
+      </div>
+      <div class="px-2 mt-2">
+        <div class="d-flex justify-content-between" style="font-size:.69rem;opacity:.65;margin-bottom:3px">
+          <span id="xpLabel">0 / 5 XP</span><span id="ptLabel">แต้มรวม 0</span>
+        </div>
+        <div class="xp-bg"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+      </div>
+      <div class="trophy-row" id="trophies">
+        <span class="trophy" data-t="0" title="Starter">🎖️</span>
+        <span class="trophy" data-t="10" title="Lv.10">🥉</span>
+        <span class="trophy" data-t="20" title="Lv.20">🥈</span>
+        <span class="trophy" data-t="30" title="Lv.30">🥇</span>
+        <span class="trophy" data-t="40" title="Lv.40">🏆</span>
+        <span class="trophy" data-t="50" title="Lv.50">👑</span>
+      </div>
+    </div>
+
+    <!-- Check-in Card -->
+    <div class="s-card mb-3">
+      <div class="text-center mb-2">
+        <h6 class="fw-bold mb-0"><i class="fa-solid fa-key me-2" style="color:#f59e0b"></i>ระบุรหัส PIN 4 หลัก</h6>
+        <div id="studentGpsStatus" class="gps-student loading">
+          <i class="fa-solid fa-location-dot fa-spin"></i> รอ GPS...
+        </div>
+      </div>
+      <input type="text" class="pin-input mb-3" id="pinCode"
+             inputmode="numeric" maxlength="4" placeholder="• • • •"
+             oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+             onkeydown="if(event.key==='Enter')checkIn()" autocomplete="off">
+      <button class="btn w-100 py-2 fw-bold" id="checkInBtn"
+              style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:14px;font-size:1rem"
+              onclick="checkIn()">
+        <i class="fa-solid fa-circle-check me-2"></i>เช็คชื่อเข้าเรียน
+      </button>
+    </div>
+
+    <div class="text-center d-flex gap-2 justify-content-center flex-wrap mt-2">
+      <button class="btn-shop" onclick="openShop()">
+        <span>🛒</span>
+        <span>Magic Shop</span>
+        <span class="btn-shop-coins" id="shopCoinsBadge">—</span>
+      </button>
+      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="showStudentHistory()">
+        <i class="fa-solid fa-clock-rotate-left me-1"></i>ประวัติของฉัน
+      </button>
+      <button class="btn btn-sm rounded-pill px-3" style="background:rgba(239,68,68,.1);color:#ef4444" onclick="logout()">
+        <i class="fa-solid fa-right-from-bracket me-1"></i>ออกจากระบบ
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ TEACHER ════════ -->
+<div id="teacherSection" class="hidden">
+  <div class="t-hdr">
+    <div>
+      <h4>
+        <span id="tHdrLogo" style="font-size:1.4rem">🏫</span>
+        ครู <span id="tNameDisp"></span>
+      </h4>
+      <small id="tHdrSchool">กุงแก้ววิทยาคาร</small>
+    </div>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-radius:10px"
+            onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+
+  <div class="container-fluid px-3 py-3" style="max-width:980px;margin:auto">
+    <div class="t-nav">
+      <button class="tn active" onclick="switchTab('pin',this)"><i class="fa-solid fa-key me-1"></i>คาบ</button>
+      <button class="tn" onclick="switchTab('stats',this)"><i class="fa-solid fa-chart-pie me-1"></i>สถิติ</button>
+      <button class="tn" onclick="switchTab('manual',this)"><i class="fa-solid fa-pen-to-square me-1"></i>แก้ไข</button>
+      <button class="tn" onclick="switchTab('shop',this)"><i class="fa-solid fa-store me-1"></i>ร้านค้า</button>
+      <button class="tn" onclick="switchTab('settings',this)"><i class="fa-solid fa-gear me-1"></i>ตั้งค่า</button>
+    </div>
+
+    <!-- ── TAB: PIN ── -->
+    <div class="t-pane active" id="tab-pin">
+      <div id="sessBar" class="sess-bar closed">
+        <span id="sessDot"></span><span id="sessText">ยังไม่มีคาบเรียน</span>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card p-4 h-100">
+            <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-door-open me-2"></i>เปิดคาบเรียน</h6>
+            <select id="targetGrade" class="form-select mb-3">
+              <option value="">-- เลือกระดับชั้น --</option>
+              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+            </select>
+            <button class="btn w-100 mb-3 fw-bold"
+                    style="background:var(--pri);color:#fff;border-radius:12px" onclick="generatePIN()">
+              <i class="fa-solid fa-shuffle me-2"></i>สุ่มรหัส PIN (40 นาที)
+            </button>
+            <div class="text-center">
+              <span id="teacherGpsStatus" class="gps-badge gps-off">
+                <span class="gps-dot"></span>รอ GPS
+              </span>
+            </div>
+            <div class="pin-box">
+              <div class="pin-digits" id="displayPIN">- - - -</div>
+              <div class="pin-sub" style="color:#818cf8" id="pinGradeLabel"></div>
+              <div class="pin-sub" style="color:#f87171" id="expiryLabel"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-4 h-100" style="border:1px solid #fee2e2">
+            <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-door-closed me-2"></i>ปิดคาบเรียน</h6>
+            <p class="text-muted" style="font-size:.84rem">
+              กดเพื่อลงสถานะ "ขาด" ให้นักเรียนที่ไม่ได้เช็คชื่อ<br>
+              PIN และ GPS zone จะถูกลบทันที
+            </p>
+            <button class="btn btn-danger fw-bold w-100 mt-auto" style="border-radius:12px;padding:12px" onclick="closeSession()">
+              <i class="fa-solid fa-xmark-circle me-2"></i>ปิดคาบและเช็คขาด
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: STATS ── -->
+    <div class="t-pane" id="tab-stats">
+      <div class="card p-3 mb-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-6 col-md-3">
+            <label class="form-label">ระดับชั้น</label>
+            <select id="statGrade" class="form-select form-select-sm" onchange="loadStats()">
+              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label">เดือน</label>
+            <select id="statMonth" class="form-select form-select-sm" onchange="loadStats()">
+              <option value="all">ทั้งหมด</option>
+              <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
+              <option value="3">มีนาคม</option><option value="4">เมษายน</option>
+              <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+              <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option>
+              <option value="9">กันยายน</option><option value="10">ตุลาคม</option>
+              <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-6 d-flex gap-2 flex-wrap justify-content-md-end mt-1 mt-md-0 no-print">
+            <div class="export-bar mb-0">
+              <button class="btn-exp exp-csv" onclick="exportCSV()"><i class="fa-solid fa-file-csv me-1"></i>CSV</button>
+              <button class="btn-exp exp-xls" onclick="exportExcel()"><i class="fa-solid fa-file-excel me-1"></i>Excel</button>
+              <button class="btn-exp exp-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:10px" onclick="promptIndividualPDF()">
+              <i class="fa-solid fa-user me-1"></i>พิมพ์รายบุคคล
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="row g-2 mb-3" id="summaryCards"></div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <div class="chart-wrap h-100">
+            <h6>สัดส่วนเข้าเรียน</h6>
+            <div style="height:160px;position:relative"><canvas id="chartDonut"></canvas></div>
+            <div id="donutLeg" class="d-flex justify-content-center gap-3 mt-2" style="font-size:.71rem"></div>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="chart-wrap h-100">
+            <h6>แนวโน้มรายเดือน (6 เดือนล่าสุด)</h6>
+            <div style="height:160px;position:relative"><canvas id="chartBar"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <div class="card p-3">
+        <div id="statsSpinner" class="text-center py-4 hidden">
+          <div class="spinner-border text-primary" style="width:1.5rem;height:1.5rem"></div>
+          <div class="mt-2" style="font-size:.78rem;color:var(--muted)">กำลังโหลด...</div>
+        </div>
+        <div class="table-responsive">
+          <table class="s-tbl" id="statsTable">
+            <thead>
+              <tr>
+                <th>รหัส</th><th>ชื่อ-นามสกุล</th><th>Level</th>
+                <th class="text-center">มา</th><th class="text-center">ขาด</th><th class="text-center">ลา</th>
+                <th class="text-center no-print">ประวัติ</th>
+              </tr>
+            </thead>
+            <tbody id="statsTbody">
+              <tr><td colspan="7" class="text-center py-4" style="color:var(--muted)">คลิกแท็บ "สถิติ" เพื่อโหลด</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: MANUAL ── -->
+    <div class="t-pane" id="tab-manual">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="man-form">
+            <h6 class="fw-bold mb-4" style="color:var(--pri)">
+              <i class="fa-solid fa-hand-pointer me-2"></i>เช็คชื่อ / แก้ไข ด้วยมือ
+            </h6>
+            <label class="form-label">ระดับชั้น</label>
+            <select id="manGrade" class="form-select mb-3" onchange="loadManualStudents()">
+              <option value="">-- เลือกชั้น --</option>
+              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+            </select>
+            <label class="form-label">นักเรียน</label>
+            <select id="manStudent" class="form-select mb-3" disabled>
+              <option value="">-- เลือกนักเรียน --</option>
+            </select>
+            <label class="form-label">วันที่</label>
+            <input type="date" id="manDate" class="form-control mb-3">
+            <label class="form-label">สถานะ</label>
+            <div class="status-radio mb-4">
+              <input type="radio" name="manStatus" id="ms1" value="มา" checked>
+              <label for="ms1"><i class="fa-solid fa-check me-1"></i>มา</label>
+              <input type="radio" name="manStatus" id="ms2" value="ขาด">
+              <label for="ms2"><i class="fa-solid fa-xmark me-1"></i>ขาด</label>
+              <input type="radio" name="manStatus" id="ms3" value="ลา">
+              <label for="ms3"><i class="fa-solid fa-house me-1"></i>ลา</label>
+            </div>
+            <button class="btn w-100 fw-bold py-2"
+                    style="background:var(--pri);color:#fff;border-radius:12px" onclick="submitManual()">
+              <i class="fa-solid fa-floppy-disk me-2"></i>บันทึก / อัปเดต
+            </button>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="man-form">
+            <h6 class="fw-bold mb-3" style="color:var(--pri)">
+              <i class="fa-solid fa-clock-rotate-left me-2"></i>ดูประวัติ & แก้ไข
+            </h6>
+            <div class="d-flex gap-2 mb-3">
+              <input type="text" id="histId" class="form-control form-control-sm" placeholder="รหัสนักเรียน">
+              <button class="btn btn-sm fw-bold px-3"
+                      style="background:var(--pri);color:#fff;border-radius:10px;white-space:nowrap"
+                      onclick="loadHistEdit()">ดู</button>
+            </div>
+            <div id="histStudentBanner" class="mb-2 hidden"></div>
+            <div id="histEditList" style="max-height:360px;overflow-y:auto">
+              <div class="text-center py-4" style="color:var(--muted);font-size:.83rem">กรุณาระบุรหัสแล้วกด "ดู"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: SHOP (Teacher Management) ── -->
+    <div class="t-pane" id="tab-shop">
+      <div class="tshop-wrap">
+        <div class="tshop-hdr">
+          <h5><i class="fa-solid fa-store me-2"></i>จัดการ Magic Shop</h5>
+          <button class="btn btn-sm fw-bold" style="background:rgba(255,255,255,.2);color:#fff;border-radius:10px"
+                  onclick="openAddItemModal()">
+            <i class="fa-solid fa-plus me-1"></i>เพิ่มสินค้า
+          </button>
+        </div>
+        <div class="tshop-tabs">
+          <button class="tshop-tab active" id="tstab-items" onclick="switchTShopTab('items',this)">
+            <i class="fa-solid fa-box me-1"></i>สินค้า
+          </button>
+          <button class="tshop-tab" id="tstab-orders" onclick="switchTShopTab('orders',this)">
+            <i class="fa-solid fa-receipt me-1"></i>ออเดอร์
+          </button>
+          <button class="tshop-tab" id="tstab-wallet" onclick="switchTShopTab('wallet',this)">
+            <i class="fa-solid fa-coins me-1"></i>เหรียญนักเรียน
+          </button>
+        </div>
+        <div class="tshop-body">
+          <!-- Items Panel -->
+          <div id="tshop-items-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <small class="text-muted">รายการสินค้าทั้งหมด</small>
+              <button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:8px;font-size:.76rem"
+                      onclick="loadTeacherShopItems()">
+                <i class="fa-solid fa-rotate-right me-1"></i>รีเฟรช
+              </button>
+            </div>
+            <div id="teacherItemsList">
+              <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลด...</div>
+            </div>
+          </div>
+
+          <!-- Orders Panel -->
+          <div id="tshop-orders-panel" class="hidden">
+            <div class="order-filter">
+              <button class="order-filter-btn active" onclick="filterOrders('all',this)">ทั้งหมด</button>
+              <button class="order-filter-btn" onclick="filterOrders('pending',this)">⏳ รอดำเนินการ</button>
+              <button class="order-filter-btn" onclick="filterOrders('approved',this)">✅ อนุมัติแล้ว</button>
+              <button class="order-filter-btn" onclick="filterOrders('rejected',this)">❌ ปฏิเสธ</button>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <small class="text-muted" id="orderCountLabel">กำลังโหลด...</small>
+              <button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:8px;font-size:.76rem"
+                      onclick="loadTeacherOrders()">
+                <i class="fa-solid fa-rotate-right me-1"></i>รีเฟรช
+              </button>
+            </div>
+            <div id="teacherOrdersList">
+              <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลด...</div>
+            </div>
+          </div>
+
+          <!-- Wallet Panel -->
+          <div id="tshop-wallet-panel" class="hidden">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <label class="form-label mb-0">ระดับชั้น</label>
+              </div>
+              <select id="walletGrade" class="form-select form-select-sm" style="width:auto"
+                      onchange="loadWalletSummary()">
+                <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+                <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+              </select>
+            </div>
+            <div id="walletSummaryList">
+              <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลด...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: SETTINGS ── -->
+    <div class="t-pane" id="tab-settings">
+      <div class="settings-section">
+        <h6 class="fw-bold mb-4" style="color:var(--pri)">
+          <i class="fa-solid fa-sliders me-2"></i>ตั้งค่าระบบ
+        </h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">ชื่อแอปพลิเคชัน</label>
+            <input type="text" id="setAppName" class="form-control mb-3" placeholder="ระบบเช็คชื่อนักเรียน">
+            <label class="form-label">ชื่อโรงเรียน</label>
+            <input type="text" id="setSchoolName" class="form-control mb-3" placeholder="กุงแก้ววิทยาคาร">
+            <label class="form-label">สีหลัก (Accent Color)</label>
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="color-preview" id="colorPreview" onclick="document.getElementById('setColor').click()"></div>
+              <input type="color" id="setColor" oninput="updateColorPreview(this.value)">
+              <span id="colorHex" style="font-size:.85rem;color:var(--muted)">#4f46e5</span>
+              <button class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.78rem"
+                      onclick="resetColor()">รีเซ็ต</button>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">โลโก้แอป (ไฟล์รูป, แนะนำ 100×100px)</label>
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <img id="logoPreview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Crect width='60' height='60' rx='12' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' font-size='28' fill='%234f46e5'%3E🏫%3C/text%3E%3C/svg%3E"
+                   style="width:60px;height:60px;border-radius:12px;border:2px solid #e2e8f0;object-fit:cover">
+              <div>
+                <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoChange(event)">
+                <button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:10px;font-size:.8rem"
+                        onclick="document.getElementById('logoInput').click()">
+                  <i class="fa-solid fa-upload me-1"></i>อัปโหลดโลโก้
+                </button>
+                <button class="btn btn-sm btn-outline-danger ms-1 fw-bold" style="border-radius:10px;font-size:.8rem"
+                        onclick="clearLogo()">ลบ</button>
+              </div>
+            </div>
+            <div class="alert" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;font-size:.8rem;color:#065f46">
+              <i class="fa-solid fa-circle-info me-1"></i>
+              การตั้งค่าจะแสดงในหน้า Login และ Header ของครู<br>
+              โลโก้จะถูกบีบอัดอัตโนมัติเพื่อประหยัดพื้นที่
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn fw-bold px-4"
+                  style="background:var(--pri);color:#fff;border-radius:12px" onclick="saveSettings()">
+            <i class="fa-solid fa-floppy-disk me-2"></i>บันทึกการตั้งค่า
+          </button>
+          <button class="btn btn-outline-secondary fw-bold" style="border-radius:12px"
+                  onclick="loadSettings()">
+            <i class="fa-solid fa-rotate-left me-1"></i>โหลดใหม่
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /teacherSection -->
+
+<!-- ════════ PRINT AREA ════════ -->
+<div id="printArea" class="hidden p-4">
+  <div class="text-center mb-3">
+    <h3 class="fw-bold">รายงานการเข้าเรียน</h3>
+    <h4 id="printSchoolName">โรงเรียนกุงแก้ววิทยาคาร</h4>
+    <h5 id="printSubtitle" class="text-muted"></h5>
+    <p id="printDate" class="small text-muted"></p>
+  </div>
+  <table class="table table-bordered border-dark text-center" style="font-size:.88rem">
+    <thead id="printHead" class="table-light fw-bold"></thead>
+    <tbody id="printBody"></tbody>
+  </table>
+  <div class="row mt-5 text-center">
+    <div class="col-6"></div>
+    <div class="col-6">
+      <p class="mt-5">ลงชื่อ.....................................ครูผู้สอน</p>
+      <p>( <span id="printTeacher"></span> )</p>
+      <p>วันที่........../.........../.............</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ STUDENT MAGIC SHOP OVERLAY ════════ -->
+<div class="shop-overlay" id="shopOverlay" onclick="handleShopOverlayClick(event)">
+  <div class="shop-modal" id="shopModal">
+    <div class="shop-header">
+      <h5><span style="font-size:1.3rem">🛒</span> Magic Shop</h5>
+      <button class="shop-close" onclick="closeShop()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="wallet-wrap">
+      <div class="wallet-badge">
+        <div class="wallet-icon">🪙</div>
+        <div class="wallet-info" style="flex:1">
+          <div class="wi-label">MathCoins พร้อมใช้งาน</div>
+          <div class="wi-val" id="shopCoinsDisplay">—</div>
+          <div class="wi-sub" id="shopLifetimeDisplay">Lifetime EXP: —</div>
+        </div>
+        <button onclick="refreshWallet()"
+          style="border:none;background:none;color:#818cf8;font-size:.85rem;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background .2s"
+          onmouseover="this.style.background='rgba(129,140,248,.15)'"
+          onmouseout="this.style.background='none'">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="shop-tabs">
+      <button class="shop-tab active" id="stab-shop" onclick="switchShopTab('shop')">
+        <i class="fa-solid fa-store me-1"></i>สินค้า
+      </button>
+      <button class="shop-tab" id="stab-history" onclick="switchShopTab('history')">
+        <i class="fa-solid fa-receipt me-1"></i>ประวัติ
+      </button>
+    </div>
+    <div class="shop-scroll">
+      <div id="shopTabContent">
+        <div class="shop-grid" id="shopGrid">
+          <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
+          <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
+        </div>
+      </div>
+      <div id="historyTabContent" style="display:none">
+        <div id="redemptionList">
+          <div class="shop-empty"><div class="shop-empty-icon">📋</div><p>กำลังโหลดประวัติ...</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ TEACHER: ADD/EDIT ITEM MODAL ════════ -->
+<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+    <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.15)">
+      <div class="modal-header" style="border-radius:20px 20px 0 0;background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;border:none">
+        <h5 class="modal-title fw-bold" id="itemModalTitle">เพิ่มสินค้าใหม่</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="item-form">
+        <input type="hidden" id="editItemId">
+        <!-- Image Upload -->
+        <div class="d-flex gap-3 align-items-center mb-3">
+          <div class="item-preview-img" id="itemPreviewWrap">
+            <span id="itemPreviewEmoji">🎁</span>
+            <img id="itemPreviewImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px">
+          </div>
+          <div>
+            <input type="file" id="itemImageInput" accept="image/*" style="display:none" onchange="handleItemImageChange(event)">
+            <button class="btn btn-sm btn-outline-primary fw-bold mb-1" style="border-radius:10px;font-size:.8rem;display:block"
+                    onclick="document.getElementById('itemImageInput').click()">
+              <i class="fa-solid fa-image me-1"></i>เลือกรูปสินค้า
+            </button>
+            <button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:10px;font-size:.78rem"
+                    onclick="clearItemImage()">ลบรูป</button>
+          </div>
+        </div>
+
+        <label class="form-label">ชื่อสินค้า <span class="text-danger">*</span></label>
+        <input type="text" id="itemName" class="form-control mb-3" placeholder="เช่น ดินสอพิเศษ, สมุดโน้ต...">
+
+        <label class="form-label">ราคา (เหรียญ) <span class="text-danger">*</span></label>
+        <input type="number" id="itemCost" class="form-control mb-3" placeholder="0" min="0" step="1">
+
+        <label class="form-label">คำอธิบาย</label>
+        <textarea id="itemDesc" class="form-control mb-3" rows="2" placeholder="รายละเอียดสินค้า..."></textarea>
+
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <span class="form-label mb-0">แสดงในร้าน (Active)</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="itemActive" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn fw-bold flex-fill py-2"
+                  style="background:var(--pri);color:#fff;border-radius:12px" onclick="saveItemModal()">
+            <i class="fa-solid fa-floppy-disk me-2"></i>บันทึก
+          </button>
+          <button class="btn btn-outline-secondary fw-bold px-4" style="border-radius:12px"
+                  data-bs-dismiss="modal">ยกเลิก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>
