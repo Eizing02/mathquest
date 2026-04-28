@@ -335,7 +335,7 @@ async function verifyLoginDb(username, password) {
   var u = String(username || '').trim();
   var p = String(password || '').trim();
   var row = await runQuery(client.from('students')
-    .select('id,name,grade,role')
+    .select('id,name,grade,role,is_first_login')
     .eq('id', u)
     .eq('password', p)
     .maybeSingle());
@@ -347,8 +347,95 @@ async function verifyLoginDb(username, password) {
     role: row.role === 'TEACHER' ? 'TEACHER' : 'STUDENT',
     name: row.name || '',
     grade: row.grade || '',
-    id: row.id
+    id: row.id,
+    isFirstLogin: row.is_first_login === true
   };
+}
+
+/* ══ First-Time Password Change ═════════════════════ */
+async function changeFirstTimePasswordDb(studentId, newPassword) {
+  var client = getSupabase();
+  var cid = String(studentId).trim();
+  await runQuery(client.from('students')
+    .update({ password: newPassword, is_first_login: false })
+    .eq('id', cid)
+    .select('id'));
+  return { status: 'success' };
+}
+
+/**
+ * แสดง SweetAlert2 บังคับตั้งรหัสผ่านใหม่ (allowOutsideClick:false)
+ * ห้ามปิดจนกว่าจะเปลี่ยนสำเร็จ — ใช้หลัง login สำเร็จและพบ is_first_login = true
+ */
+async function forceChangePassword(studentId) {
+  while (true) {
+    var result = await Swal.fire({
+      title: '🔐 ตั้งรหัสผ่านใหม่',
+      html: '<p style="color:#64748b;font-size:.87rem;margin-bottom:16px">นี่คือการเข้าสู่ระบบครั้งแรกของคุณ<br>กรุณาตั้งรหัสผ่านใหม่ เพื่อความปลอดภัย</p>'
+        + '<input id="swal-np1" type="password" class="swal2-input" placeholder="รหัสผ่านใหม่" autocomplete="new-password">'
+        + '<input id="swal-np2" type="password" class="swal2-input" placeholder="ยืนยันรหัสผ่านใหม่" autocomplete="new-password">'
+        + '<p id="swal-pw-err" style="color:#ef4444;font-size:.8rem;margin:6px 0 0;min-height:1.1em"></p>',
+      confirmButtonText: '✅ บันทึกรหัสผ่าน',
+      confirmButtonColor: '#4f46e5',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showCancelButton: false,
+      focusConfirm: false,
+      didOpen: function() {
+        /* กด Enter ที่ field ที่ 2 ก็ submit */
+        var f2 = document.getElementById('swal-np2');
+        if (f2) f2.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') Swal.clickConfirm();
+        });
+      },
+      preConfirm: function() {
+        var np1 = (document.getElementById('swal-np1').value || '').trim();
+        var np2 = (document.getElementById('swal-np2').value || '').trim();
+        var errEl = document.getElementById('swal-pw-err');
+        if (!np1) {
+          errEl.textContent = 'กรุณากรอกรหัสผ่านใหม่';
+          return false;
+        }
+        if (np1.length < 6) {
+          errEl.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+          return false;
+        }
+        if (np1 === String(studentId).trim()) {
+          errEl.textContent = '❌ รหัสผ่านต้องไม่ซ้ำกับรหัสประจำตัว';
+          return false;
+        }
+        if (np1 !== np2) {
+          errEl.textContent = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน';
+          return false;
+        }
+        return np1;
+      }
+    });
+
+    if (!result.isConfirmed || !result.value) continue; /* กด X ไม่ได้, loop ต่อ */
+
+    loading('กำลังบันทึกรหัสผ่าน...');
+    try {
+      await changeFirstTimePasswordDb(studentId, result.value);
+      Swal.fire({
+        icon: 'success',
+        title: 'ตั้งรหัสผ่านสำเร็จ! 🎉',
+        text: 'รหัสผ่านใหม่ของคุณถูกบันทึกแล้ว',
+        confirmButtonColor: '#10b981',
+        timer: 2000,
+        timerProgressBar: true
+      });
+      return; /* ออกจาก loop เมื่อสำเร็จ */
+    } catch (e) {
+      Swal.fire({
+        icon: 'error',
+        title: 'บันทึกไม่สำเร็จ',
+        text: e.message || 'กรุณาลองใหม่',
+        confirmButtonColor: '#ef4444'
+      });
+      /* loop กลับไปถามใหม่ */
+    }
+  }
 }
 
 async function getStudentPointsAndLevelDb(studentId) {
@@ -1019,6 +1106,10 @@ async function login() {
         document.getElementById('studentSection').classList.remove('hidden');
         document.getElementById('sNameDisp').textContent = res.name;
         document.getElementById('sGradeDisp').textContent = 'ชั้น ' + res.grade;
+        /* ── First-login: บังคับเปลี่ยนรหัสผ่านก่อนใช้งาน ── */
+        if (res.isFirstLogin) {
+          await forceChangePassword(res.id);
+        }
         await loadStudentProfile();
         warmUpStudentGPS();
         shopWallet = await getWalletBalanceDb(CU.id);
