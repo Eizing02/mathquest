@@ -152,8 +152,24 @@
             <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-door-open me-2"></i>เปิดคาบเรียน</h6>
             <select id="targetGrade" class="form-select mb-3">
               <option value="">-- เลือกระดับชั้น --</option>
-              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
-              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+              <optgroup label="มัธยมศึกษาปีที่ 1">
+                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 2">
+                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 3">
+                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 4">
+                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 5">
+                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 6">
+                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
+              </optgroup>
             </select>
             <button class="btn w-100 mb-3 fw-bold"
                     style="background:var(--pri);color:#fff;border-radius:12px" onclick="generatePIN()">
@@ -193,8 +209,24 @@
           <div class="col-6 col-md-3">
             <label class="form-label">ระดับชั้น</label>
             <select id="statGrade" class="form-select form-select-sm" onchange="loadStats()">
-              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
-              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+              <optgroup label="มัธยมศึกษาปีที่ 1">
+                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 2">
+                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 3">
+                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 4">
+                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 5">
+                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 6">
+                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
+              </optgroup>
             </select>
           </div>
           <div class="col-6 col-md-3">
@@ -270,8 +302,24 @@
             <label class="form-label">ระดับชั้น</label>
             <select id="manGrade" class="form-select mb-3" onchange="loadManualStudents()">
               <option value="">-- เลือกชั้น --</option>
-              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
-              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+              <optgroup label="มัธยมศึกษาปีที่ 1">
+                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 2">
+                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 3">
+                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 4">
+                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 5">
+                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
+              </optgroup>
+              <optgroup label="มัธยมศึกษาปีที่ 6">
+                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
+              </optgroup>
             </select>
             <label class="form-label">นักเรียน</label>
             <select id="manStudent" class="form-select mb-3" disabled>
@@ -378,8 +426,24 @@
               </div>
               <select id="walletGrade" class="form-select form-select-sm" style="width:auto"
                       onchange="loadWalletSummary()">
-                <option>ม.1</option><option>ม.2</option><option>ม.3</option>
-                <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+                <optgroup label="มัธยมศึกษาปีที่ 1">
+                  <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
+                </optgroup>
+                <optgroup label="มัธยมศึกษาปีที่ 2">
+                  <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
+                </optgroup>
+                <optgroup label="มัธยมศึกษาปีที่ 3">
+                  <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
+                </optgroup>
+                <optgroup label="มัธยมศึกษาปีที่ 4">
+                  <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
+                </optgroup>
+                <optgroup label="มัธยมศึกษาปีที่ 5">
+                  <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
+                </optgroup>
+                <optgroup label="มัธยมศึกษาปีที่ 6">
+                  <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
+                </optgroup>
               </select>
             </div>
             <div id="walletSummaryList">

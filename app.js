@@ -32,6 +32,24 @@ var TH_MO_S = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
 var TH_MO_L = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
                'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 
+/* ── Grade list (ครอบคลุม sub-class ม.X/Y) ── */
+var GRADE_LIST = [
+  'ม.1','ม.1/1','ม.1/2','ม.1/3',
+  'ม.2','ม.2/1','ม.2/2','ม.2/3',
+  'ม.3','ม.3/1','ม.3/2','ม.3/3',
+  'ม.4','ม.4/1','ม.4/2','ม.4/3',
+  'ม.5','ม.5/1','ม.5/2','ม.5/3',
+  'ม.6','ม.6/1','ม.6/2','ม.6/3'
+];
+
+/**
+ * ป้องกัน grade string ที่มี "/" ไม่ให้แตกเมื่อ trim หรือ compare
+ * ใช้แทน String(grade).trim() ทุกจุดที่ส่งค่าเข้า DB
+ */
+function normalizeGrade(g) {
+  return String(g || '').trim();
+}
+
 function isSupabaseConfigured() {
   return SUPABASE_URL && SUPABASE_ANON_KEY &&
     SUPABASE_URL.indexOf('YOUR_') === -1 &&
@@ -388,7 +406,7 @@ async function getStudentsInGradeDb(grade) {
   var client = getSupabase();
   var rows = await runQuery(client.from('students')
     .select('id,name')
-    .eq('grade', String(grade || '').trim())
+    .eq('grade', normalizeGrade(grade))
     .order('id', { ascending: true }));
   return (rows || []).map(function(r) {
     return { id: r.id, name: r.name || '' };
@@ -418,7 +436,7 @@ async function getAttendanceStatsDb(targetGrade, targetMonth) {
   var client = getSupabase();
   var students = await runQuery(client.from('students')
     .select('id,name,grade')
-    .eq('grade', String(targetGrade || '').trim())
+    .eq('grade', normalizeGrade(targetGrade))
     .order('id', { ascending: true }));
   if (!students.length) return [];
   var ids = students.map(function(s) { return s.id; });
@@ -458,7 +476,7 @@ async function getDashboardChartDataDb(grade) {
   var client = getSupabase();
   var students = await runQuery(client.from('students')
     .select('id')
-    .eq('grade', String(grade || '').trim()));
+    .eq('grade', normalizeGrade(grade)));
   var ids = students.map(function(s) { return s.id; });
   if (!ids.length) return { months: [], totalStudents: 0 };
   var logs = await runQuery(client.from('attendance_logs')
@@ -593,7 +611,7 @@ async function submitCheckInDb(studentId, pinCode, sLat, sLon, sAcc) {
 async function closeAttendanceAndMarkAbsentDb() {
   var client = getSupabase();
   var s = await getSettingsMap(['current_grade']);
-  var grade = String(s.current_grade || '').trim();
+  var grade = normalizeGrade(s.current_grade);
   if (!grade) return { status: 'fail', msg: 'ไม่มีคาบเรียนที่เปิดอยู่' };
   var students = await runQuery(client.from('students')
     .select('id')
@@ -873,7 +891,7 @@ async function updateRedemptionStatusByRowDb(rowId, newStatus) {
 async function getGradeWalletSummaryDb(grade) {
   var students = await runQuery(getSupabase().from('students')
     .select('id,name')
-    .eq('grade', String(grade || '').trim())
+    .eq('grade', normalizeGrade(grade))
     .order('name', { ascending: true }));
   var rows = await Promise.all(students.map(async function(st) {
     var w = await getWalletBalanceDb(st.id);
@@ -2229,23 +2247,26 @@ async function buyShopItem(itemId, itemName, cost) {
 }
 
 function tryBuyItem(itemId, itemName, cost) {
-  if (!shopWallet) return Swal.fire({ icon: 'info', title: 'กรุณารอ', text: 'กำลังโหลดข้อมูลเหรียญ' });
+  /* ── z-index fix: บังคับ SweetAlert2 ลอยเหนือ .shop-overlay (z-index:2000) ── */
+  var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
+
+  if (!shopWallet) return Swal.fire(Object.assign({ icon: 'info', title: 'กรุณารอ', text: 'กำลังโหลดข้อมูลเหรียญ' }, SWAL_ABOVE));
   if (shopWallet.mathCoins < cost) {
-    return Swal.fire({
+    return Swal.fire(Object.assign({
       icon: 'warning',
       title: 'เหรียญไม่เพียงพอ',
       html: 'คุณมี <b>' + shopWallet.mathCoins + ' 🪙</b><br>ต้องการ <b>' + cost + ' 🪙</b>',
       confirmButtonColor: '#4f46e5'
-    });
+    }, SWAL_ABOVE));
   }
-  Swal.fire({
+  Swal.fire(Object.assign({
     title: 'ยืนยันการซื้อ',
     html: '<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#1e293b;margin-bottom:8px">' + escHtml(itemName) + '</div><div style="display:inline-flex;align-items:center;gap:6px;background:#fef9c3;border:1px solid #fde68a;border-radius:999px;padding:4px 16px"><span>🪙</span><span style="font-size:1.1rem;font-weight:800;color:#92400e">' + cost + '</span></div><div style="margin-top:10px;font-size:.82rem;color:#64748b">เหลือ ' + (shopWallet.mathCoins - cost) + ' 🪙</div></div>',
     showCancelButton: true,
     confirmButtonText: '🛍️ ยืนยันซื้อ',
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#4f46e5'
-  }).then(async function(r) {
+  }, SWAL_ABOVE)).then(async function(r) {
     if (!r.isConfirmed) return;
     loading('กำลังดำเนินการ...');
     try {
@@ -2261,23 +2282,22 @@ function tryBuyItem(itemId, itemName, cost) {
         shopItems = null;
         loadShopData();
         fireShopConfetti();
-        Swal.fire({
+        Swal.fire(Object.assign({
           icon: 'success',
           title: 'ซื้อสำเร็จ! 🎉',
           html: escHtml(res.itemName || itemName) + '<br><small style="color:#64748b">ครูจะตรวจสอบและมอบของรางวัลให้เร็วๆ นี้</small><br><br>เหลือ <b style="color:#92400e">' + res.mathCoins + ' 🪙</b>',
           confirmButtonColor: '#10b981',
           timer: 4000,
           timerProgressBar: true
-        });
+        }, SWAL_ABOVE));
       } else {
-        Swal.fire({ icon: 'error', title: 'ไม่สำเร็จ', text: res.msg, confirmButtonColor: '#ef4444' });
+        Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: res.msg, confirmButtonColor: '#ef4444' }, SWAL_ABOVE));
       }
     } catch (e) {
       onErr(e);
     }
   });
 }
-
 function fireShopConfetti() {
   if (typeof confetti === 'undefined') return;
   var count = 180, defaults = { origin: { y: 0.65 } };
