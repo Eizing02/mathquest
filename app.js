@@ -490,6 +490,27 @@ async function getStudentsInGradeDb(grade) {
   });
 }
 
+async function addNewStudentDb(studentId, studentName, grade) {
+  var client = getSupabase();
+  var sid = String(studentId || '').trim();
+  var name = String(studentName || '').trim();
+  var g = normalizeGrade(grade);
+  if (!sid || !name || !g) return { status: 'fail', msg: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
+  await runQuery(client.from('students').insert([{
+    id: sid,
+    name: name,
+    password: sid,
+    grade: g,
+    role: 'STUDENT',
+    photo_url: '',
+    is_first_login: true
+  }]).select('id'));
+  return {
+    status: 'success',
+    student: { id: sid, name: name, grade: g }
+  };
+}
+
 async function getStudentHistoryDb(studentId, targetMonth) {
   var client = getSupabase();
   var rows = await runQuery(client.from('attendance_logs')
@@ -1662,6 +1683,82 @@ function promptIndividualPDF() {
 }
 
 /* ══ Manual Check-in ═════════════════════════════════ */
+function resetAddStudentForm() {
+  document.getElementById('newStudentId').value = '';
+  document.getElementById('newStudentName').value = '';
+  document.getElementById('newStudentGrade').value = '';
+}
+
+function openAddStudentModal() {
+  resetAddStudentForm();
+  var modal = new bootstrap.Modal(document.getElementById('addStudentModal'));
+  modal.show();
+  setTimeout(function() {
+    var idEl = document.getElementById('newStudentId');
+    if (idEl) idEl.focus();
+  }, 250);
+}
+
+async function refreshStudentViewsAfterAdd(student) {
+  var manGrade = document.getElementById('manGrade');
+  if (manGrade && normalizeGrade(manGrade.value) === student.grade) {
+    await loadManualStudents();
+    var manStudent = document.getElementById('manStudent');
+    if (manStudent) manStudent.value = student.id;
+  }
+  var statGrade = document.getElementById('statGrade');
+  if (statsLoaded && statGrade && normalizeGrade(statGrade.value) === student.grade) {
+    await loadStats();
+  }
+  var walletGrade = document.getElementById('walletGrade');
+  if (walletGrade && normalizeGrade(walletGrade.value) === student.grade) {
+    await loadWalletSummary();
+  }
+  var reportGrade = document.getElementById('rewardReportGrade');
+  if (rewardReportCache && reportGrade) {
+    var rg = normalizeGrade(reportGrade.value);
+    if (rg === 'all' || rg === student.grade) await loadRewardReport();
+  }
+}
+
+async function addNewStudent() {
+  var sid = document.getElementById('newStudentId').value.trim();
+  var name = document.getElementById('newStudentName').value.trim();
+  var grade = document.getElementById('newStudentGrade').value;
+  if (!sid || !name || !grade) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'กรอกข้อมูลไม่ครบ',
+      text: 'กรุณากรอกรหัสประจำตัว ชื่อ-นามสกุล และห้องเรียนให้ครบถ้วน',
+      confirmButtonColor: '#4f46e5'
+    });
+  }
+  loading('กำลังเพิ่มนักเรียน...');
+  try {
+    var res = await addNewStudentDb(sid, name, grade);
+    Swal.close();
+    if (res.status !== 'success') {
+      return Swal.fire({ icon: 'error', title: 'เพิ่มนักเรียนไม่สำเร็จ', text: res.msg || '', confirmButtonColor: '#ef4444' });
+    }
+    bootstrap.Modal.getInstance(document.getElementById('addStudentModal'))?.hide();
+    await refreshStudentViewsAfterAdd(res.student);
+    Swal.fire({
+      icon: 'success',
+      title: 'เพิ่มนักเรียนสำเร็จ',
+      text: res.student.name + ' (' + res.student.grade + ')',
+      confirmButtonColor: '#10b981',
+      timer: 1800,
+      timerProgressBar: true
+    });
+  } catch (e) {
+    Swal.close();
+    var msg = e && e.code === '23505'
+      ? 'รหัสประจำตัวนักเรียนนี้มีอยู่ในระบบแล้ว'
+      : (e.message || 'ไม่สามารถเพิ่มนักเรียนได้');
+    Swal.fire({ icon: 'error', title: 'เพิ่มนักเรียนไม่สำเร็จ', text: msg, confirmButtonColor: '#ef4444' });
+  }
+}
+
 async function loadManualStudents() {
   var g = document.getElementById('manGrade').value;
   var sel = document.getElementById('manStudent');

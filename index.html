@@ -292,6 +292,11 @@
             <h6 class="fw-bold mb-4" style="color:var(--pri)">
               <i class="fa-solid fa-hand-pointer me-2"></i>เช็คชื่อ / แก้ไข ด้วยมือ
             </h6>
+            <button class="btn btn-sm fw-bold w-100 mb-3"
+                    style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:12px"
+                    onclick="openAddStudentModal()">
+              <i class="fa-solid fa-user-plus me-1"></i>เพิ่มนักเรียนใหม่
+            </button>
             <label class="form-label">ระดับชั้น</label>
             <select id="manGrade" class="form-select mb-3" onchange="loadManualStudents()">
               <option value="">-- เลือกชั้น --</option>
@@ -584,6 +589,58 @@
       <p class="mt-5">ลงชื่อ.....................................ครูผู้สอน</p>
       <p>( <span id="printTeacher"></span> )</p>
       <p>วันที่........../.........../.............</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ TEACHER: ADD STUDENT MODAL ════════ -->
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px">
+    <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.15)">
+      <div class="modal-header" style="border-radius:20px 20px 0 0;background:linear-gradient(135deg,#064e3b,#10b981);color:#fff;border:none">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus me-2"></i>เพิ่มนักเรียนใหม่</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <label class="form-label">รหัสประจำตัวนักเรียน</label>
+        <input type="text" id="newStudentId" class="form-control mb-3" inputmode="numeric" placeholder="เช่น 02375" autocomplete="off">
+
+        <label class="form-label">ชื่อ-นามสกุล</label>
+        <input type="text" id="newStudentName" class="form-control mb-3" placeholder="เช่น เด็กชาย..." autocomplete="off">
+
+        <label class="form-label">ระดับชั้น/ห้องเรียนย่อย</label>
+        <select id="newStudentGrade" class="form-select mb-3">
+          <option value="">-- เลือกห้องเรียน --</option>
+          <optgroup label="มัธยมศึกษาปีที่ 1">
+            <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
+          </optgroup>
+          <optgroup label="มัธยมศึกษาปีที่ 2">
+            <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
+          </optgroup>
+          <optgroup label="มัธยมศึกษาปีที่ 3">
+            <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
+          </optgroup>
+          <optgroup label="มัธยมศึกษาปีที่ 4">
+            <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
+          </optgroup>
+          <optgroup label="มัธยมศึกษาปีที่ 5">
+            <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
+          </optgroup>
+          <optgroup label="มัธยมศึกษาปีที่ 6">
+            <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
+          </optgroup>
+        </select>
+
+        <div class="alert mb-0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px;font-size:.8rem;color:#065f46">
+          รหัสผ่านเริ่มต้นจะเป็นรหัสประจำตัวนักเรียน และระบบจะบังคับเปลี่ยนรหัสผ่านเมื่อเข้าใช้งานครั้งแรก
+        </div>
+      </div>
+      <div class="modal-footer border-0 px-4 pb-4 pt-0">
+        <button type="button" class="btn btn-outline-secondary fw-bold px-4" style="border-radius:12px" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn fw-bold px-4" style="background:#10b981;color:#fff;border-radius:12px" onclick="addNewStudent()">
+          <i class="fa-solid fa-floppy-disk me-1"></i>บันทึก
+        </button>
+      </div>
     </div>
   </div>
 </div>
