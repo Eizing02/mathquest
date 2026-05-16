@@ -9,7 +9,7 @@ var configAlertShown = false;
 /* ══ State ════════════════════════════════════════════ */
 var CU = {}, cDonut = null, cBar = null;
 var statsLoaded = false, statsCache = null;
-var studentGpsData = null, refreshCooldown = false;
+var refreshCooldown = false;
 var settingsLogoUrl = '', settingsColor = '#4f46e5';
 var appSettings = {
   appName: 'ระบบเช็คชื่อนักเรียน',
@@ -204,17 +204,6 @@ function sanitizeFilename(name) {
 function matchesMonth(value, targetMonth) {
   if (!targetMonth || targetMonth === 'all') return true;
   return monthNumberBangkok(value) === String(targetMonth);
-}
-
-function haversineM(lat1, lon1, lat2, lon2) {
-  var R = 6371000;
-  var r1 = lat1 * Math.PI / 180;
-  var r2 = lat2 * Math.PI / 180;
-  var dr = (lat2 - lat1) * Math.PI / 180;
-  var dl = (lon2 - lon1) * Math.PI / 180;
-  var a = Math.sin(dr / 2) * Math.sin(dr / 2) +
-    Math.cos(r1) * Math.cos(r2) * Math.sin(dl / 2) * Math.sin(dl / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 async function runQuery(promise) {
@@ -592,14 +581,11 @@ async function getDashboardChartDataDb(grade) {
 }
 
 async function getCurrentSessionStatusDb() {
-  var s = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start', 'teacher_lat', 'teacher_lon', 'teacher_accuracy']);
+  var s = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start']);
   var pin = (s.pin || '').trim();
   var expiry = safeDate(s.pin_expiry);
   var grade = (s.current_grade || '').trim();
   var start = safeDate(s.session_start);
-  var tLat = toNumber(s.teacher_lat, 0);
-  var tLon = toNumber(s.teacher_lon, 0);
-  var tAcc = toNumber(s.teacher_accuracy, 9999);
   if (!pin || !expiry || !grade) return { active: false };
   return {
     active: true,
@@ -607,42 +593,33 @@ async function getCurrentSessionStatusDb() {
     grade: grade,
     expiry: formatTime(expiry),
     startTime: start ? start.getTime() : null,
-    expired: new Date() > expiry,
-    hasGps: tLat !== 0 && tLon !== 0 && tAcc <= 500,
-    teacherAccuracy: Math.round(tAcc)
+    expired: new Date() > expiry
   };
 }
 
-async function generateNewPINDb(targetGrade, lat, lon, accuracy) {
+async function generateNewPINDb(targetGrade) {
   if (!targetGrade) return { status: 'fail', message: 'กรุณาเลือกระดับชั้น' };
   var pin = Math.floor(1000 + Math.random() * 9000).toString();
   var now = new Date();
   var expiry = new Date(now.getTime() + 40 * 60000);
-  var tLat = lat && !isNaN(Number(lat)) ? Number(lat) : 0;
-  var tLon = lon && !isNaN(Number(lon)) ? Number(lon) : 0;
-  var tAcc = accuracy && !isNaN(Number(accuracy)) ? Number(accuracy) : 9999;
   await upsertSettings({
     pin: pin,
     pin_expiry: expiry.toISOString(),
-    current_grade: targetGrade,
-    session_start: now.toISOString(),
-    teacher_lat: tLat,
-    teacher_lon: tLon,
-    teacher_accuracy: tAcc
+    current_grade: normalizeGrade(targetGrade),
+    session_start: now.toISOString()
   });
   return {
     status: 'success',
     pin: pin,
     expiry: formatTime(expiry),
-    startTime: now.getTime(),
-    hasGps: tLat !== 0 && tLon !== 0 && tAcc <= 500
+    startTime: now.getTime()
   };
 }
 
-async function submitCheckInDb(studentId, pinCode, sLat, sLon, sAcc) {
+async function submitCheckInDb(studentId, pinCode) {
   var client = getSupabase();
   var cid = String(studentId).trim();
-  var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start', 'teacher_lat', 'teacher_lon', 'teacher_accuracy']);
+  var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start']);
   if (!settings.pin) return { result: 'error', msg: 'ยังไม่มีคาบเรียนที่เปิดอยู่' };
   var pin = String(settings.pin || '').trim();
   var expiry = safeDate(settings.pin_expiry);
@@ -652,20 +629,6 @@ async function submitCheckInDb(studentId, pinCode, sLat, sLon, sAcc) {
   if (!expiry) return { result: 'error', msg: 'การตั้งค่าไม่ถูกต้อง' };
   if (String(pinCode).trim() !== pin) return { result: 'error', msg: 'รหัส PIN ไม่ถูกต้อง ❌' };
   if (now > expiry) return { result: 'error', msg: 'รหัส PIN หมดอายุแล้ว ⏰' };
-
-  var tLat = toNumber(settings.teacher_lat, 0);
-  var tLon = toNumber(settings.teacher_lon, 0);
-  var tAcc = toNumber(settings.teacher_accuracy, 9999);
-  if (tLat !== 0 && tLon !== 0 && tAcc <= 500) {
-    var cLat = Number(sLat), cLon = Number(sLon);
-    if (!sLat || !sLon || isNaN(cLat) || isNaN(cLon)) {
-      return { result: 'error', msg: 'กรุณาเปิด GPS บนอุปกรณ์ของคุณก่อนเช็คชื่อ 📍' };
-    }
-    var dist = haversineM(tLat, tLon, cLat, cLon);
-    if (dist > 50) {
-      return { result: 'error', msg: 'คุณอยู่ห่างจากห้องเรียน ' + Math.round(dist) + ' เมตร (ต้องอยู่ในระยะ 50 เมตร) ❌' };
-    }
-  }
 
   var existing = await runQuery(client.from('attendance_logs')
     .select('id,timestamp')
@@ -730,10 +693,7 @@ async function closeAttendanceAndMarkAbsentDb() {
     pin: '',
     pin_expiry: '',
     current_grade: '',
-    session_start: '',
-    teacher_lat: '',
-    teacher_lon: '',
-    teacher_accuracy: ''
+    session_start: ''
   });
   return { status: 'success', msg: 'เช็คขาด ' + grade + ' จำนวน ' + rows.length + ' คน เรียบร้อย ✅' };
 }
@@ -1029,56 +989,6 @@ function applyAppSettings(s) {
   }
 }
 
-/* ══ GPS Helpers ═════════════════════════════════════ */
-function getGPS(ms) {
-  return new Promise(function(res, rej) {
-    if (!navigator.geolocation) {
-      rej(new Error('อุปกรณ์ไม่รองรับ GPS'));
-      return;
-    }
-    var done = false;
-    var t = setTimeout(function() {
-      if (!done) {
-        done = true;
-        rej(new Error('GPS timeout — กรุณาเปิด GPS'));
-      }
-    }, ms || 15000);
-    navigator.geolocation.getCurrentPosition(
-      function(p) {
-        if (done) return;
-        done = true;
-        clearTimeout(t);
-        res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || 999 });
-      },
-      function(e) {
-        if (done) return;
-        done = true;
-        clearTimeout(t);
-        var m = { 1: 'กรุณาอนุญาต GPS', 2: 'ไม่พบสัญญาณ GPS', 3: 'GPS timeout' };
-        rej(new Error(m[e.code] || 'ไม่สามารถรับ GPS'));
-      },
-      { enableHighAccuracy: true, timeout: (ms || 15000) - 2000, maximumAge: 0 }
-    );
-  });
-}
-
-function warmUpStudentGPS() {
-  var st = document.getElementById('studentGpsStatus');
-  st.className = 'gps-student loading';
-  st.innerHTML = '<i class="fa-solid fa-location-dot fa-spin"></i> กำลังรับ GPS...';
-  studentGpsData = null;
-  getGPS(20000).then(function(g) {
-    studentGpsData = g;
-    var txt = g.acc < 100 ? '±' + Math.round(g.acc) + 'ม. ✓' : '±' + Math.round(g.acc) + 'ม.';
-    st.className = 'gps-student ok';
-    st.innerHTML = '<i class="fa-solid fa-location-dot"></i> GPS พร้อม ' + txt;
-  }).catch(function(e) {
-    studentGpsData = null;
-    st.className = 'gps-student no';
-    st.innerHTML = '<i class="fa-solid fa-location-slash"></i> ' + e.message;
-  });
-}
-
 /* ══ Login ═══════════════════════════════════════════ */
 async function login() {
   var u = document.getElementById('username').value.trim();
@@ -1111,7 +1021,6 @@ async function login() {
           await forceChangePassword(res.id);
         }
         await loadStudentProfile();
-        warmUpStudentGPS();
         shopWallet = await getWalletBalanceDb(CU.id);
         updateShopCoinsBadge(shopWallet.mathCoins);
       }
@@ -1192,30 +1101,9 @@ async function checkIn() {
   if (pin.length !== 4) {
     return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุ PIN 4 หลัก', confirmButtonColor: '#4f46e5' });
   }
-  var gps = studentGpsData;
-  if (!gps) {
-    loading('กำลังรับ GPS...');
-    try {
-      gps = await getGPS(15000);
-      studentGpsData = gps;
-      Swal.close();
-    } catch (e) {
-      Swal.close();
-      var r = await Swal.fire({
-        icon: 'warning',
-        title: 'GPS ไม่พร้อม',
-        html: '<p>' + escHtml(e.message) + '</p><p class="small text-muted mt-2">หากครูไม่ได้ตั้ง GPS zone ก็สามารถเช็คชื่อได้ปกติ</p>',
-        showCancelButton: true,
-        confirmButtonText: 'ลองต่อเลย',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#4f46e5'
-      });
-      if (!r.isConfirmed) return;
-    }
-  }
   loading('กำลังบันทึก...');
   try {
-    var res = await submitCheckInDb(CU.id, pin, gps ? gps.lat : null, gps ? gps.lon : null, gps ? gps.acc : null);
+    var res = await submitCheckInDb(CU.id, pin);
     if (res.result === 'success') {
       var pts = res.points || 0;
       Swal.fire({
@@ -1227,7 +1115,6 @@ async function checkIn() {
         timerProgressBar: true
       });
       document.getElementById('pinCode').value = '';
-      studentGpsData = null;
       setTimeout(async function() {
         try {
           var d = await getStudentPointsAndLevelDb(CU.id);
@@ -1266,8 +1153,6 @@ function refreshStudentData() {
   icon.className = 'fa-solid fa-rotate-right fa-spin';
   btn.disabled = true;
   loadStudentProfile();
-  studentGpsData = null;
-  warmUpStudentGPS();
   var secs = 30;
   lbl.textContent = 'รอ ' + secs + 's';
   var t = setInterval(function() {
@@ -1329,7 +1214,6 @@ async function loadCurrentSession() {
     var bar = document.getElementById('sessBar');
     var txt = document.getElementById('sessText');
     var dot = document.getElementById('sessDot');
-    var tg = document.getElementById('teacherGpsStatus');
     if (res && res.active) {
       if (res.expired) {
         bar.className = 'sess-bar expired';
@@ -1343,14 +1227,10 @@ async function loadCurrentSession() {
         document.getElementById('expiryLabel').textContent = 'หมดอายุ ' + res.expiry + ' น.';
         document.getElementById('pinGradeLabel').textContent = 'ชั้น ' + res.grade;
       }
-      tg.className = 'gps-badge ' + (res.hasGps ? 'gps-ok' : 'gps-warn');
-      tg.innerHTML = '<span class="gps-dot"></span>' + (res.hasGps ? 'GPS ✓ (±' + res.teacherAccuracy + 'ม.)' : 'ไม่มี GPS Zone');
     } else {
       bar.className = 'sess-bar closed';
       dot.textContent = '—';
       txt.textContent = 'ยังไม่มีคาบเรียนที่เปิดอยู่';
-      tg.className = 'gps-badge gps-off';
-      tg.innerHTML = '<span class="gps-dot"></span>รอ GPS';
     }
   } catch (e) {}
 }
@@ -1358,56 +1238,14 @@ async function loadCurrentSession() {
 async function generatePIN() {
   var g = document.getElementById('targetGrade').value;
   if (!g) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกระดับชั้น', confirmButtonColor: '#4f46e5' });
-  var tg = document.getElementById('teacherGpsStatus');
-  tg.className = 'gps-badge gps-off';
-  tg.innerHTML = '<span class="gps-dot"></span><i class="fa-solid fa-spinner fa-spin me-1"></i>รับ GPS...';
-  loading('กำลังรับ GPS...');
-  var lat = 0, lon = 0, acc = 9999;
-  try {
-    var gps = await getGPS(15000);
-    lat = gps.lat; lon = gps.lon; acc = gps.acc;
-    if (acc > 500) {
-      var r1 = await Swal.fire({
-        icon: 'warning',
-        title: 'GPS ไม่แม่นยำ',
-        html: 'ความแม่นยำ ±' + Math.round(acc) + ' เมตร<br>ต้องการดำเนินการต่อหรือไม่?',
-        showCancelButton: true,
-        confirmButtonText: 'สร้าง PIN',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#4f46e5'
-      });
-      if (!r1.isConfirmed) {
-        tg.className = 'gps-badge gps-warn';
-        tg.innerHTML = '<span class="gps-dot"></span>GPS ไม่แม่นยำ';
-        return;
-      }
-    }
-  } catch (e) {
-    var r2 = await Swal.fire({
-      icon: 'warning',
-      title: 'ไม่สามารถรับ GPS',
-      html: '<p>' + escHtml(e.message) + '</p><p class="small mt-1">สร้าง PIN โดยไม่มี GPS zone หรือไม่?</p>',
-      showCancelButton: true,
-      confirmButtonText: 'สร้างต่อ (ไม่มี GPS)',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#f59e0b'
-    });
-    if (!r2.isConfirmed) {
-      tg.className = 'gps-badge gps-off';
-      tg.innerHTML = '<span class="gps-dot"></span>รอ GPS';
-      return;
-    }
-  }
   loading('กำลังสร้างรหัส...');
   try {
-    var res = await generateNewPINDb(g, lat, lon, acc);
+    var res = await generateNewPINDb(g);
     Swal.close();
     if (res.status === 'success') {
       document.getElementById('displayPIN').textContent = res.pin;
       document.getElementById('expiryLabel').textContent = 'หมดอายุ ' + res.expiry + ' น.';
       document.getElementById('pinGradeLabel').textContent = 'ชั้น ' + g;
-      tg.className = 'gps-badge ' + (res.hasGps ? 'gps-ok' : 'gps-warn');
-      tg.innerHTML = '<span class="gps-dot"></span>' + (res.hasGps ? 'GPS ✓ (±' + Math.round(acc) + 'ม.)' : 'ไม่มี GPS Zone');
       await loadCurrentSession();
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message });
@@ -1436,9 +1274,6 @@ function closeSession() {
         document.getElementById('displayPIN').textContent = '- - - -';
         document.getElementById('expiryLabel').textContent = '';
         document.getElementById('pinGradeLabel').textContent = '';
-        var tg = document.getElementById('teacherGpsStatus');
-        tg.className = 'gps-badge gps-off';
-        tg.innerHTML = '<span class="gps-dot"></span>รอ GPS';
         await loadCurrentSession();
         if (statsLoaded) await loadStats();
       } else {

@@ -87,9 +87,6 @@
     <div class="s-card mb-3">
       <div class="text-center mb-2">
         <h6 class="fw-bold mb-0"><i class="fa-solid fa-key me-2" style="color:#f59e0b"></i>ระบุรหัส PIN 4 หลัก</h6>
-        <div id="studentGpsStatus" class="gps-student loading">
-          <i class="fa-solid fa-location-dot fa-spin"></i> รอ GPS...
-        </div>
       </div>
       <input type="text" class="pin-input mb-3" id="pinCode"
              inputmode="numeric" maxlength="4" placeholder="• • • •"
@@ -175,11 +172,6 @@
                     style="background:var(--pri);color:#fff;border-radius:12px" onclick="generatePIN()">
               <i class="fa-solid fa-shuffle me-2"></i>สุ่มรหัส PIN (40 นาที)
             </button>
-            <div class="text-center">
-              <span id="teacherGpsStatus" class="gps-badge gps-off">
-                <span class="gps-dot"></span>รอ GPS
-              </span>
-            </div>
             <div class="pin-box">
               <div class="pin-digits" id="displayPIN">- - - -</div>
               <div class="pin-sub" style="color:#818cf8" id="pinGradeLabel"></div>
@@ -192,7 +184,7 @@
             <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-door-closed me-2"></i>ปิดคาบเรียน</h6>
             <p class="text-muted" style="font-size:.84rem">
               กดเพื่อลงสถานะ "ขาด" ให้นักเรียนที่ไม่ได้เช็คชื่อ<br>
-              PIN และ GPS zone จะถูกลบทันที
+              PIN จะถูกลบทันที
             </p>
             <button class="btn btn-danger fw-bold w-100 mt-auto" style="border-radius:12px;padding:12px" onclick="closeSession()">
               <i class="fa-solid fa-xmark-circle me-2"></i>ปิดคาบและเช็คขาด
