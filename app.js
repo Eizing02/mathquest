@@ -24,6 +24,7 @@ var tShopItems = null;
 var tShopOrders = null;
 var tOrderFilter = 'all';
 var itemImageUrl = '';
+var rewardReportCache = null;
 
 // Student Shop State
 var shopItems = null, shopWallet = null, shopTabCurrent = 'shop';
@@ -923,6 +924,113 @@ async function getAllRedemptionsForTeacherDb() {
   });
 }
 
+async function getRewardRedemptionReportDb(grade) {
+  var client = getSupabase();
+  var targetGrade = normalizeGrade(grade);
+  var studentsQuery = client.from('students')
+    .select('id,name,grade')
+    .order('id', { ascending: true });
+  if (targetGrade && targetGrade !== 'all') {
+    studentsQuery = studentsQuery.eq('grade', targetGrade);
+  }
+  var students = await runQuery(studentsQuery);
+  var studentMap = {};
+  var studentIds = [];
+  (students || []).forEach(function(st) {
+    studentMap[st.id] = {
+      id: st.id,
+      name: st.name || '',
+      grade: st.grade || ''
+    };
+    studentIds.push(st.id);
+  });
+  if (!studentIds.length) return [];
+
+  var orders = await runQuery(client.from('redemption_logs')
+    .select('id,timestamp,student_id,item_id,item_name,points_used,status')
+    .in('student_id', studentIds)
+    .order('timestamp', { ascending: false }));
+  var rows = (orders || []).map(function(row) {
+    var st = studentMap[row.student_id] || {};
+    return {
+      rowIndex: row.id,
+      studentId: row.student_id || '',
+      studentName: st.name || row.student_id || '',
+      grade: st.grade || '',
+      itemId: String(row.item_id || '').trim(),
+      itemName: String(row.item_name || '').trim(),
+      cost: Number(row.points_used) || 0,
+      timestamp: safeDate(row.timestamp) ? safeDate(row.timestamp).getTime() : 0,
+      date: formatDateTime(row.timestamp),
+      status: String(row.status || 'pending').trim()
+    };
+  });
+  return groupRewardRedemptionRows(rows);
+}
+
+function groupRewardRedemptionRows(rows) {
+  var studentMap = {};
+  var groupSeq = 1;
+  (rows || []).forEach(function(row) {
+    var sid = row.studentId || '';
+    if (!studentMap[sid]) {
+      studentMap[sid] = {
+        studentId: sid,
+        studentName: row.studentName || sid,
+        grade: row.grade || '',
+        items: [],
+        itemMap: {},
+        totalQty: 0
+      };
+    }
+    var student = studentMap[sid];
+    var itemKey = row.itemId || row.itemName || 'unknown';
+    if (!student.itemMap[itemKey]) {
+      student.itemMap[itemKey] = {
+        groupId: groupSeq++,
+        rowIds: [],
+        itemId: row.itemId || '',
+        itemName: row.itemName || 'ไม่ระบุของรางวัล',
+        quantity: 0,
+        totalCost: 0,
+        latestTimestamp: 0,
+        latestDate: '',
+        statusCounts: { pending: 0, approved: 0, rejected: 0 },
+        status: 'pending'
+      };
+      student.items.push(student.itemMap[itemKey]);
+    }
+    var item = student.itemMap[itemKey];
+    item.rowIds.push(row.rowIndex);
+    item.quantity++;
+    item.totalCost += Number(row.cost) || 0;
+    if (row.timestamp >= item.latestTimestamp) {
+      item.latestTimestamp = row.timestamp;
+      item.latestDate = row.date || '';
+    }
+    var st = ['pending', 'approved', 'rejected'].indexOf(row.status) === -1 ? 'pending' : row.status;
+    item.statusCounts[st]++;
+    student.totalQty++;
+  });
+  return Object.keys(studentMap).map(function(sid) {
+    var student = studentMap[sid];
+    delete student.itemMap;
+    student.items.forEach(function(item) {
+      var activeStatuses = Object.keys(item.statusCounts).filter(function(st) {
+        return item.statusCounts[st] > 0;
+      });
+      item.status = activeStatuses.length === 1 ? activeStatuses[0] : 'mixed';
+    });
+    student.items.sort(function(a, b) {
+      return b.latestTimestamp - a.latestTimestamp || a.itemName.localeCompare(b.itemName, 'th');
+    });
+    return student;
+  }).sort(function(a, b) {
+    return String(a.grade).localeCompare(String(b.grade), 'th') ||
+      String(a.studentId).localeCompare(String(b.studentId), 'th');
+  });
+}
+
 async function updateRedemptionStatusByRowDb(rowId, newStatus) {
   if (['approved', 'rejected', 'pending'].indexOf(newStatus) === -1) {
     return { status: 'fail', msg: 'สถานะไม่ถูกต้อง' };
@@ -931,6 +1039,20 @@ async function updateRedemptionStatusByRowDb(rowId, newStatus) {
   await runQuery(client.from('redemption_logs')
     .update({ status: newStatus })
     .eq('id', Number(rowId))
+    .select('id'));
+  return { status: 'success' };
+}
+
+async function updateRedemptionStatusByIdsDb(rowIds, newStatus) {
+  if (['approved', 'rejected', 'pending'].indexOf(newStatus) === -1) {
+    return { status: 'fail', msg: 'สถานะไม่ถูกต้อง' };
+  }
+  var ids = (rowIds || []).map(function(id) { return Number(id); }).filter(function(id) { return !isNaN(id); });
+  if (!ids.length) return { status: 'fail', msg: 'ไม่พบรายการที่ต้องอัปเดต' };
+  var client = getSupabase();
+  await runQuery(client.from('redemption_logs')
+    .update({ status: newStatus })
+    .in('id', ids)
     .select('id'));
   return { status: 'success' };
 }
@@ -1205,6 +1327,7 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   if (name === 'stats') loadStats();
   if (name === 'shop') loadTeacherShopItems();
+  if (name === 'reward-report') loadRewardReport();
 }
 
 /* ══ Teacher Session ═════════════════════════════════ */
@@ -1752,6 +1875,251 @@ function logout() {
   shopItems = null;
   shopWallet = null;
   location.reload();
+}
+
+async function loadRewardReport() {
+  var wrap = document.getElementById('rewardReportGroups');
+  var spinner = document.getElementById('rewardReportSpinner');
+  var countEl = document.getElementById('rewardReportCount');
+  if (!wrap) return;
+  var grade = document.getElementById('rewardReportGrade') ? document.getElementById('rewardReportGrade').value : 'all';
+  if (spinner) spinner.classList.remove('hidden');
+  wrap.innerHTML = '';
+  if (countEl) countEl.textContent = 'กำลังโหลด...';
+  try {
+    var groups = await getRewardRedemptionReportDb(grade);
+    rewardReportCache = groups;
+    if (spinner) spinner.classList.add('hidden');
+    renderRewardReport(groups);
+  } catch (e) {
+    if (spinner) spinner.classList.add('hidden');
+    if (countEl) countEl.textContent = 'โหลดไม่สำเร็จ';
+    wrap.innerHTML = '<div class="text-center py-4 text-danger">โหลดรายงานไม่สำเร็จ: ' + escHtml(e.message || '') + '</div>';
+  }
+}
+
+function rewardReportStatusBadge(status) {
+  if (status === 'approved') return '<span class="badge rounded-pill text-bg-success">อนุมัติแล้ว</span>';
+  if (status === 'rejected') return '<span class="badge rounded-pill text-bg-danger">ปฏิเสธ</span>';
+  if (status === 'mixed') return '<span class="badge rounded-pill text-bg-secondary">หลายสถานะ</span>';
+  return '<span class="badge rounded-pill text-bg-warning text-dark">รอดำเนินการ</span>';
+}
+
+function rewardReportActionButtons(item) {
+  var pendingDisabled = item.status === 'pending' ? ' disabled' : '';
+  var approvedDisabled = item.status === 'approved' ? ' disabled' : '';
+  var rejectedDisabled = item.status === 'rejected' ? ' disabled' : '';
+  return '<div class="d-flex gap-1 justify-content-center flex-wrap">'
+    + '<button class="btn btn-sm btn-outline-warning fw-bold" style="border-radius:8px;font-size:.72rem"'
+    + pendingDisabled + ' onclick="setRewardReportStatus(' + item.groupId + ',\'pending\')">รอ</button>'
+    + '<button class="btn btn-sm btn-outline-success fw-bold" style="border-radius:8px;font-size:.72rem"'
+    + approvedDisabled + ' onclick="setRewardReportStatus(' + item.groupId + ',\'approved\')">อนุมัติ</button>'
+    + '<button class="btn btn-sm btn-outline-danger fw-bold" style="border-radius:8px;font-size:.72rem"'
+    + rejectedDisabled + ' onclick="setRewardReportStatus(' + item.groupId + ',\'rejected\')">ปฏิเสธ</button>'
+    + '</div>';
+}
+
+function renderRewardReport(groups) {
+  var wrap = document.getElementById('rewardReportGroups');
+  var countEl = document.getElementById('rewardReportCount');
+  var totalItems = 0, totalQty = 0;
+  (groups || []).forEach(function(st) {
+    totalItems += st.items.length;
+    totalQty += st.totalQty || 0;
+  });
+  if (countEl) countEl.textContent = 'พบ ' + groups.length + ' คน | ' + totalItems + ' ชนิด | ' + totalQty + ' ชิ้น';
+  if (!groups.length) {
+    wrap.innerHTML = '<div class="text-center py-4 text-muted">ไม่พบรายการแลกของรางวัลในห้องที่เลือก</div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="accordion" id="rewardReportAccordion">' + groups.map(function(student, i) {
+    var collapseId = 'reward-student-' + i;
+    var itemRows = student.items.map(function(item, n) {
+      return '<tr>'
+        + '<td class="text-muted">' + (n + 1) + '</td>'
+        + '<td class="fw-semibold">' + escHtml(item.itemName) + ' <span class="badge text-bg-primary ms-1">x' + item.quantity + '</span></td>'
+        + '<td class="text-center">' + item.totalCost + '</td>'
+        + '<td style="white-space:nowrap">' + escHtml(item.latestDate) + '</td>'
+        + '<td>' + rewardReportStatusBadge(item.status) + '</td>'
+        + '<td class="text-center">' + rewardReportActionButtons(item) + '</td>'
+        + '</tr>';
+    }).join('');
+    return '<div class="accordion-item mb-2 border rounded-3 overflow-hidden">'
+      + '<h2 class="accordion-header" id="' + collapseId + '-head">'
+      + '<button class="accordion-button ' + (i === 0 ? '' : 'collapsed') + '" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (i === 0 ? 'true' : 'false') + '" aria-controls="' + collapseId + '">'
+      + '<div class="d-flex flex-column flex-md-row gap-1 gap-md-3 w-100 pe-3">'
+      + '<span class="fw-bold">' + escHtml(student.studentName) + '</span>'
+      + '<span class="text-muted">' + escHtml(student.studentId) + ' | ' + escHtml(student.grade) + '</span>'
+      + '<span class="badge text-bg-light border ms-md-auto">' + student.items.length + ' ชนิด / ' + student.totalQty + ' ชิ้น</span>'
+      + '</div></button></h2>'
+      + '<div id="' + collapseId + '" class="accordion-collapse collapse ' + (i === 0 ? 'show' : '') + '" aria-labelledby="' + collapseId + '-head" data-bs-parent="#rewardReportAccordion">'
+      + '<div class="accordion-body p-0"><div class="table-responsive">'
+      + '<table class="table table-sm table-hover align-middle mb-0">'
+      + '<thead class="table-light"><tr><th style="width:54px">#</th><th>ของรางวัล</th><th class="text-center">ใช้เหรียญ</th><th>ล่าสุด</th><th>สถานะ</th><th class="text-center">จัดการ</th></tr></thead>'
+      + '<tbody>' + itemRows + '</tbody></table></div></div></div></div>';
+  }).join('') + '</div>';
+}
+
+function findRewardReportItem(groupId) {
+  var found = null;
+  (rewardReportCache || []).forEach(function(student) {
+    student.items.forEach(function(item) {
+      if (item.groupId === groupId) found = item;
+    });
+  });
+  return found;
+}
+
+async function setRewardReportStatus(groupId, newStatus) {
+  var item = findRewardReportItem(groupId);
+  if (!item) return Swal.fire({ icon: 'error', title: 'ไม่พบรายการ', confirmButtonColor: '#ef4444' });
+  var label = newStatus === 'approved' ? 'อนุมัติแล้ว' : (newStatus === 'rejected' ? 'ปฏิเสธ' : 'รอดำเนินการ');
+  var note = newStatus === 'rejected'
+    ? '<br><small class="text-muted">ระบบคำนวณเหรียญคงเหลือโดยไม่นับรายการที่ถูกปฏิเสธ จึงถือว่าเด็กได้คะแนนคืน</small>'
+    : (newStatus === 'approved'
+      ? '<br><small class="text-muted">ใช้เมื่อมอบของรางวัลให้นักเรียนเรียบร้อยแล้ว</small>'
+      : '<br><small class="text-muted">รายการทั้งหมดในกลุ่มนี้จะกลับไปรอดำเนินการ</small>');
+  var r = await Swal.fire({
+    icon: newStatus === 'approved' ? 'success' : 'warning',
+    title: 'ยืนยันการเปลี่ยนสถานะ?',
+    html: 'ต้องการเปลี่ยนสถานะ <b>' + escHtml(item.itemName) + ' x' + item.quantity + '</b> เป็น <b>' + label + '</b>' + note,
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยัน',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: newStatus === 'approved' ? '#10b981' : '#ef4444'
+  });
+  if (!r.isConfirmed) return;
+  loading('กำลังอัปเดตสถานะ...');
+  try {
+    var res = await updateRedemptionStatusByIdsDb(item.rowIds, newStatus);
+    Swal.close();
+    if (res.status !== 'success') {
+      Swal.fire({ icon: 'error', title: 'อัปเดตไม่สำเร็จ', text: res.msg || '', confirmButtonColor: '#ef4444' });
+      return;
+    }
+    item.status = newStatus;
+    item.statusCounts = { pending: 0, approved: 0, rejected: 0 };
+    item.statusCounts[newStatus] = item.quantity;
+    renderRewardReport(rewardReportCache || []);
+    if (tShopOrders) {
+      tShopOrders.forEach(function(row) {
+        if (item.rowIds.indexOf(row.rowIndex) !== -1) row.status = newStatus;
+      });
+    }
+    Swal.fire({ icon: 'success', title: 'อัปเดตสถานะแล้ว', timer: 1300, timerProgressBar: true, confirmButtonColor: '#10b981' });
+  } catch (e) {
+    onErr(e);
+  }
+}
+
+function rewardReportStatusText(status) {
+  if (status === 'approved') return 'อนุมัติแล้ว';
+  if (status === 'rejected') return 'ปฏิเสธ';
+  if (status === 'mixed') return 'หลายสถานะ';
+  return 'รอดำเนินการ';
+}
+
+function ensureRewardReportLoaded() {
+  if (!rewardReportCache || !rewardReportCache.length) {
+    Swal.fire({
+      icon: 'info',
+      title: 'ยังไม่มีข้อมูลสำหรับ Export',
+      text: 'กรุณาโหลดรายงานการแลกของรางวัลก่อน',
+      confirmButtonColor: '#4f46e5'
+    });
+    return false;
+  }
+  return true;
+}
+
+function getRewardReportExportRows() {
+  var rows = [];
+  (rewardReportCache || []).forEach(function(student, studentIndex) {
+    student.items.forEach(function(item) {
+      rows.push({
+        no: studentIndex + 1,
+        studentId: student.studentId,
+        studentName: student.studentName,
+        grade: student.grade,
+        itemName: item.itemName,
+        quantity: item.quantity,
+        totalCost: item.totalCost,
+        latestDate: item.latestDate,
+        status: rewardReportStatusText(item.status)
+      });
+    });
+  });
+  return rows;
+}
+
+function getRewardReportExportMeta() {
+  var gradeEl = document.getElementById('rewardReportGrade');
+  var grade = gradeEl ? gradeEl.value : 'all';
+  return {
+    grade: grade === 'all' ? 'ทุกห้อง' : grade,
+    date: formatThaiLongDate(new Date())
+  };
+}
+
+function exportRewardReportCSV() {
+  if (!ensureRewardReportLoaded()) return;
+  var rows = [['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'วันที่ล่าสุด', 'สถานะ']];
+  getRewardReportExportRows().forEach(function(r) {
+    rows.push([r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.latestDate, r.status]);
+  });
+  var csv = rows.map(function(row) {
+    return row.map(function(c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+  var meta = getRewardReportExportMeta();
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'reward_picklist_' + meta.grade + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportRewardReportExcel() {
+  if (typeof XLSX === 'undefined') return Swal.fire({ icon: 'error', title: 'โหลด Library ไม่สำเร็จ' });
+  if (!ensureRewardReportLoaded()) return;
+  var meta = getRewardReportExportMeta();
+  var body = getRewardReportExportRows().map(function(r) {
+    return [r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.latestDate, r.status];
+  });
+  var ws = XLSX.utils.aoa_to_sheet([
+    ['Pick List รายงานการแลกของรางวัล'],
+    ['ห้อง: ' + meta.grade + ' | วันที่พิมพ์: ' + meta.date],
+    [],
+    ['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'วันที่ล่าสุด', 'สถานะ']
+  ].concat(body));
+  ws['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 10 }, { wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 18 }, { wch: 14 }];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Reward Pick List');
+  XLSX.writeFile(wb, 'reward_picklist_' + meta.grade + '.xlsx');
+}
+
+function exportRewardReportPDF() {
+  if (!ensureRewardReportLoaded()) return;
+  var meta = getRewardReportExportMeta();
+  var titleEl = document.querySelector('#printArea h3');
+  var oldTitle = titleEl ? titleEl.textContent : '';
+  if (titleEl) titleEl.textContent = 'Pick List รายงานการแลกของรางวัล';
+  document.getElementById('printSubtitle').textContent = 'ห้อง: ' + meta.grade;
+  document.getElementById('printDate').textContent = 'พิมพ์วันที่ ' + meta.date;
+  document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
+  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ห้อง</th><th>ของรางวัล</th><th>จำนวน</th><th>สถานะ</th></tr>';
+  document.getElementById('printBody').innerHTML = getRewardReportExportRows().map(function(r) {
+    return '<tr><td>' + r.no + '</td><td>' + escHtml(r.studentId) + '</td><td class="text-start">' + escHtml(r.studentName) + '</td><td>' + escHtml(r.grade) + '</td><td class="text-start">' + escHtml(r.itemName) + '</td><td>x' + r.quantity + '</td><td>' + escHtml(r.status) + '</td></tr>';
+  }).join('');
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() {
+      if (titleEl) titleEl.textContent = oldTitle || 'รายงานการเข้าเรียน';
+    }, 500);
+  }, 300);
 }
 
 /* ════════════════════════════════════════════════════
