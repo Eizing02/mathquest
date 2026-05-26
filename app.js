@@ -51,6 +51,14 @@ function normalizeGrade(g) {
   return String(g || '').trim();
 }
 
+function isStudentInSessionGrade(studentGrade, sessionGrade) {
+  var st = normalizeGrade(studentGrade);
+  var ss = normalizeGrade(sessionGrade);
+  if (!st || !ss) return false;
+  if (st === ss) return true;
+  return ss.indexOf('/') === -1 && st.indexOf(ss + '/') === 0;
+}
+
 function isSupabaseConfigured() {
   return SUPABASE_URL && SUPABASE_ANON_KEY &&
     SUPABASE_URL.indexOf('YOUR_') === -1 &&
@@ -211,6 +219,15 @@ async function runQuery(promise) {
   var res = await promise;
   if (res.error) throw res.error;
   return res.data;
+}
+
+async function getServerNowDb(client) {
+  try {
+    var value = await runQuery(client.rpc('get_server_now'));
+    var serverNow = safeDate(value);
+    if (serverNow) return serverNow;
+  } catch (e) {}
+  return new Date();
 }
 
 function mapShopItem(row) {
@@ -609,20 +626,29 @@ async function getCurrentSessionStatusDb() {
   var grade = (s.current_grade || '').trim();
   var start = safeDate(s.session_start);
   if (!pin || !expiry || !grade) return { active: false };
+  var now = await getServerNowDb(getSupabase());
   return {
     active: true,
     pin: pin,
     grade: grade,
     expiry: formatTime(expiry),
     startTime: start ? start.getTime() : null,
-    expired: new Date() > expiry
+    expired: now > expiry
   };
 }
 
 async function generateNewPINDb(targetGrade) {
   if (!targetGrade) return { status: 'fail', message: 'กรุณาเลือกระดับชั้น' };
+  var client = getSupabase();
+  var active = await getSettingsMap(['pin', 'pin_expiry', 'current_grade']);
+  if ((active.pin || '').trim() && safeDate(active.pin_expiry) && normalizeGrade(active.current_grade)) {
+    return {
+      status: 'active',
+      message: 'มีคาบชั้น ' + normalizeGrade(active.current_grade) + ' เปิดอยู่แล้ว กรุณาปิดคาบเดิมก่อนสุ่ม PIN ใหม่'
+    };
+  }
   var pin = Math.floor(1000 + Math.random() * 9000).toString();
-  var now = new Date();
+  var now = await getServerNowDb(client);
   var expiry = new Date(now.getTime() + 40 * 60000);
   await upsertSettings({
     pin: pin,
@@ -646,11 +672,23 @@ async function submitCheckInDb(studentId, pinCode) {
   var pin = String(settings.pin || '').trim();
   var expiry = safeDate(settings.pin_expiry);
   var startTime = safeDate(settings.session_start);
-  var now = new Date();
+  var now = await getServerNowDb(client);
   var grade = String(settings.current_grade || '').trim();
   if (!expiry) return { result: 'error', msg: 'การตั้งค่าไม่ถูกต้อง' };
   if (String(pinCode).trim() !== pin) return { result: 'error', msg: 'รหัส PIN ไม่ถูกต้อง ❌' };
-  if (now > expiry) return { result: 'error', msg: 'รหัส PIN หมดอายุแล้ว ⏰' };
+  if (!grade) return { result: 'error', msg: 'ไม่พบข้อมูลชั้นเรียนของคาบนี้' };
+
+  var student = await runQuery(client.from('students')
+    .select('id,grade')
+    .eq('id', cid)
+    .maybeSingle());
+  if (!student) return { result: 'error', msg: 'ไม่พบข้อมูลนักเรียน' };
+  if (!isStudentInSessionGrade(student.grade, grade)) {
+    return {
+      result: 'error',
+      msg: 'คาบนี้เปิดสำหรับชั้น ' + grade + ' แต่นักเรียนอยู่ชั้น ' + normalizeGrade(student.grade) + ' จึงเช็คชื่อไม่ได้'
+    };
+  }
 
   var existing = await runQuery(client.from('attendance_logs')
     .select('id,timestamp')
@@ -662,6 +700,7 @@ async function submitCheckInDb(studentId, pinCode) {
       return { result: 'duplicate', msg: 'เช็คชื่อวันนี้เรียบร้อยแล้ว ✅' };
     }
   }
+  if (now > expiry) return { result: 'error', msg: 'รหัส PIN หมดอายุแล้ว ⏰' };
 
   var pts = 0;
   if (startTime) {
@@ -680,16 +719,21 @@ async function submitCheckInDb(studentId, pinCode) {
   return { result: 'success', points: pts, grade: grade };
 }
 
-async function closeAttendanceAndMarkAbsentDb() {
+async function getPendingCloseSessionStudentsDb() {
   var client = getSupabase();
   var s = await getSettingsMap(['current_grade']);
   var grade = normalizeGrade(s.current_grade);
-  if (!grade) return { status: 'fail', msg: 'ไม่มีคาบเรียนที่เปิดอยู่' };
-  var students = await runQuery(client.from('students')
-    .select('id')
-    .eq('grade', grade));
+  if (!grade) return { status: 'fail', msg: 'ไม่มีคาบเรียนที่เปิดอยู่', students: [] };
+  var allStudents = await runQuery(client.from('students')
+    .select('id,name,grade')
+    .eq('role', 'STUDENT')
+    .order('id', { ascending: true }));
+  var students = (allStudents || []).filter(function(st) {
+    return isStudentInSessionGrade(st.grade, grade);
+  });
   var ids = students.map(function(st) { return st.id; });
-  var today = dateKeyBangkok(new Date());
+  var now = await getServerNowDb(client);
+  var today = dateKeyBangkok(now);
   var checked = {};
   if (ids.length) {
     var logs = await runQuery(client.from('attendance_logs')
@@ -699,14 +743,38 @@ async function closeAttendanceAndMarkAbsentDb() {
       if (dateKeyBangkok(log.timestamp) === today) checked[log.student_id] = true;
     });
   }
-  var nowIso = new Date().toISOString();
-  var rows = students.filter(function(st) {
+  var pending = students.filter(function(st) {
     return !checked[st.id];
   }).map(function(st) {
     return {
+      id: st.id,
+      name: st.name || '',
+      grade: st.grade || ''
+    };
+  });
+  return { status: 'success', grade: grade, students: pending };
+}
+
+async function closeAttendanceAndMarkAbsentDb(statusRows) {
+  var client = getSupabase();
+  var s = await getSettingsMap(['current_grade']);
+  var grade = normalizeGrade(s.current_grade);
+  if (!grade) return { status: 'fail', msg: 'ไม่มีคาบเรียนที่เปิดอยู่' };
+  var pending = await getPendingCloseSessionStudentsDb();
+  if (pending.status !== 'success') return pending;
+  var statusMap = {};
+  (statusRows || []).forEach(function(row) {
+    var sid = String(row.studentId || row.id || '').trim();
+    var st = String(row.status || '').trim();
+    if (sid && (st === 'ขาด' || st === 'ลา')) statusMap[sid] = st;
+  });
+  var now = await getServerNowDb(client);
+  var nowIso = now.toISOString();
+  var rows = (pending.students || []).map(function(st) {
+    return {
       timestamp: nowIso,
       student_id: st.id,
-      status: 'ขาด',
+      status: statusMap[st.id] || 'ขาด',
       points: 0
     };
   });
@@ -717,7 +785,9 @@ async function closeAttendanceAndMarkAbsentDb() {
     current_grade: '',
     session_start: ''
   });
-  return { status: 'success', msg: 'เช็คขาด ' + grade + ' จำนวน ' + rows.length + ' คน เรียบร้อย ✅' };
+  var absent = rows.filter(function(row) { return row.status === 'ขาด'; }).length;
+  var leave = rows.filter(function(row) { return row.status === 'ลา'; }).length;
+  return { status: 'success', msg: 'ปิดคาบ ' + grade + ' เรียบร้อย: ขาด ' + absent + ' คน, ลา ' + leave + ' คน' };
 }
 
 async function manualCheckInDb(studentId, dateStr, status) {
@@ -1392,41 +1462,76 @@ async function generatePIN() {
       document.getElementById('pinGradeLabel').textContent = 'ชั้น ' + g;
       await loadCurrentSession();
     } else {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message });
+      Swal.fire({
+        icon: res.status === 'active' ? 'warning' : 'error',
+        title: res.status === 'active' ? 'ยังมีคาบเปิดอยู่' : 'ผิดพลาด',
+        text: res.message,
+        confirmButtonColor: res.status === 'active' ? '#f59e0b' : '#ef4444'
+      });
     }
   } catch (e) {
     onErr(e);
   }
 }
 
-function closeSession() {
-  Swal.fire({
-    icon: 'warning',
-    title: 'ยืนยันปิดคาบเรียน?',
-    text: 'จะเช็คขาดนักเรียนที่เหลือทันที',
-    showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    confirmButtonText: 'ยืนยัน',
-    cancelButtonText: 'ยกเลิก'
-  }).then(async function(r) {
-    if (!r.isConfirmed) return;
-    loading('กำลังประมวลผล...');
-    try {
-      var res = await closeAttendanceAndMarkAbsentDb();
-      if (res.status === 'success') {
-        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.msg, confirmButtonColor: '#4f46e5' });
-        document.getElementById('displayPIN').textContent = '- - - -';
-        document.getElementById('expiryLabel').textContent = '';
-        document.getElementById('pinGradeLabel').textContent = '';
-        await loadCurrentSession();
-        if (statsLoaded) await loadStats();
-      } else {
-        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg });
-      }
-    } catch (e) {
-      onErr(e);
+async function closeSession() {
+  loading('กำลังโหลดรายชื่อนักเรียน...');
+  try {
+    var pending = await getPendingCloseSessionStudentsDb();
+    Swal.close();
+    if (pending.status !== 'success') {
+      return Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: pending.msg || '', confirmButtonColor: '#ef4444' });
     }
-  });
+    var rows = (pending.students || []).map(function(st, i) {
+      return '<tr>'
+        + '<td class="text-muted">' + (i + 1) + '</td>'
+        + '<td class="text-start"><div class="fw-bold">' + escHtml(st.name) + '</div><small class="text-muted">' + escHtml(st.id) + ' | ' + escHtml(st.grade) + '</small></td>'
+        + '<td style="width:110px"><select class="form-select form-select-sm close-status" data-sid="' + escHtml(st.id) + '">'
+        + '<option value="ขาด">ขาด</option>'
+        + '<option value="ลา">ลา</option>'
+        + '</select></td>'
+        + '</tr>';
+    }).join('');
+    var html = pending.students.length
+      ? '<div class="text-start mb-2" style="font-size:.84rem;color:#64748b">คาบชั้น ' + escHtml(pending.grade) + ' | นักเรียนที่ยังไม่เช็คชื่อ ' + pending.students.length + ' คน</div>'
+        + '<div style="max-height:55vh;overflow:auto;border:1px solid #e5e7eb;border-radius:12px">'
+        + '<table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th>#</th><th class="text-start">นักเรียน</th><th>สถานะ</th></tr></thead><tbody>'
+        + rows + '</tbody></table></div>'
+      : '<div class="text-center py-3"><div class="fw-bold mb-1">นักเรียนทุกคนเช็คชื่อแล้ว</div><div class="text-muted">กดยืนยันเพื่อปิดคาบและลบ PIN</div></div>';
+    var r = await Swal.fire({
+      icon: 'warning',
+      title: 'ปิดคาบเรียน?',
+      html: html,
+      width: 720,
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'บันทึกและปิดคาบ',
+      cancelButtonText: 'ยกเลิก',
+      focusConfirm: false,
+      preConfirm: function() {
+        var selects = Swal.getPopup().querySelectorAll('.close-status');
+        return Array.prototype.map.call(selects, function(sel) {
+          return { studentId: sel.dataset.sid, status: sel.value };
+        });
+      }
+    });
+    if (!r.isConfirmed) return;
+    loading('กำลังบันทึกและปิดคาบ...');
+    var res = await closeAttendanceAndMarkAbsentDb(r.value || []);
+    Swal.close();
+    if (res.status === 'success') {
+      Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.msg, confirmButtonColor: '#4f46e5' });
+      document.getElementById('displayPIN').textContent = '- - - -';
+      document.getElementById('expiryLabel').textContent = '';
+      document.getElementById('pinGradeLabel').textContent = '';
+      await loadCurrentSession();
+      if (statsLoaded) await loadStats();
+    } else {
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg || '', confirmButtonColor: '#ef4444' });
+    }
+  } catch (e) {
+    onErr(e);
+  }
 }
 
 /* ══ Stats & Charts ══════════════════════════════════ */
