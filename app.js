@@ -1781,16 +1781,59 @@ async function preparePDF(type, id) {
 }
 
 function promptIndividualPDF() {
+  var statGrade = document.getElementById('statGrade');
+  var gradeOptions = statGrade ? statGrade.innerHTML : '<option value="">-- เลือกชั้น --</option>';
   Swal.fire({
-    title: 'ระบุรหัสนักเรียน',
-    input: 'text',
-    inputPlaceholder: 'เช่น 02297',
+    title: 'พิมพ์รายงานรายบุคคล',
+    html: '<div class="text-start">'
+      + '<label class="form-label">ระดับชั้น</label>'
+      + '<select id="pdfGrade" class="form-select mb-3">' + gradeOptions + '</select>'
+      + '<label class="form-label">นักเรียน</label>'
+      + '<select id="pdfStudent" class="form-select" disabled><option value="">-- เลือกชั้นก่อน --</option></select>'
+      + '</div>',
     showCancelButton: true,
     confirmButtonText: 'พิมพ์',
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#4f46e5',
-    inputValidator: function(v) { return !v ? 'กรุณาระบุรหัส' : null; }
-  }).then(function(r) { if (r.value) preparePDF('single', r.value.trim()); });
+    width: 520,
+    focusConfirm: false,
+    didOpen: function() {
+      var gradeEl = document.getElementById('pdfGrade');
+      var studentEl = document.getElementById('pdfStudent');
+      var currentGrade = statGrade ? statGrade.value : '';
+      if (currentGrade) gradeEl.value = currentGrade;
+      var loadStudents = async function() {
+        var g = gradeEl.value;
+        studentEl.disabled = true;
+        studentEl.innerHTML = '<option value="">-- กำลังโหลด... --</option>';
+        if (!g) {
+          studentEl.innerHTML = '<option value="">-- เลือกชั้นก่อน --</option>';
+          return;
+        }
+        try {
+          var students = await getStudentsInGradeDb(g);
+          studentEl.innerHTML = '<option value="">-- เลือกนักเรียน --</option>' + students.map(function(s) {
+            return '<option value="' + escHtml(s.id) + '">' + escHtml(s.id) + ' - ' + escHtml(s.name) + '</option>';
+          }).join('');
+          studentEl.disabled = false;
+        } catch (e) {
+          studentEl.innerHTML = '<option value="">โหลดรายชื่อไม่สำเร็จ</option>';
+        }
+      };
+      gradeEl.addEventListener('change', loadStudents);
+      loadStudents();
+    },
+    preConfirm: function() {
+      var sid = document.getElementById('pdfStudent').value;
+      if (!sid) {
+        Swal.showValidationMessage('กรุณาเลือกนักเรียน');
+        return false;
+      }
+      return sid;
+    }
+  }).then(function(r) {
+    if (r.isConfirmed && r.value) preparePDF('single', r.value);
+  });
 }
 
 /* ══ Manual Check-in ═════════════════════════════════ */
