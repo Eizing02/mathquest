@@ -790,11 +790,13 @@ async function closeAttendanceAndMarkAbsentDb(statusRows) {
   return { status: 'success', msg: 'ปิดคาบ ' + grade + ' เรียบร้อย: ขาด ' + absent + ' คน, ลา ' + leave + ' คน' };
 }
 
-async function manualCheckInDb(studentId, dateStr, status) {
+async function manualCheckInDb(studentId, dateStr, status, points) {
   var client = getSupabase();
   var cid = String(studentId || '').trim();
   if (['มา', 'ขาด', 'ลา'].indexOf(status) === -1) return { status: 'fail', msg: 'สถานะไม่ถูกต้อง' };
   if (!cid || !dateStr) return { status: 'fail', msg: 'ข้อมูลไม่ครบ' };
+  var hasPoints = points !== undefined && points !== null && points !== '';
+  var pointValue = Math.max(0, Math.floor(Number(points) || 0));
   var rows = await runQuery(client.from('attendance_logs')
     .select('id,timestamp,status,points')
     .eq('student_id', cid));
@@ -808,6 +810,7 @@ async function manualCheckInDb(studentId, dateStr, status) {
   if (found) {
     var payload = { status: status };
     if (status !== 'มา') payload.points = 0;
+    else if (hasPoints) payload.points = pointValue;
     await runQuery(client.from('attendance_logs')
       .update(payload)
       .eq('id', found.id)
@@ -818,13 +821,13 @@ async function manualCheckInDb(studentId, dateStr, status) {
     timestamp: toNoonIso(dateStr),
     student_id: cid,
     status: status,
-    points: 0
+    points: status === 'มา' ? pointValue : 0
   }]));
   return { status: 'added', msg: 'เพิ่มข้อมูลสำเร็จ' };
 }
 
-async function editAttendanceRecordDb(studentId, dateStr, status) {
-  return manualCheckInDb(studentId, dateStr, status);
+async function editAttendanceRecordDb(studentId, dateStr, status, points) {
+  return manualCheckInDb(studentId, dateStr, status, points);
 }
 
 async function getWalletBalanceDb(studentId) {
@@ -1169,6 +1172,9 @@ async function getGradeWalletSummaryDb(grade) {
 window.addEventListener('load', async function() {
   var el = document.getElementById('manDate');
   if (el) el.value = dateKeyBangkok(new Date());
+  var manGrade = document.getElementById('manGrade');
+  var histGrade = document.getElementById('histGrade');
+  if (manGrade && histGrade) histGrade.innerHTML = manGrade.innerHTML;
   if (!isSupabaseConfigured()) {
     showConfigAlert();
     return;
@@ -1884,6 +1890,39 @@ async function loadManualStudents() {
   }
 }
 
+async function loadHistoryStudents() {
+  var g = document.getElementById('histGrade').value;
+  var sel = document.getElementById('histStudent');
+  var idInput = document.getElementById('histId');
+  var list = document.getElementById('histEditList');
+  var banner = document.getElementById('histStudentBanner');
+  if (idInput) idInput.value = '';
+  if (banner) banner.classList.add('hidden');
+  if (list) list.innerHTML = '<div class="text-center py-4" style="color:var(--muted);font-size:.83rem">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>';
+  sel.innerHTML = '<option value="">-- กำลังโหลด... --</option>';
+  sel.disabled = true;
+  if (!g) {
+    sel.innerHTML = '<option value="">-- เลือกชั้นก่อน --</option>';
+    return;
+  }
+  try {
+    var studs = await getStudentsInGradeDb(g);
+    sel.innerHTML = '<option value="">-- เลือกนักเรียน --</option>' + studs.map(function(s) {
+      return '<option value="' + s.id + '">' + s.id + ' - ' + s.name + '</option>';
+    }).join('');
+    sel.disabled = false;
+  } catch (e) {
+    sel.innerHTML = '<option value="">เกิดข้อผิดพลาด</option>';
+  }
+}
+
+function selectHistoryStudent() {
+  var sel = document.getElementById('histStudent');
+  var idInput = document.getElementById('histId');
+  if (idInput) idInput.value = sel.value || '';
+  if (sel.value) loadHistEdit();
+}
+
 async function submitManual() {
   var sid = document.getElementById('manStudent').value;
   var date = document.getElementById('manDate').value;
@@ -1914,7 +1953,9 @@ async function submitManual() {
 
 /* ══ History Edit ════════════════════════════════════ */
 async function loadHistEdit() {
-  var sid = document.getElementById('histId').value.trim();
+  var histSel = document.getElementById('histStudent');
+  var sid = (histSel && histSel.value ? histSel.value : document.getElementById('histId').value).trim();
+  document.getElementById('histId').value = sid;
   if (!sid) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุรหัสนักเรียน', confirmButtonColor: '#4f46e5' });
   var list = document.getElementById('histEditList');
   var banner = document.getElementById('histStudentBanner');
@@ -1942,20 +1983,22 @@ async function loadHistEdit() {
     var bc = function(s) { return s === 'มา' ? 'p-g' : (s === 'ขาด' ? 'p-r' : 'p-y'); };
     list.innerHTML = logs.map(function(l) {
       var dk = l.dateKey;
+      var points = Number(l.points) || 0;
       return '<div class="hist-item" id="hi-' + dk + '">'
         + '<span class="hist-date">' + l.date + '</span>'
         + '<div style="display:flex;align-items:center;gap:6px">'
-        + (l.points > 0 ? '<span class="pill p-pri" style="font-size:.68rem">+' + l.points + 'pt</span>' : '')
+        + '<span class="pill p-pri" id="pt-' + dk + '" style="font-size:.68rem;display:' + (points > 0 ? 'inline-flex' : 'none') + '">+' + points + 'pt</span>'
         + '<span class="pill ' + bc(l.status) + '" id="st-' + dk + '">' + l.status + '</span>'
         + '<button class="edit-btn" data-sid="' + sid + '" data-dk="' + dk + '" onclick="toggleEdit(this)"><i class="fa-solid fa-pen"></i></button>'
         + '</div></div>'
         + '<div id="er-' + dk + '" style="display:none;padding:6px 8px;background:#eff6ff;border-radius:8px;margin-bottom:5px">'
         + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-        + '<select id="esel-' + dk + '" class="form-select form-select-sm" style="width:auto;min-width:86px">'
+        + '<select id="esel-' + dk + '" class="form-select form-select-sm" style="width:auto;min-width:86px" onchange="syncEditPointsState(\'' + dk + '\')">'
         + '<option value="มา"' + (l.status === 'มา' ? ' selected' : '') + '>มา</option>'
         + '<option value="ขาด"' + (l.status === 'ขาด' ? ' selected' : '') + '>ขาด</option>'
         + '<option value="ลา"' + (l.status === 'ลา' ? ' selected' : '') + '>ลา</option>'
         + '</select>'
+        + '<input id="epts-' + dk + '" type="number" min="0" step="1" class="form-control form-control-sm" style="width:84px" value="' + points + '" placeholder="แต้ม">'
         + '<button class="btn btn-sm fw-bold" style="background:#4f46e5;color:#fff;border-radius:8px;font-size:.76rem" data-sid="' + sid + '" data-dk="' + dk + '" onclick="saveEdit(this)">บันทึก</button>'
         + '<button class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.76rem" data-dk="' + dk + '" onclick="document.getElementById(\'er-\'+this.dataset.dk).style.display=\'none\'">ยกเลิก</button>'
         + '</div></div>';
@@ -1968,14 +2011,26 @@ async function loadHistEdit() {
 function toggleEdit(btn) {
   var r = document.getElementById('er-' + btn.dataset.dk);
   r.style.display = r.style.display === 'none' ? 'block' : 'none';
+  syncEditPointsState(btn.dataset.dk);
+}
+
+function syncEditPointsState(dateKey) {
+  var statusEl = document.getElementById('esel-' + dateKey);
+  var pointsEl = document.getElementById('epts-' + dateKey);
+  if (!statusEl || !pointsEl) return;
+  var isPresent = statusEl.value === 'มา';
+  pointsEl.disabled = !isPresent;
+  if (!isPresent) pointsEl.value = 0;
 }
 
 async function saveEdit(btn) {
   var sid = btn.dataset.sid, dk = btn.dataset.dk;
   var nst = document.getElementById('esel-' + dk).value;
+  var ptsEl = document.getElementById('epts-' + dk);
+  var pts = Math.max(0, Math.floor(Number(ptsEl ? ptsEl.value : 0) || 0));
   loading('กำลังบันทึก...');
   try {
-    var res = await editAttendanceRecordDb(sid, dk, nst);
+    var res = await editAttendanceRecordDb(sid, dk, nst, pts);
     if (res.status === 'fail') {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg });
       return;
@@ -1985,6 +2040,11 @@ async function saveEdit(btn) {
     if (pill) {
       pill.className = 'pill ' + (nst === 'มา' ? 'p-g' : (nst === 'ขาด' ? 'p-r' : 'p-y'));
       pill.textContent = nst;
+    }
+    var pointPill = document.getElementById('pt-' + dk);
+    if (pointPill) {
+      pointPill.textContent = '+' + (nst === 'มา' ? pts : 0) + 'pt';
+      pointPill.style.display = nst === 'มา' && pts > 0 ? 'inline-flex' : 'none';
     }
     document.getElementById('er-' + dk).style.display = 'none';
     if (statsLoaded) loadStats();

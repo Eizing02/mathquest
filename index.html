@@ -345,15 +345,23 @@
             <h6 class="fw-bold mb-3" style="color:var(--pri)">
               <i class="fa-solid fa-clock-rotate-left me-2"></i>ดูประวัติ & แก้ไข
             </h6>
+            <label class="form-label">ระดับชั้น</label>
+            <select id="histGrade" class="form-select mb-3" onchange="loadHistoryStudents()">
+              <option value="">-- เลือกชั้น --</option>
+            </select>
+            <label class="form-label">นักเรียน</label>
             <div class="d-flex gap-2 mb-3">
-              <input type="text" id="histId" class="form-control form-control-sm" placeholder="รหัสนักเรียน">
+              <select id="histStudent" class="form-select form-select-sm" onchange="selectHistoryStudent()" disabled>
+                <option value="">-- เลือกนักเรียน --</option>
+              </select>
+              <input type="hidden" id="histId">
               <button class="btn btn-sm fw-bold px-3"
                       style="background:var(--pri);color:#fff;border-radius:10px;white-space:nowrap"
                       onclick="loadHistEdit()">ดู</button>
             </div>
             <div id="histStudentBanner" class="mb-2 hidden"></div>
             <div id="histEditList" style="max-height:360px;overflow-y:auto">
-              <div class="text-center py-4" style="color:var(--muted);font-size:.83rem">กรุณาระบุรหัสแล้วกด "ดู"</div>
+              <div class="text-center py-4" style="color:var(--muted);font-size:.83rem">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>
             </div>
           </div>
         </div>
