@@ -329,7 +329,7 @@ input[type="color"]{opacity:0;position:absolute;width:0;height:0}
 
 /* ════════ TEACHER SHOP MANAGEMENT ════════ */
 .tshop-wrap{background:#fff;border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;}
-.tshop-hdr{background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;}
+.tshop-hdr{background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
 .tshop-hdr h5{margin:0;font-weight:800;font-size:1rem;}
 .tshop-tabs{display:flex;gap:0;border-bottom:2px solid #e2e8f0;}
 .tshop-tab{flex:1;padding:11px;text-align:center;font-weight:700;font-size:.82rem;color:var(--muted);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--tr);}

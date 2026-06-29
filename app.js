@@ -507,6 +507,24 @@ async function getStudentsInGradeDb(grade) {
   });
 }
 
+async function getStudentsForGradeScopeDb(grade) {
+  var target = normalizeGrade(grade);
+  if (!target) return [];
+  var rows = await runQuery(getSupabase().from('students')
+    .select('id,name,grade')
+    .eq('role', 'STUDENT')
+    .order('id', { ascending: true }));
+  return (rows || []).filter(function(st) {
+    return isStudentInSessionGrade(st.grade, target);
+  }).map(function(st) {
+    return {
+      id: st.id,
+      name: st.name || '',
+      grade: st.grade || ''
+    };
+  });
+}
+
 async function addNewStudentDb(studentId, studentName, grade) {
   var client = getSupabase();
   var sid = String(studentId || '').trim();
@@ -978,6 +996,48 @@ async function buyItemDb(studentId, itemId, itemName, cost) {
   };
 }
 
+async function grantFreeItemDb(studentIds, itemId, qty) {
+  var ids = (studentIds || []).map(function(id) {
+    return String(id || '').trim();
+  }).filter(function(id, idx, arr) {
+    return id && arr.indexOf(id) === idx;
+  });
+  var iid = String(itemId || '').trim();
+  var amount = Math.max(1, Math.min(99, Math.floor(Number(qty) || 1)));
+  if (!ids.length) return { status: 'fail', msg: 'กรุณาเลือกนักเรียนอย่างน้อย 1 คน' };
+  if (!iid) return { status: 'fail', msg: 'กรุณาเลือกไอเทม' };
+
+  var client = getSupabase();
+  var item = await runQuery(client.from('shop_items')
+    .select('item_id,item_name')
+    .eq('item_id', iid)
+    .maybeSingle());
+  if (!item) return { status: 'fail', msg: 'ไม่พบไอเทมที่เลือก' };
+
+  var nowIso = new Date().toISOString();
+  var rows = [];
+  ids.forEach(function(studentId) {
+    for (var i = 0; i < amount; i++) {
+      rows.push({
+        timestamp: nowIso,
+        student_id: studentId,
+        item_id: item.item_id,
+        item_name: item.item_name || '',
+        points_used: 0,
+        status: 'approved'
+      });
+    }
+  });
+  await runQuery(client.from('redemption_logs').insert(rows).select('id'));
+  return {
+    status: 'success',
+    itemName: item.item_name || '',
+    studentCount: ids.length,
+    quantity: amount,
+    rowCount: rows.length
+  };
+}
+
 async function getRedemptionHistoryDb(studentId) {
   var client = getSupabase();
   var rows = await runQuery(client.from('redemption_logs')
@@ -1013,6 +1073,7 @@ async function getAllRedemptionsForTeacherDb() {
       itemId: String(row.item_id || '').trim(),
       itemName: String(row.item_name || '').trim(),
       cost: Number(row.points_used) || 0,
+      isFreeGrant: (Number(row.points_used) || 0) === 0,
       status: String(row.status || 'pending').trim()
     };
   });
@@ -1087,6 +1148,8 @@ function groupRewardRedemptionRows(rows) {
         itemName: row.itemName || 'ไม่ระบุของรางวัล',
         quantity: 0,
         totalCost: 0,
+        paidQty: 0,
+        freeQty: 0,
         latestTimestamp: 0,
         latestDate: '',
         statusCounts: { pending: 0, approved: 0, rejected: 0 },
@@ -1097,7 +1160,10 @@ function groupRewardRedemptionRows(rows) {
     var item = student.itemMap[itemKey];
     item.rowIds.push(row.rowIndex);
     item.quantity++;
-    item.totalCost += Number(row.cost) || 0;
+    var rowCost = Number(row.cost) || 0;
+    item.totalCost += rowCost;
+    if (rowCost > 0) item.paidQty++;
+    else item.freeQty++;
     if (row.timestamp >= item.latestTimestamp) {
       item.latestTimestamp = row.timestamp;
       item.latestDate = row.date || '';
@@ -1114,6 +1180,13 @@ function groupRewardRedemptionRows(rows) {
         return item.statusCounts[st] > 0;
       });
       item.status = activeStatuses.length === 1 ? activeStatuses[0] : 'mixed';
+      if (item.paidQty > 0 && item.freeQty > 0) {
+        item.sourceText = 'ผสม: แลก ' + item.paidQty + ' / ครูมอบ ' + item.freeQty;
+      } else if (item.freeQty > 0) {
+        item.sourceText = 'ครูมอบให้';
+      } else {
+        item.sourceText = 'แลกด้วยเหรียญ';
+      }
     });
     student.items.sort(function(a, b) {
       return b.latestTimestamp - a.latestTimestamp || a.itemName.localeCompare(b.itemName, 'th');
@@ -2210,6 +2283,14 @@ function rewardReportStatusBadge(status) {
   return '<span class="badge rounded-pill text-bg-warning text-dark">รอดำเนินการ</span>';
 }
 
+function rewardReportSourceBadge(item) {
+  if (item.paidQty > 0 && item.freeQty > 0) {
+    return '<span class="badge rounded-pill text-bg-info text-dark">' + escHtml(item.sourceText) + '</span>';
+  }
+  if (item.freeQty > 0) return '<span class="badge rounded-pill text-bg-primary">ครูมอบให้</span>';
+  return '<span class="badge rounded-pill text-bg-light border text-dark">แลกด้วยเหรียญ</span>';
+}
+
 function rewardReportActionButtons(item) {
   var pendingDisabled = item.status === 'pending' ? ' disabled' : '';
   var approvedDisabled = item.status === 'approved' ? ' disabled' : '';
@@ -2244,6 +2325,7 @@ function renderRewardReport(groups) {
         + '<td class="text-muted">' + (n + 1) + '</td>'
         + '<td class="fw-semibold">' + escHtml(item.itemName) + ' <span class="badge text-bg-primary ms-1">x' + item.quantity + '</span></td>'
         + '<td class="text-center">' + item.totalCost + '</td>'
+        + '<td>' + rewardReportSourceBadge(item) + '</td>'
         + '<td style="white-space:nowrap">' + escHtml(item.latestDate) + '</td>'
         + '<td>' + rewardReportStatusBadge(item.status) + '</td>'
         + '<td class="text-center">' + rewardReportActionButtons(item) + '</td>'
@@ -2260,7 +2342,7 @@ function renderRewardReport(groups) {
       + '<div id="' + collapseId + '" class="accordion-collapse collapse ' + (i === 0 ? 'show' : '') + '" aria-labelledby="' + collapseId + '-head" data-bs-parent="#rewardReportAccordion">'
       + '<div class="accordion-body p-0"><div class="table-responsive">'
       + '<table class="table table-sm table-hover align-middle mb-0">'
-      + '<thead class="table-light"><tr><th style="width:54px">#</th><th>ของรางวัล</th><th class="text-center">ใช้เหรียญ</th><th>ล่าสุด</th><th>สถานะ</th><th class="text-center">จัดการ</th></tr></thead>'
+      + '<thead class="table-light"><tr><th style="width:54px">#</th><th>ของรางวัล</th><th class="text-center">ใช้เหรียญ</th><th>ประเภท</th><th>ล่าสุด</th><th>สถานะ</th><th class="text-center">จัดการ</th></tr></thead>'
       + '<tbody>' + itemRows + '</tbody></table></div></div></div></div>';
   }).join('') + '</div>';
 }
@@ -2349,6 +2431,7 @@ function getRewardReportExportRows() {
         itemName: item.itemName,
         quantity: item.quantity,
         totalCost: item.totalCost,
+        source: item.sourceText || (item.totalCost > 0 ? 'แลกด้วยเหรียญ' : 'ครูมอบให้'),
         latestDate: item.latestDate,
         status: rewardReportStatusText(item.status)
       });
@@ -2368,9 +2451,9 @@ function getRewardReportExportMeta() {
 
 function exportRewardReportCSV() {
   if (!ensureRewardReportLoaded()) return;
-  var rows = [['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'วันที่ล่าสุด', 'สถานะ']];
+  var rows = [['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'ประเภท', 'วันที่ล่าสุด', 'สถานะ']];
   getRewardReportExportRows().forEach(function(r) {
-    rows.push([r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.latestDate, r.status]);
+    rows.push([r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.source, r.latestDate, r.status]);
   });
   var csv = rows.map(function(row) {
     return row.map(function(c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
@@ -2392,15 +2475,15 @@ function exportRewardReportExcel() {
   if (!ensureRewardReportLoaded()) return;
   var meta = getRewardReportExportMeta();
   var body = getRewardReportExportRows().map(function(r) {
-    return [r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.latestDate, r.status];
+    return [r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.source, r.latestDate, r.status];
   });
   var ws = XLSX.utils.aoa_to_sheet([
     ['Pick List รายงานการแลกของรางวัล'],
     ['ห้อง: ' + meta.grade + ' | วันที่พิมพ์: ' + meta.date],
     [],
-    ['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'วันที่ล่าสุด', 'สถานะ']
+    ['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'ประเภท', 'วันที่ล่าสุด', 'สถานะ']
   ].concat(body));
-  ws['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 10 }, { wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 18 }, { wch: 14 }];
+  ws['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 10 }, { wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 20 }, { wch: 18 }, { wch: 14 }];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Reward Pick List');
   XLSX.writeFile(wb, 'reward_picklist_' + meta.grade + '.xlsx');
@@ -2415,9 +2498,9 @@ function exportRewardReportPDF() {
   document.getElementById('printSubtitle').textContent = 'ห้อง: ' + meta.grade;
   document.getElementById('printDate').textContent = 'พิมพ์วันที่ ' + meta.date;
   document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
-  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ห้อง</th><th>ของรางวัล</th><th>จำนวน</th><th>สถานะ</th></tr>';
+  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ห้อง</th><th>ของรางวัล</th><th>จำนวน</th><th>ประเภท</th><th>สถานะ</th></tr>';
   document.getElementById('printBody').innerHTML = getRewardReportExportRows().map(function(r) {
-    return '<tr><td>' + r.no + '</td><td>' + escHtml(r.studentId) + '</td><td class="text-start">' + escHtml(r.studentName) + '</td><td>' + escHtml(r.grade) + '</td><td class="text-start">' + escHtml(r.itemName) + '</td><td>x' + r.quantity + '</td><td>' + escHtml(r.status) + '</td></tr>';
+    return '<tr><td>' + r.no + '</td><td>' + escHtml(r.studentId) + '</td><td class="text-start">' + escHtml(r.studentName) + '</td><td>' + escHtml(r.grade) + '</td><td class="text-start">' + escHtml(r.itemName) + '</td><td>x' + r.quantity + '</td><td>' + escHtml(r.source) + '</td><td>' + escHtml(r.status) + '</td></tr>';
   }).join('');
   setTimeout(function() {
     window.print();
@@ -2458,6 +2541,162 @@ async function loadTeacherShopItems() {
 
 async function loadManageShopItems() {
   return loadTeacherShopItems();
+}
+
+function buildGradeSelectOptions(selectedGrade) {
+  return '<option value="">-- เลือกชั้น/ห้อง --</option>' + GRADE_LIST.map(function(g) {
+    return '<option value="' + escHtml(g) + '"' + (g === selectedGrade ? ' selected' : '') + '>' + escHtml(g) + '</option>';
+  }).join('');
+}
+
+function openGrantItemModal() {
+  var currentGrade = document.getElementById('walletGrade') ? document.getElementById('walletGrade').value : '';
+  Swal.fire({
+    title: 'มอบไอเทมฟรี',
+    html: '<div class="text-start">'
+      + '<label class="form-label">ชั้น/ห้องเรียน</label>'
+      + '<select id="grantGrade" class="form-select mb-3">' + buildGradeSelectOptions(currentGrade) + '</select>'
+      + '<label class="form-label">นักเรียนที่ได้รับ</label>'
+      + '<div class="d-flex gap-2 align-items-center mb-2 flex-wrap">'
+      + '<button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="grantSelectAll" style="border-radius:8px;font-size:.76rem">เลือกทั้งหมด</button>'
+      + '<button type="button" class="btn btn-sm btn-outline-secondary fw-bold" id="grantClearAll" style="border-radius:8px;font-size:.76rem">ล้าง</button>'
+      + '<small class="text-muted ms-auto" id="grantSelectedCount">เลือก 0 คน</small>'
+      + '</div>'
+      + '<div id="grantStudentsBox" style="max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;padding:8px;margin-bottom:14px">'
+      + '<div class="text-center py-3 text-muted">เลือกชั้น/ห้องเพื่อโหลดรายชื่อ</div>'
+      + '</div>'
+      + '<label class="form-label">ไอเทม</label>'
+      + '<select id="grantItem" class="form-select mb-3"><option value="">กำลังโหลดไอเทม...</option></select>'
+      + '<label class="form-label">จำนวนต่อคน</label>'
+      + '<input id="grantQty" type="number" min="1" max="99" step="1" value="1" class="form-control mb-2">'
+      + '<div class="alert mb-0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px;font-size:.8rem;color:#065f46">'
+      + 'รายการนี้จะถูกบันทึกเป็นสถานะอนุมัติแล้ว และไม่หักเหรียญนักเรียน'
+      + '</div></div>',
+    width: 720,
+    showCancelButton: true,
+    confirmButtonText: 'มอบไอเทม',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#10b981',
+    focusConfirm: false,
+    didOpen: function() {
+      var popup = Swal.getPopup();
+      var gradeEl = popup.querySelector('#grantGrade');
+      var box = popup.querySelector('#grantStudentsBox');
+      var itemEl = popup.querySelector('#grantItem');
+      var countEl = popup.querySelector('#grantSelectedCount');
+
+      var updateCount = function() {
+        var total = popup.querySelectorAll('.grant-student').length;
+        var selected = popup.querySelectorAll('.grant-student:checked').length;
+        countEl.textContent = 'เลือก ' + selected + ' / ' + total + ' คน';
+      };
+      var setAll = function(checked) {
+        popup.querySelectorAll('.grant-student').forEach(function(cb) {
+          cb.checked = checked;
+        });
+        updateCount();
+      };
+      popup.querySelector('#grantSelectAll').addEventListener('click', function() { setAll(true); });
+      popup.querySelector('#grantClearAll').addEventListener('click', function() { setAll(false); });
+      box.addEventListener('change', updateCount);
+
+      var loadItems = async function() {
+        try {
+          var items = tShopItems || await getAllShopItemsForTeacherDb();
+          tShopItems = items;
+          if (!items.length) {
+            itemEl.innerHTML = '<option value="">ยังไม่มีไอเทมในระบบ</option>';
+            return;
+          }
+          itemEl.innerHTML = '<option value="">-- เลือกไอเทม --</option>' + items.map(function(item) {
+            var note = item.active ? '' : ' (ซ่อนอยู่)';
+            return '<option value="' + escHtml(item.itemId) + '">' + escHtml(item.itemName) + ' - ' + item.cost + ' เหรียญ' + note + '</option>';
+          }).join('');
+        } catch (e) {
+          itemEl.innerHTML = '<option value="">โหลดไอเทมไม่สำเร็จ</option>';
+        }
+      };
+      var loadStudents = async function() {
+        var grade = gradeEl.value;
+        updateCount();
+        if (!grade) {
+          box.innerHTML = '<div class="text-center py-3 text-muted">เลือกชั้น/ห้องเพื่อโหลดรายชื่อ</div>';
+          updateCount();
+          return;
+        }
+        box.innerHTML = '<div class="text-center py-3 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลดรายชื่อ...</div>';
+        try {
+          var students = await getStudentsForGradeScopeDb(grade);
+          if (!students.length) {
+            box.innerHTML = '<div class="text-center py-3 text-muted">ไม่พบนักเรียนในชั้น/ห้องนี้</div>';
+            updateCount();
+            return;
+          }
+          box.innerHTML = students.map(function(st) {
+            return '<label class="d-flex align-items-start gap-2 py-2 px-2" style="border-bottom:1px solid #f1f5f9;cursor:pointer">'
+              + '<input type="checkbox" class="form-check-input grant-student mt-1" value="' + escHtml(st.id) + '">'
+              + '<span style="line-height:1.25"><span class="fw-bold">' + escHtml(st.id) + '</span> '
+              + escHtml(st.name) + '<br><small class="text-muted">' + escHtml(st.grade) + '</small></span>'
+              + '</label>';
+          }).join('');
+          updateCount();
+        } catch (e) {
+          box.innerHTML = '<div class="text-center py-3 text-danger">โหลดรายชื่อไม่สำเร็จ: ' + escHtml(e.message || '') + '</div>';
+          updateCount();
+        }
+      };
+      gradeEl.addEventListener('change', loadStudents);
+      loadItems();
+      if (gradeEl.value) loadStudents();
+    },
+    preConfirm: function() {
+      var popup = Swal.getPopup();
+      var itemId = popup.querySelector('#grantItem').value;
+      var qty = Math.floor(Number(popup.querySelector('#grantQty').value) || 0);
+      var ids = Array.prototype.map.call(popup.querySelectorAll('.grant-student:checked'), function(cb) {
+        return cb.value;
+      });
+      if (!itemId) {
+        Swal.showValidationMessage('กรุณาเลือกไอเทม');
+        return false;
+      }
+      if (!ids.length) {
+        Swal.showValidationMessage('กรุณาเลือกนักเรียนอย่างน้อย 1 คน');
+        return false;
+      }
+      if (qty < 1 || qty > 99) {
+        Swal.showValidationMessage('จำนวนต่อคนต้องอยู่ระหว่าง 1-99');
+        return false;
+      }
+      return { itemId: itemId, studentIds: ids, quantity: qty };
+    }
+  }).then(async function(r) {
+    if (!r.isConfirmed || !r.value) return;
+    loading('กำลังมอบไอเทม...');
+    try {
+      var res = await grantFreeItemDb(r.value.studentIds, r.value.itemId, r.value.quantity);
+      Swal.close();
+      if (res.status !== 'success') {
+        return Swal.fire({ icon: 'error', title: 'มอบไอเทมไม่สำเร็จ', text: res.msg || '', confirmButtonColor: '#ef4444' });
+      }
+      tShopOrders = null;
+      rewardReportCache = null;
+      var ordersPanel = document.getElementById('tshop-orders-panel');
+      var reportPane = document.getElementById('tab-reward-report');
+      if (ordersPanel && !ordersPanel.classList.contains('hidden')) await loadTeacherOrders();
+      if (reportPane && reportPane.classList.contains('active')) await loadRewardReport();
+      Swal.fire({
+        icon: 'success',
+        title: 'มอบไอเทมสำเร็จ',
+        text: 'มอบ "' + res.itemName + '" จำนวน ' + res.quantity + ' ชิ้น/คน ให้ ' + res.studentCount + ' คน',
+        confirmButtonColor: '#10b981',
+        timer: 2200,
+        timerProgressBar: true
+      });
+    } catch (e) {
+      onErr(e);
+    }
+  });
 }
 
 function renderTeacherItems(items) {
@@ -2681,13 +2920,16 @@ function renderTeacherOrders(orders, filter) {
   };
   el.innerHTML = filtered.map(function(o) {
     var isPending = o.status === 'pending';
+    var costHtml = o.cost > 0
+      ? '<div class="order-cost">-' + o.cost + ' 🪙</div>'
+      : '<div class="order-cost" style="color:#4f46e5">ครูมอบให้</div>';
     return '<div class="order-row" id="orow-' + o.rowIndex + '">'
       + '<div style="flex:1;min-width:0">'
       + '<div class="order-student">' + escHtml(o.studentName) + ' <span style="color:#94a3b8;font-size:.76rem">(' + escHtml(o.studentId) + ')</span></div>'
       + '<div class="order-item">🎁 ' + escHtml(o.itemName) + '</div>'
       + '<div class="order-date">' + o.date + '</div>'
       + '</div>'
-      + '<div style="text-align:right;flex-shrink:0"><div class="order-cost">-' + o.cost + ' 🪙</div>' + statusBadge(o.status) + '</div>'
+      + '<div style="text-align:right;flex-shrink:0">' + costHtml + statusBadge(o.status) + '</div>'
       + (isPending
         ? '<div class="order-actions">'
           + '<button class="btn btn-sm fw-bold" style="background:#dcfce7;color:#15803d;border-radius:8px;font-size:.73rem" onclick="setOrderStatus(' + o.rowIndex + ',\'approved\')">✅ อนุมัติ</button>'
@@ -2925,7 +3167,10 @@ async function loadRedemptionHistory() {
       return '<span class="badge-pending">⏳ รอดำเนินการ</span>';
     };
     el.innerHTML = logs.map(function(l) {
-      return '<div class="redeem-item"><div style="flex:1;min-width:0"><div class="ri-name">' + escHtml(l.itemName) + '</div><div class="ri-date">' + l.date + '</div></div><div style="text-align:right;flex-shrink:0"><div class="ri-cost">-' + l.cost + ' 🪙</div>' + statusBadge(l.status) + '</div></div>';
+      var costHtml = l.cost > 0
+        ? '<div class="ri-cost">-' + l.cost + ' 🪙</div>'
+        : '<div class="ri-cost" style="color:#a5b4fc">ครูมอบให้</div>';
+      return '<div class="redeem-item"><div style="flex:1;min-width:0"><div class="ri-name">' + escHtml(l.itemName) + '</div><div class="ri-date">' + l.date + '</div></div><div style="text-align:right;flex-shrink:0">' + costHtml + statusBadge(l.status) + '</div></div>';
     }).join('');
   } catch (e) {
     el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">😵</div><p>โหลดประวัติไม่สำเร็จ</p></div>';
