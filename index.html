@@ -75,6 +75,16 @@
         <div class="fw-bold" id="sNameDisp" style="font-size:1.05rem"></div>
         <small id="sGradeDisp" style="opacity:.7"></small>
       </div>
+      <section class="pet-hero" id="petHero" aria-live="polite">
+        <div class="pet-empty-state">
+          <div class="pet-empty-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <div>
+            <strong>ยังไม่มีสัตว์เลี้ยง</strong>
+            <span>เลือกฟรีได้ 3 ครั้งแรก</span>
+          </div>
+          <button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกตัวแรก</button>
+        </div>
+      </section>
       <div class="px-2 mt-2">
         <div class="d-flex justify-content-between" style="font-size:.69rem;opacity:.65;margin-bottom:3px">
           <span id="xpLabel">0 / 5 XP</span><span id="ptLabel">แต้มรวม 0</span>
@@ -747,6 +757,38 @@
 </div>
 
 <!-- ════════ TEACHER: ADD/EDIT ITEM MODAL ════════ -->
+<!-- STUDENT PET SELECTOR OVERLAY -->
+<div class="shop-overlay pet-overlay" id="petOverlay" onclick="handlePetOverlayClick(event)">
+  <div class="shop-modal pet-modal" id="petModal" role="dialog" aria-modal="true" aria-labelledby="petModalTitle">
+    <div class="shop-header pet-header">
+      <div>
+        <h5 id="petModalTitle"><i class="fa-solid fa-paw me-2"></i>Pet Companion</h5>
+        <p class="pet-modal-sub">เลือกคู่หูประจำตัว วิวัฒนาการตาม Level อัตโนมัติ</p>
+      </div>
+      <button class="shop-close" onclick="closePetSelector()" aria-label="ปิดหน้าต่างเลือกสัตว์เลี้ยง"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+    <div class="wallet-wrap pet-wallet-wrap">
+      <div class="wallet-badge pet-wallet-badge">
+        <div class="wallet-icon"><i class="fa-solid fa-coins"></i></div>
+        <div class="wallet-info" style="flex:1">
+          <div class="wi-label">MathCoins และสิทธิ์เลือกฟรี</div>
+          <div class="wi-val" id="petCoinsDisplay" aria-live="polite">—</div>
+          <div class="wi-sub" id="petFreeDisplay" aria-live="polite">กำลังโหลด...</div>
+        </div>
+        <button class="pet-wallet-refresh" onclick="refreshPetWallet()" aria-label="รีเฟรชเหรียญ">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="shop-scroll pet-scroll">
+      <div class="pet-grid" id="petGrid">
+        <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
+        <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
     <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.15)">

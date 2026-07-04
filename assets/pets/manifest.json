@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "cellWidth": 362,
+  "cellHeight": 362,
+  "columns": 4,
+  "rows": 3,
+  "freeSelectLimit": 3,
+  "paidChangeCost": 25,
+  "renameLimitPerPet": 3,
+  "evolution": [
+    {
+      "stage": 1,
+      "minLevel": 0,
+      "maxLevel": 15,
+      "row": 0,
+      "label": "Stage 1"
+    },
+    {
+      "stage": 2,
+      "minLevel": 16,
+      "maxLevel": 30,
+      "row": 1,
+      "label": "Stage 2"
+    },
+    {
+      "stage": 3,
+      "minLevel": 31,
+      "maxLevel": null,
+      "row": 2,
+      "label": "Stage 3"
+    }
+  ],
+  "pets": [
+    {
+      "id": "thorn",
+      "defaultName": "Thorn",
+      "sheet": "assets/pets/sheets/thorn.png",
+      "sourceIndex": 1,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "leafy",
+      "defaultName": "Leafy",
+      "sheet": "assets/pets/sheets/leafy.png",
+      "sourceIndex": 2,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "volt",
+      "defaultName": "Volt",
+      "sheet": "assets/pets/sheets/volt.png",
+      "sourceIndex": 3,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "clover",
+      "defaultName": "Clover",
+      "sheet": "assets/pets/sheets/clover.png",
+      "sourceIndex": 4,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "aqua",
+      "defaultName": "Aqua",
+      "sheet": "assets/pets/sheets/aqua.png",
+      "sourceIndex": 5,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "ember",
+      "defaultName": "Ember",
+      "sheet": "assets/pets/sheets/ember.png",
+      "sourceIndex": 6,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "snowy",
+      "defaultName": "Snowy",
+      "sheet": "assets/pets/sheets/snowy.png",
+      "sourceIndex": 7,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "sunny",
+      "defaultName": "Sunny",
+      "sheet": "assets/pets/sheets/sunny.png",
+      "sourceIndex": 8,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "mystic",
+      "defaultName": "Mystic",
+      "sheet": "assets/pets/sheets/mystic.png",
+      "sourceIndex": 9,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "rocky",
+      "defaultName": "Rocky",
+      "sheet": "assets/pets/sheets/rocky.png",
+      "sourceIndex": 10,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "toady",
+      "defaultName": "Toady",
+      "sheet": "assets/pets/sheets/toady.png",
+      "sourceIndex": 11,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "zephyr",
+      "defaultName": "Zephyr",
+      "sheet": "assets/pets/sheets/zephyr.png",
+      "sourceIndex": 12,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "fluffy",
+      "defaultName": "Fluffy",
+      "sheet": "assets/pets/sheets/fluffy.png",
+      "sourceIndex": 13,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "iron",
+      "defaultName": "Iron",
+      "sheet": "assets/pets/sheets/iron.png",
+      "sourceIndex": 14,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "nebula",
+      "defaultName": "Nebula",
+      "sheet": "assets/pets/sheets/nebula.png",
+      "sourceIndex": 15,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "scorch",
+      "defaultName": "Scorch",
+      "sheet": "assets/pets/sheets/scorch.png",
+      "sourceIndex": 16,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "mossy",
+      "defaultName": "Mossy",
+      "sheet": "assets/pets/sheets/mossy.png",
+      "sourceIndex": 17,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "luna",
+      "defaultName": "Luna",
+      "sheet": "assets/pets/sheets/luna.png",
+      "sourceIndex": 18,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "valor",
+      "defaultName": "Valor",
+      "sheet": "assets/pets/sheets/valor.png",
+      "sourceIndex": 19,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "bramble",
+      "defaultName": "Bramble",
+      "sheet": "assets/pets/sheets/bramble.png",
+      "sourceIndex": 20,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "id": "cinder",
+      "defaultName": "Cinder",
+      "sheet": "assets/pets/sheets/cinder.png",
+      "sourceIndex": 21,
+      "cellWidth": 362,
+      "cellHeight": 362,
+      "columns": 4,
+      "rows": 3
+    }
+  ]
+}

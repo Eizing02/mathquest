@@ -32,6 +32,12 @@ var passwordResetReloadTimer = null;
 
 // Student Shop State
 var shopItems = null, shopWallet = null, shopTabCurrent = 'shop';
+var PET_MANIFEST_URL = './assets/pets/manifest.json';
+var PET_FREE_SELECT_LIMIT = 3;
+var PET_PAID_CHANGE_COST = 25;
+var PET_RENAME_LIMIT = 3;
+var petCatalog = null, petCatalogPromise = null, studentPet = null;
+var petGridObserver = null;
 
 var TH_MO_S = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 var TH_MO_L = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -245,6 +251,105 @@ function mapShopItem(row) {
     imageUrl: row.image_url || '',
     active: !!row.is_active
   };
+}
+
+function clampPetCount(value, max) {
+  var n = Math.floor(Number(value) || 0);
+  return Math.max(0, Math.min(max, n));
+}
+
+async function loadPetCatalog() {
+  if (petCatalog) return petCatalog;
+  if (petCatalogPromise) return petCatalogPromise;
+  petCatalogPromise = fetch(PET_MANIFEST_URL, { cache: 'no-store' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('โหลดรายการสัตว์เลี้ยงไม่สำเร็จ');
+      return res.json();
+    })
+    .then(function(data) {
+      petCatalog = data || {};
+      petCatalog.pets = Array.isArray(petCatalog.pets) ? petCatalog.pets : [];
+      petCatalog.petMap = {};
+      petCatalog.pets.forEach(function(pet) {
+        petCatalog.petMap[pet.id] = pet;
+      });
+      PET_FREE_SELECT_LIMIT = Number(petCatalog.freeSelectLimit) || PET_FREE_SELECT_LIMIT;
+      PET_PAID_CHANGE_COST = Number(petCatalog.paidChangeCost) || PET_PAID_CHANGE_COST;
+      PET_RENAME_LIMIT = Number(petCatalog.renameLimitPerPet) || PET_RENAME_LIMIT;
+      return petCatalog;
+    })
+    .finally(function() {
+      petCatalogPromise = null;
+    });
+  return petCatalogPromise;
+}
+
+function findPetById(petId) {
+  if (!petCatalog || !petCatalog.petMap) return null;
+  return petCatalog.petMap[String(petId || '')] || null;
+}
+
+function getPetStageForLevel(level) {
+  var lv = Math.max(0, Math.floor(Number(level) || 0));
+  var evo = petCatalog && Array.isArray(petCatalog.evolution) ? petCatalog.evolution : [
+    { stage: 1, minLevel: 0, maxLevel: 15, row: 0, label: 'Stage 1' },
+    { stage: 2, minLevel: 16, maxLevel: 30, row: 1, label: 'Stage 2' },
+    { stage: 3, minLevel: 31, maxLevel: null, row: 2, label: 'Stage 3' }
+  ];
+  for (var i = 0; i < evo.length; i++) {
+    var item = evo[i];
+    var max = item.maxLevel == null ? Infinity : Number(item.maxLevel);
+    if (lv >= Number(item.minLevel || 0) && lv <= max) return item;
+  }
+  return evo[evo.length - 1];
+}
+
+function getCurrentStudentLevel() {
+  var lv = document.getElementById('lvNum');
+  return lv ? (parseInt(lv.textContent, 10) || 0) : 0;
+}
+
+function setPetSprite(el, pet, stage) {
+  if (!el || !pet) return;
+  var row = Math.max(0, Math.min(2, Number(stage && stage.row) || 0));
+  el.style.backgroundImage = 'url("' + pet.sheet + '")';
+  el.style.setProperty('--pet-row', row === 0 ? '0%' : (row === 1 ? '50%' : '100%'));
+}
+
+function hydratePetGridSprites(stage) {
+  var grid = document.getElementById('petGrid');
+  if (!grid) return;
+  if (petGridObserver) {
+    petGridObserver.disconnect();
+    petGridObserver = null;
+  }
+  var sprites = Array.prototype.slice.call(grid.querySelectorAll('[data-pet-sprite]'));
+  function loadSprite(el) {
+    if (!el || el.dataset.loaded === '1') return;
+    setPetSprite(el, findPetById(el.getAttribute('data-pet-sprite')), stage);
+    el.dataset.loaded = '1';
+  }
+  if (!('IntersectionObserver' in window)) {
+    sprites.forEach(loadSprite);
+    return;
+  }
+  petGridObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      loadSprite(entry.target);
+      petGridObserver.unobserve(entry.target);
+    });
+  }, {
+    root: document.querySelector('#petModal .pet-scroll'),
+    rootMargin: '160px 0px'
+  });
+  sprites.forEach(function(el) { petGridObserver.observe(el); });
+}
+
+function sanitizePetName(name, fallback) {
+  var clean = String(name || '').replace(/\s+/g, ' ').trim();
+  if (!clean) clean = String(fallback || 'Buddy').trim();
+  return clean.slice(0, 18);
 }
 
 /* ══ Storage Helpers ═════════════════════════════════ */
@@ -1273,6 +1378,129 @@ async function editAttendanceRecordDb(studentId, dateStr, status, points) {
   return manualCheckInDb(studentId, dateStr, status, points);
 }
 
+async function getStudentPetDb(studentId) {
+  var client = getSupabase();
+  var cid = String(studentId || '').trim();
+  if (!cid) return null;
+  return await runQuery(client.from('student_pets')
+    .select('*')
+    .eq('student_id', cid)
+    .maybeSingle());
+}
+
+async function logStudentPetEventDb(payload) {
+  await runQuery(getSupabase().from('student_pet_events').insert([payload]));
+}
+
+async function selectStudentPetDb(studentId, petId, petName) {
+  await loadPetCatalog();
+  var client = getSupabase();
+  var cid = String(studentId || '').trim();
+  var pet = findPetById(petId);
+  if (!cid || !pet) return { status: 'fail', msg: 'ไม่พบข้อมูลสัตว์เลี้ยง' };
+
+  var current = await getStudentPetDb(cid);
+  if (current && current.pet_id === pet.id) {
+    return { status: 'same', msg: 'ใช้งานสัตว์เลี้ยงตัวนี้อยู่แล้ว', pet: current };
+  }
+
+  var freeUsed = current ? clampPetCount(current.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var useFree = freeUsed < PET_FREE_SELECT_LIMIT;
+  var cost = useFree ? 0 : PET_PAID_CHANGE_COST;
+  if (cost > 0) {
+    var wallet = await getWalletBalanceDb(cid);
+    if (wallet.mathCoins < cost) {
+      return {
+        status: 'fail',
+        msg: 'เหรียญไม่พอ ต้องใช้ ' + cost + ' เหรียญ แต่มี ' + wallet.mathCoins + ' เหรียญ'
+      };
+    }
+  }
+
+  var cleanName = sanitizePetName(petName, pet.defaultName);
+  var nowIso = new Date().toISOString();
+  var nextFreeUsed = useFree ? freeUsed + 1 : freeUsed;
+  var previousPetId = current ? String(current.pet_id || '') : '';
+  var previousName = current ? String(current.pet_name || '') : '';
+  var payload = {
+    student_id: cid,
+    pet_id: pet.id,
+    pet_name: cleanName,
+    free_select_used: nextFreeUsed,
+    rename_used: 0,
+    selected_at: nowIso,
+    updated_at: nowIso
+  };
+
+  var rows = await runQuery(client.from('student_pets')
+    .upsert(payload, { onConflict: 'student_id' })
+    .select('*'));
+  var saved = rows && rows[0] ? rows[0] : payload;
+  await logStudentPetEventDb({
+    student_id: cid,
+    event_type: cost > 0 ? 'paid_change' : 'select',
+    from_pet_id: previousPetId,
+    to_pet_id: pet.id,
+    previous_name: previousName,
+    new_name: cleanName,
+    points_used: cost
+  });
+
+  return {
+    status: 'success',
+    pet: saved,
+    petMeta: pet,
+    cost: cost,
+    freeSelectUsed: nextFreeUsed,
+    remainingFree: Math.max(0, PET_FREE_SELECT_LIMIT - nextFreeUsed),
+    mathCoins: (await getWalletBalanceDb(cid)).mathCoins
+  };
+}
+
+async function renameStudentPetDb(studentId, petName) {
+  await loadPetCatalog();
+  var client = getSupabase();
+  var cid = String(studentId || '').trim();
+  var current = await getStudentPetDb(cid);
+  if (!current) return { status: 'fail', msg: 'ยังไม่มีสัตว์เลี้ยงให้เปลี่ยนชื่อ' };
+
+  var pet = findPetById(current.pet_id);
+  var renameUsed = clampPetCount(current.rename_used, PET_RENAME_LIMIT);
+  if (renameUsed >= PET_RENAME_LIMIT) {
+    return { status: 'fail', msg: 'เปลี่ยนชื่อครบ ' + PET_RENAME_LIMIT + ' ครั้งสำหรับสัตว์เลี้ยงตัวนี้แล้ว' };
+  }
+
+  var cleanName = sanitizePetName(petName, pet ? pet.defaultName : current.pet_name);
+  if (cleanName === String(current.pet_name || '')) {
+    return { status: 'same', msg: 'ชื่อเดิมอยู่แล้ว', pet: current };
+  }
+
+  var rows = await runQuery(client.from('student_pets')
+    .update({
+      pet_name: cleanName,
+      rename_used: renameUsed + 1,
+      updated_at: new Date().toISOString()
+    })
+    .eq('student_id', cid)
+    .select('*'));
+  var saved = rows && rows[0] ? rows[0] : current;
+  await logStudentPetEventDb({
+    student_id: cid,
+    event_type: 'rename',
+    from_pet_id: current.pet_id || '',
+    to_pet_id: current.pet_id || '',
+    previous_name: current.pet_name || '',
+    new_name: cleanName,
+    points_used: 0
+  });
+  return {
+    status: 'success',
+    pet: saved,
+    renameUsed: renameUsed + 1,
+    remainingRename: Math.max(0, PET_RENAME_LIMIT - renameUsed - 1)
+  };
+}
+
 async function getWalletBalanceDb(studentId) {
   var client = getSupabase();
   var cid = String(studentId).trim();
@@ -1282,6 +1510,14 @@ async function getWalletBalanceDb(studentId) {
   var redData = await runQuery(client.from('redemption_logs')
     .select('points_used,status')
     .eq('student_id', cid));
+  var petData = [];
+  try {
+    petData = await runQuery(client.from('student_pet_events')
+      .select('points_used')
+      .eq('student_id', cid));
+  } catch (e) {
+    petData = [];
+  }
   var lifetimeExp = 0;
   (logData || []).forEach(function(log) {
     if (String(log.status).trim() === 'มา') lifetimeExp += Number(log.points) || 0;
@@ -1290,6 +1526,9 @@ async function getWalletBalanceDb(studentId) {
   (redData || []).forEach(function(r) {
     var st = String(r.status || 'pending').toLowerCase();
     if (st !== 'rejected') totalSpent += Number(r.points_used) || 0;
+  });
+  (petData || []).forEach(function(p) {
+    totalSpent += Number(p.points_used) || 0;
   });
   return {
     lifetimeExp: lifetimeExp,
@@ -1741,6 +1980,7 @@ async function login() {
         await loadStudentProfile();
         shopWallet = await getWalletBalanceDb(CU.id);
         updateShopCoinsBadge(shopWallet.mathCoins);
+        await loadStudentPet();
       }
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message, confirmButtonColor: '#4f46e5' });
@@ -1806,6 +2046,291 @@ function updateGamiUI(d) {
   if (lc) lc.style.cssText = tier >= 1 ? 'background:transparent;box-shadow:none' : '';
 }
 
+function renderStudentPet(row, level, previousLevel) {
+  var hero = document.getElementById('petHero');
+  if (!hero) return;
+  var lv = level == null ? getCurrentStudentLevel() : level;
+  if (!petCatalog || !row) {
+    var freeText = row ? 'กำลังโหลดสัตว์เลี้ยง...' : 'เลือกฟรีได้ 3 ครั้งแรก';
+    hero.innerHTML = '<div class="pet-empty-state">'
+      + '<div class="pet-empty-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>'
+      + '<div><strong>ยังไม่มีสัตว์เลี้ยง</strong><span>' + freeText + '</span></div>'
+      + '<button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกตัวแรก</button>'
+      + '</div>';
+    return;
+  }
+  var pet = findPetById(row.pet_id);
+  if (!pet) {
+    hero.innerHTML = '<div class="pet-empty-state">'
+      + '<div class="pet-empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>'
+      + '<div><strong>โหลดสัตว์เลี้ยงไม่ได้</strong><span>ลองรีเฟรชหรือเลือกใหม่อีกครั้ง</span></div>'
+      + '<button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกใหม่</button>'
+      + '</div>';
+    return;
+  }
+  var stage = getPetStageForLevel(lv);
+  var freeUsed = clampPetCount(row.free_select_used, PET_FREE_SELECT_LIMIT);
+  var renameUsed = clampPetCount(row.rename_used, PET_RENAME_LIMIT);
+  hero.innerHTML = '<div class="pet-live-card">'
+    + '<div class="pet-stage-badge">EVO ' + stage.stage + '</div>'
+    + '<div class="pet-sprite-wrap"><div class="pet-shadow"></div><div class="pet-sprite pet-sprite-live" id="studentPetSprite"></div></div>'
+    + '<div class="pet-info">'
+    + '<strong>' + escHtml(row.pet_name || pet.defaultName) + '</strong>'
+    + '<span>' + escHtml(pet.defaultName) + ' · ' + escHtml(stage.label || ('Stage ' + stage.stage)) + '</span>'
+    + '</div>'
+    + '<div class="pet-actions">'
+    + '<button type="button" class="pet-ghost-btn" onclick="openPetSelector()">เปลี่ยนตัว</button>'
+    + '<button type="button" class="pet-ghost-btn" onclick="openRenamePetModal()">เปลี่ยนชื่อ ' + (PET_RENAME_LIMIT - renameUsed) + '</button>'
+    + '</div>'
+    + '<div class="pet-usage-note">ใช้ฟรี ' + freeUsed + '/' + PET_FREE_SELECT_LIMIT + ' · เปลี่ยนชื่อ ' + renameUsed + '/' + PET_RENAME_LIMIT + '</div>'
+    + '</div>';
+  setPetSprite(document.getElementById('studentPetSprite'), pet, stage);
+  if (previousLevel != null) {
+    var oldStage = getPetStageForLevel(previousLevel).stage;
+    if (stage.stage > oldStage) {
+      hero.classList.remove('pet-evolve');
+      void hero.offsetWidth;
+      hero.classList.add('pet-evolve');
+      setTimeout(function() { hero.classList.remove('pet-evolve'); }, 900);
+    }
+  }
+}
+
+function renderPetLoadError(msg) {
+  var hero = document.getElementById('petHero');
+  if (!hero) return;
+  hero.innerHTML = '<div class="pet-empty-state">'
+    + '<div class="pet-empty-icon"><i class="fa-solid fa-circle-info"></i></div>'
+    + '<div><strong>ยังไม่พร้อมใช้งาน</strong><span>' + escHtml(msg || 'กรุณารัน pet_system_setup.sql ก่อน') + '</span></div>'
+    + '</div>';
+}
+
+async function loadStudentPet(previousLevel) {
+  try {
+    await loadPetCatalog();
+    studentPet = await getStudentPetDb(CU.id);
+    renderStudentPet(studentPet, getCurrentStudentLevel(), previousLevel);
+    if (document.getElementById('petOverlay') && document.getElementById('petOverlay').classList.contains('open')) {
+      renderPetWallet();
+      renderPetGrid();
+    }
+  } catch (e) {
+    renderPetLoadError(e && e.message ? e.message : '');
+  }
+}
+
+function openPetSelector() {
+  var overlay = document.getElementById('petOverlay');
+  if (!overlay) return;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadPetSelectorData();
+}
+
+function closePetSelector() {
+  var overlay = document.getElementById('petOverlay');
+  if (overlay) overlay.classList.remove('open');
+  if (petGridObserver) {
+    petGridObserver.disconnect();
+    petGridObserver = null;
+  }
+  if (!document.getElementById('shopOverlay') || !document.getElementById('shopOverlay').classList.contains('open')) {
+    document.body.style.overflow = '';
+  }
+}
+
+function handlePetOverlayClick(e) {
+  if (e.target === document.getElementById('petOverlay')) closePetSelector();
+}
+
+async function loadPetSelectorData() {
+  var grid = document.getElementById('petGrid');
+  if (grid) grid.innerHTML = '<div class="shop-skeleton"></div>'.repeat(4);
+  try {
+    await loadPetCatalog();
+    shopWallet = await getWalletBalanceDb(CU.id);
+    studentPet = await getStudentPetDb(CU.id);
+    updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
+    renderPetGrid();
+  } catch (e) {
+    if (grid) grid.innerHTML = '<div class="shop-empty" style="grid-column:1/-1"><div class="shop-empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><p>โหลดระบบสัตว์เลี้ยงไม่สำเร็จ</p></div>';
+  }
+}
+
+async function refreshPetWallet() {
+  try {
+    shopWallet = await getWalletBalanceDb(CU.id);
+    studentPet = await getStudentPetDb(CU.id);
+    updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
+    renderPetGrid();
+  } catch (e) {}
+}
+
+function renderPetWallet() {
+  var coinsEl = document.getElementById('petCoinsDisplay');
+  var freeEl = document.getElementById('petFreeDisplay');
+  if (!coinsEl || !freeEl) return;
+  var coins = shopWallet ? shopWallet.mathCoins : 0;
+  var used = studentPet ? clampPetCount(studentPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var remaining = Math.max(0, PET_FREE_SELECT_LIMIT - used);
+  coinsEl.textContent = coins + ' 🪙';
+  freeEl.textContent = remaining > 0
+    ? 'เลือกฟรีเหลือ ' + remaining + ' ครั้ง · ครั้งแรกนับเป็น 1'
+    : 'ใช้ฟรีครบแล้ว เปลี่ยนใหม่ใช้ ' + PET_PAID_CHANGE_COST + ' เหรียญ';
+}
+
+function renderPetGrid() {
+  var grid = document.getElementById('petGrid');
+  if (!grid || !petCatalog) return;
+  var pets = petCatalog.pets || [];
+  var coins = shopWallet ? shopWallet.mathCoins : 0;
+  var freeUsed = studentPet ? clampPetCount(studentPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var hasFree = freeUsed < PET_FREE_SELECT_LIMIT;
+  var previewStage = getPetStageForLevel(0);
+  if (!pets.length) {
+    grid.innerHTML = '<div class="shop-empty" style="grid-column:1/-1"><div class="shop-empty-icon"><i class="fa-solid fa-paw"></i></div><p>ยังไม่มีรายการสัตว์เลี้ยง</p></div>';
+    return;
+  }
+  grid.innerHTML = pets.map(function(pet) {
+    var isCurrent = studentPet && studentPet.pet_id === pet.id;
+    var cost = hasFree || !studentPet ? 0 : PET_PAID_CHANGE_COST;
+    var canChoose = isCurrent || cost === 0 || coins >= cost;
+    var actionText = isCurrent ? 'ใช้อยู่' : (cost === 0 ? 'เลือกฟรี' : cost + ' เหรียญ');
+    var metaText = isCurrent ? 'คู่หูปัจจุบัน' : (cost === 0 ? 'ใช้ฟรีเหลือ ' + Math.max(0, PET_FREE_SELECT_LIMIT - freeUsed) : 'เปลี่ยนด้วย MathCoins');
+    return '<article class="pet-card' + (isCurrent ? ' is-current' : '') + (!canChoose ? ' is-locked' : '') + '">'
+      + '<div class="pet-card-preview"><div class="pet-sprite pet-sprite-card" data-pet-sprite="' + escHtml(pet.id) + '"></div></div>'
+      + '<div class="pet-card-name">' + escHtml(pet.defaultName) + '</div>'
+      + '<div class="pet-card-meta">' + metaText + '</div>'
+      + '<button type="button" class="pet-card-btn' + (!canChoose ? ' cant-afford' : '') + '" data-pet-id="' + escHtml(pet.id) + '" ' + (!canChoose || isCurrent ? 'disabled' : '') + '>' + actionText + '</button>'
+      + '</article>';
+  }).join('');
+  hydratePetGridSprites(previewStage);
+  Array.prototype.forEach.call(grid.querySelectorAll('[data-pet-id]'), function(btn) {
+    btn.addEventListener('click', function() {
+      choosePetFromCard(btn.getAttribute('data-pet-id'));
+    });
+  });
+}
+
+async function choosePetFromCard(petId) {
+  await loadPetCatalog();
+  var pet = findPetById(petId);
+  if (!pet) return;
+  var freeUsed = studentPet ? clampPetCount(studentPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var cost = (studentPet && freeUsed >= PET_FREE_SELECT_LIMIT) ? PET_PAID_CHANGE_COST : 0;
+  var coins = shopWallet ? shopWallet.mathCoins : 0;
+  var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
+  if (cost > 0 && coins < cost) {
+    return Swal.fire(Object.assign({
+      icon: 'warning',
+      title: 'เหรียญไม่พอ',
+      text: 'ต้องใช้ ' + cost + ' เหรียญ แต่ตอนนี้มี ' + coins + ' เหรียญ',
+      confirmButtonColor: '#4f46e5'
+    }, SWAL_ABOVE));
+  }
+  var result = await Swal.fire(Object.assign({
+    title: cost > 0 ? 'เปลี่ยนสัตว์เลี้ยง' : 'เลือกสัตว์เลี้ยง',
+    html: '<div class="pet-swal-summary"><strong>' + escHtml(pet.defaultName) + '</strong><span>' + (cost > 0 ? 'ใช้ ' + cost + ' เหรียญจาก MathCoins' : 'ใช้สิทธิ์เลือกฟรี') + '</span></div>',
+    input: 'text',
+    inputValue: pet.defaultName,
+    inputLabel: 'ตั้งชื่อสัตว์เลี้ยง',
+    inputAttributes: { maxlength: 18, autocapitalize: 'off', autocomplete: 'off' },
+    showCancelButton: true,
+    confirmButtonText: cost > 0 ? 'ยืนยันเปลี่ยน' : 'เลือกคู่หู',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: cost > 0 ? '#7c3aed' : '#10b981',
+    inputValidator: function(value) {
+      if (!String(value || '').trim()) return 'กรุณาตั้งชื่อก่อน';
+      return null;
+    }
+  }, SWAL_ABOVE));
+  if (!result.isConfirmed) return;
+  loading('กำลังบันทึกสัตว์เลี้ยง...');
+  try {
+    var saved = await selectStudentPetDb(CU.id, pet.id, result.value);
+    Swal.close();
+    if (saved.status !== 'success') {
+      return Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: saved.msg || '', confirmButtonColor: '#ef4444' }, SWAL_ABOVE));
+    }
+    studentPet = saved.pet;
+    shopWallet = await getWalletBalanceDb(CU.id);
+    updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
+    renderPetGrid();
+    renderStudentPet(studentPet, getCurrentStudentLevel());
+    closePetSelector();
+    fireShopConfetti();
+    Swal.fire(Object.assign({
+      icon: 'success',
+      title: cost > 0 ? 'เปลี่ยนคู่หูแล้ว' : 'ได้คู่หูใหม่แล้ว',
+      text: (studentPet.pet_name || pet.defaultName) + ' พร้อมอยู่ข้าง ๆ แล้ว',
+      timer: 1800,
+      timerProgressBar: true,
+      confirmButtonColor: '#10b981'
+    }, SWAL_ABOVE));
+  } catch (e) {
+    onErr(e);
+  }
+}
+
+async function openRenamePetModal() {
+  if (!studentPet) return openPetSelector();
+  await loadPetCatalog();
+  var pet = findPetById(studentPet.pet_id);
+  var renameUsed = clampPetCount(studentPet.rename_used, PET_RENAME_LIMIT);
+  var remaining = Math.max(0, PET_RENAME_LIMIT - renameUsed);
+  var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
+  if (remaining <= 0) {
+    return Swal.fire(Object.assign({
+      icon: 'info',
+      title: 'เปลี่ยนชื่อครบแล้ว',
+      text: 'สัตว์เลี้ยงตัวนี้เปลี่ยนชื่อได้ ' + PET_RENAME_LIMIT + ' ครั้ง',
+      confirmButtonColor: '#4f46e5'
+    }, SWAL_ABOVE));
+  }
+  var result = await Swal.fire(Object.assign({
+    title: 'เปลี่ยนชื่อสัตว์เลี้ยง',
+    html: '<div class="pet-swal-summary"><strong>' + escHtml(studentPet.pet_name || (pet && pet.defaultName) || 'Buddy') + '</strong><span>เหลือสิทธิ์เปลี่ยนชื่อ ' + remaining + ' ครั้ง</span></div>',
+    input: 'text',
+    inputValue: studentPet.pet_name || (pet && pet.defaultName) || 'Buddy',
+    inputLabel: 'ชื่อใหม่',
+    inputAttributes: { maxlength: 18, autocapitalize: 'off', autocomplete: 'off' },
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกชื่อ',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#4f46e5',
+    inputValidator: function(value) {
+      if (!String(value || '').trim()) return 'กรุณากรอกชื่อใหม่';
+      return null;
+    }
+  }, SWAL_ABOVE));
+  if (!result.isConfirmed) return;
+  loading('กำลังบันทึกชื่อ...');
+  try {
+    var saved = await renameStudentPetDb(CU.id, result.value);
+    Swal.close();
+    if (saved.status !== 'success') {
+      return Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: saved.msg || '', confirmButtonColor: '#ef4444' }, SWAL_ABOVE));
+    }
+    studentPet = saved.pet;
+    renderStudentPet(studentPet, getCurrentStudentLevel());
+    renderPetWallet();
+    renderPetGrid();
+    Swal.fire(Object.assign({
+      icon: 'success',
+      title: 'เปลี่ยนชื่อแล้ว',
+      text: studentPet.pet_name,
+      timer: 1500,
+      timerProgressBar: true,
+      confirmButtonColor: '#10b981'
+    }, SWAL_ABOVE));
+  } catch (e) {
+    onErr(e);
+  }
+}
+
 function openPhotoUpload() {
   document.getElementById('photoInput').click();
 }
@@ -1864,6 +2389,9 @@ async function checkIn() {
             rng.classList.add('lv-up-anim');
             setTimeout(function() { rng.classList.remove('lv-up-anim'); }, 600);
           }
+          renderStudentPet(studentPet, d.level, old);
+          shopWallet = await getWalletBalanceDb(CU.id);
+          updateShopCoinsBadge(shopWallet.mathCoins);
         } catch (e) {}
       }, 900);
     } else {
@@ -1891,7 +2419,10 @@ function refreshStudentData() {
   var lbl = document.getElementById('refreshLabel');
   icon.className = 'fa-solid fa-rotate-right fa-spin';
   btn.disabled = true;
-  loadStudentProfile();
+  loadStudentProfile().then(function() {
+    return loadStudentPet();
+  });
+  refreshWallet();
   var secs = 30;
   lbl.textContent = 'รอ ' + secs + 's';
   var t = setInterval(function() {
@@ -2700,6 +3231,7 @@ function logout() {
   statsLoaded = false;
   shopItems = null;
   shopWallet = null;
+  studentPet = null;
   stopPasswordResetDashboard();
   location.reload();
 }
@@ -3485,6 +4017,7 @@ async function refreshWallet() {
     shopWallet = await getWalletBalanceDb(CU.id);
     updateWalletUI(shopWallet, null);
     updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
   } catch (e) {}
 }
 
