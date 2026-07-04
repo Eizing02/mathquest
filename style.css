@@ -656,6 +656,21 @@ label,
   color:var(--pri);
   box-shadow:var(--shadow-selected);
 }
+.tn-badge{
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  border-radius:var(--radius-pill);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--danger);
+  color:var(--white);
+  font-size:.68rem;
+  font-weight:800;
+  line-height:1;
+  margin-left:4px;
+}
 
 .pin-box{
   background:var(--ink);

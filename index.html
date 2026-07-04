@@ -144,6 +144,10 @@
       <button class="tn" onclick="switchTab('manual',this)"><i class="fa-solid fa-pen-to-square me-1"></i>แก้ไข</button>
       <button class="tn" onclick="switchTab('shop',this)"><i class="fa-solid fa-store me-1"></i>ร้านค้า</button>
       <button class="tn" onclick="switchTab('reward-report',this)"><i class="fa-solid fa-clipboard-list me-1"></i>รายงานแลกของ</button>
+      <button class="tn" onclick="switchTab('reset',this)">
+        <i class="fa-solid fa-unlock-keyhole me-1"></i>รีเซ็ตรหัส
+        <span class="tn-badge hidden" id="resetNavCount">0</span>
+      </button>
       <button class="tn" onclick="switchTab('settings',this)"><i class="fa-solid fa-gear me-1"></i>ตั้งค่า</button>
     </div>
 
@@ -152,30 +156,6 @@
       <div id="sessBar" class="sess-bar closed">
         <span id="sessDot"></span><span id="sessText">ยังไม่มีคาบเรียน</span>
       </div>
-      <section class="reset-panel mb-3" id="resetPanel" aria-labelledby="resetPanelTitle">
-        <div class="reset-panel-head">
-          <div>
-            <div class="reset-panel-kicker">Password reset</div>
-            <h6 id="resetPanelTitle"><i class="fa-solid fa-unlock-keyhole me-2"></i>คำขอรีเซ็ตรหัสผ่านนักเรียน</h6>
-            <p>แจ้งรหัส 6 หลักให้นักเรียน ใช้ได้ 15 นาทีและลบอัตโนมัติเมื่อเปลี่ยนสำเร็จ</p>
-          </div>
-          <div class="reset-panel-actions">
-            <span class="reset-count-badge" id="resetRequestCount">0</span>
-            <button type="button" class="reset-refresh-btn" onclick="loadPasswordResetRequests()" aria-label="รีเฟรชคำขอรีเซ็ตรหัสผ่าน">
-              <i class="fa-solid fa-rotate-right"></i>
-            </button>
-          </div>
-        </div>
-        <div class="reset-request-list" id="resetRequestList" aria-live="polite">
-          <div class="reset-empty">
-            <i class="fa-regular fa-circle-check"></i>
-            <div>
-              <strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong>
-              <span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span>
-            </div>
-          </div>
-        </div>
-      </section>
       <div class="row g-3">
         <div class="col-md-6">
           <div class="card p-4 h-100">
@@ -225,6 +205,34 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ── TAB: PASSWORD RESET ── -->
+    <div class="t-pane" id="tab-reset">
+      <section class="reset-panel" id="resetPanel" aria-labelledby="resetPanelTitle">
+        <div class="reset-panel-head">
+          <div>
+            <div class="reset-panel-kicker">Password reset</div>
+            <h6 id="resetPanelTitle"><i class="fa-solid fa-unlock-keyhole me-2"></i>คำขอรีเซ็ตรหัสผ่านนักเรียน</h6>
+            <p>แจ้งรหัส 6 หลักให้นักเรียน ใช้ได้ 15 นาทีและลบอัตโนมัติเมื่อเปลี่ยนสำเร็จ</p>
+          </div>
+          <div class="reset-panel-actions">
+            <span class="reset-count-badge" id="resetRequestCount">0</span>
+            <button type="button" class="reset-refresh-btn" onclick="loadPasswordResetRequests()" aria-label="รีเฟรชคำขอรีเซ็ตรหัสผ่าน">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="reset-request-list" id="resetRequestList" aria-live="polite">
+          <div class="reset-empty">
+            <i class="fa-regular fa-circle-check"></i>
+            <div>
+              <strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong>
+              <span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- ── TAB: STATS ── -->

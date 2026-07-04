@@ -772,9 +772,15 @@ async function openPasswordResetConfirmModal(prefillStudentId) {
 function renderPasswordResetRequests(rows) {
   var wrap = document.getElementById('resetRequestList');
   var countEl = document.getElementById('resetRequestCount');
+  var navCountEl = document.getElementById('resetNavCount');
   if (!wrap) return;
   passwordResetRequests = rows || [];
-  if (countEl) countEl.textContent = String(passwordResetRequests.length);
+  var resetCount = passwordResetRequests.length;
+  if (countEl) countEl.textContent = String(resetCount);
+  if (navCountEl) {
+    navCountEl.textContent = String(resetCount);
+    navCountEl.classList.toggle('hidden', resetCount === 0);
+  }
   if (!passwordResetRequests.length) {
     wrap.innerHTML = '<div class="reset-empty"><i class="fa-regular fa-circle-check"></i><div><strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong><span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span></div></div>';
     return;
@@ -1937,7 +1943,7 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'stats') loadStats();
-  if (name === 'pin') loadPasswordResetRequests();
+  if (name === 'reset') loadPasswordResetRequests();
   if (name === 'shop') loadTeacherShopItems();
   if (name === 'reward-report') loadRewardReport();
 }
