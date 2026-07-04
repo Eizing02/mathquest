@@ -25,6 +25,10 @@ var tShopOrders = null;
 var tOrderFilter = 'all';
 var itemImageUrl = '';
 var rewardReportCache = null;
+var PASSWORD_RESET_TTL_MINUTES = 15;
+var passwordResetRequests = [];
+var passwordResetCountdownTimer = null;
+var passwordResetReloadTimer = null;
 
 // Student Shop State
 var shopItems = null, shopWallet = null, shopTabCurrent = 'shop';
@@ -442,6 +446,421 @@ async function forceChangePassword(studentId) {
       });
       /* loop กลับไปถามใหม่ */
     }
+  }
+}
+
+/* Password Reset Requests */
+function generatePasswordResetCode() {
+  if (window.crypto && window.crypto.getRandomValues) {
+    var values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return String(100000 + (values[0] % 900000));
+  }
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function normalizeResetCode(code) {
+  return String(code || '').replace(/\D/g, '').slice(0, 6);
+}
+
+function formatResetRemaining(expiresAt) {
+  var expires = safeDate(expiresAt);
+  if (!expires) return 'ไม่ทราบเวลา';
+  var ms = expires.getTime() - Date.now();
+  if (ms <= 0) return 'หมดอายุแล้ว';
+  var totalSec = Math.ceil(ms / 1000);
+  var min = Math.floor(totalSec / 60);
+  var sec = totalSec % 60;
+  return min + ':' + String(sec).padStart(2, '0') + ' นาที';
+}
+
+function resetRemainingMinutes(expiresAt) {
+  var expires = safeDate(expiresAt);
+  if (!expires) return 0;
+  return Math.max(0, Math.ceil((expires.getTime() - Date.now()) / 60000));
+}
+
+async function cleanupExpiredPasswordResetRequestsDb(client) {
+  var db = client || getSupabase();
+  var now = (await getServerNowDb(db)).toISOString();
+  await runQuery(db.from('password_reset_requests')
+    .delete()
+    .eq('status', 'pending')
+    .lte('expires_at', now)
+    .select('id'));
+  return now;
+}
+
+async function getActivePasswordResetRequestDb(studentId, client) {
+  var db = client || getSupabase();
+  var now = (await getServerNowDb(db)).toISOString();
+  return runQuery(db.from('password_reset_requests')
+    .select('id,student_id,student_name,grade,reset_code,status,created_at,expires_at')
+    .eq('student_id', String(studentId || '').trim())
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle());
+}
+
+async function createPasswordResetRequestDb(studentId) {
+  var client = getSupabase();
+  var sid = String(studentId || '').trim();
+  if (!sid) throw new Error('กรุณากรอกรหัสประจำตัวนักเรียน');
+
+  await cleanupExpiredPasswordResetRequestsDb(client);
+
+  var student = await runQuery(client.from('students')
+    .select('id,name,grade,role')
+    .eq('id', sid)
+    .maybeSingle());
+  if (!student || student.role === 'TEACHER') {
+    return { status: 'fail', message: 'ไม่พบรหัสนักเรียนนี้ในระบบ' };
+  }
+
+  var existing = await getActivePasswordResetRequestDb(sid, client);
+  if (existing) {
+    return {
+      status: 'existing',
+      studentId: existing.student_id,
+      studentName: existing.student_name,
+      grade: existing.grade,
+      expiresAt: existing.expires_at
+    };
+  }
+
+  var now = await getServerNowDb(client);
+  var expiresAt = new Date(now.getTime() + PASSWORD_RESET_TTL_MINUTES * 60000).toISOString();
+  var payload = {
+    student_id: student.id,
+    student_name: student.name || '',
+    grade: student.grade || '',
+    reset_code: generatePasswordResetCode(),
+    status: 'pending',
+    expires_at: expiresAt
+  };
+
+  try {
+    var created = await runQuery(client.from('password_reset_requests')
+      .insert(payload)
+      .select('id,student_id,student_name,grade,created_at,expires_at,status')
+      .single());
+    return {
+      status: 'success',
+      studentId: created.student_id,
+      studentName: created.student_name,
+      grade: created.grade,
+      expiresAt: created.expires_at
+    };
+  } catch (e) {
+    if (e && e.code === '23505') {
+      var active = await getActivePasswordResetRequestDb(sid, client);
+      if (active) {
+        return {
+          status: 'existing',
+          studentId: active.student_id,
+          studentName: active.student_name,
+          grade: active.grade,
+          expiresAt: active.expires_at
+        };
+      }
+    }
+    throw e;
+  }
+}
+
+async function verifyPasswordResetCodeDb(studentId, code, newPassword) {
+  var client = getSupabase();
+  var sid = String(studentId || '').trim();
+  var resetCode = normalizeResetCode(code);
+  var password = String(newPassword || '').trim();
+  if (!sid) return { status: 'fail', message: 'กรุณากรอกรหัสประจำตัวนักเรียน' };
+  if (resetCode.length !== 6) return { status: 'fail', message: 'กรุณากรอกรหัสรีเซ็ต 6 หลัก' };
+  if (password.length < 6) return { status: 'fail', message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' };
+  if (password === sid) return { status: 'fail', message: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสประจำตัวนักเรียน' };
+
+  await cleanupExpiredPasswordResetRequestsDb(client);
+  var now = (await getServerNowDb(client)).toISOString();
+  var req = await runQuery(client.from('password_reset_requests')
+    .select('id,student_id,student_name,grade,reset_code,expires_at,status')
+    .eq('student_id', sid)
+    .eq('reset_code', resetCode)
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .maybeSingle());
+  if (!req) {
+    return { status: 'fail', message: 'รหัสรีเซ็ตไม่ถูกต้อง หรือหมดอายุแล้ว' };
+  }
+
+  await runQuery(client.from('students')
+    .update({ password: password, is_first_login: false })
+    .eq('id', sid)
+    .select('id'));
+  await runQuery(client.from('password_reset_requests')
+    .delete()
+    .eq('id', req.id)
+    .select('id'));
+
+  return {
+    status: 'success',
+    studentId: req.student_id,
+    studentName: req.student_name
+  };
+}
+
+async function getPasswordResetRequestsDb() {
+  var client = getSupabase();
+  await cleanupExpiredPasswordResetRequestsDb(client);
+  var rows = await runQuery(client.from('password_reset_requests')
+    .select('id,student_id,student_name,grade,reset_code,status,created_at,expires_at')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false }));
+  return rows || [];
+}
+
+async function deletePasswordResetRequestDb(requestId) {
+  var client = getSupabase();
+  await runQuery(client.from('password_reset_requests')
+    .delete()
+    .eq('id', requestId)
+    .select('id'));
+  return { status: 'success' };
+}
+
+function openPasswordResetCodeFromRequestModal() {
+  var idEl = document.getElementById('resetReqStudentId');
+  var sid = idEl ? idEl.value : '';
+  Swal.close();
+  setTimeout(function() { openPasswordResetConfirmModal(sid); }, 80);
+}
+
+async function openPasswordResetRequestModal() {
+  var currentId = document.getElementById('username') ? document.getElementById('username').value.trim() : '';
+  var result = await Swal.fire({
+    title: 'ขอเปลี่ยนรหัสผ่าน',
+    html: '<div class="reset-modal-copy">กรอกรหัสนักเรียนเพื่อส่งคำขอให้ครู ระบบจะสร้างรหัสรีเซ็ต 6 หลักที่ใช้ได้ 15 นาที</div>'
+      + '<input id="resetReqStudentId" class="swal2-input reset-swal-input" inputmode="numeric" autocomplete="username" placeholder="เช่น 02125" value="' + escHtml(currentId) + '">'
+      + '<button type="button" class="swal-inline-link" onclick="openPasswordResetCodeFromRequestModal()">มีรหัส 6 หลักแล้ว</button>',
+    confirmButtonText: 'ส่งคำขอ',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    showLoaderOnConfirm: true,
+    focusConfirm: false,
+    confirmButtonColor: '#1d4ed8',
+    didOpen: function() {
+      var idEl = document.getElementById('resetReqStudentId');
+      if (idEl) {
+        idEl.focus();
+        idEl.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') Swal.clickConfirm();
+        });
+      }
+    },
+    preConfirm: async function() {
+      var sid = (document.getElementById('resetReqStudentId').value || '').trim();
+      if (!sid) {
+        Swal.showValidationMessage('กรุณากรอกรหัสประจำตัวนักเรียน');
+        return false;
+      }
+      try {
+        var res = await createPasswordResetRequestDb(sid);
+        if (res.status === 'fail') {
+          Swal.showValidationMessage(res.message || 'ไม่สามารถส่งคำขอได้');
+          return false;
+        }
+        return res;
+      } catch (e) {
+        Swal.showValidationMessage(e.message || 'ส่งคำขอไม่สำเร็จ');
+        return false;
+      }
+    },
+    allowOutsideClick: function() { return !Swal.isLoading(); }
+  });
+
+  if (!result.isConfirmed || !result.value) return;
+  var res = result.value;
+  var remaining = resetRemainingMinutes(res.expiresAt);
+  var title = res.status === 'existing' ? 'มีคำขออยู่แล้ว' : 'ส่งคำขอแล้ว';
+  var text = 'แจ้งครูให้ดูคำขอของ ' + res.studentName + ' (' + res.grade + ') เหลือเวลาอีกประมาณ ' + remaining + ' นาที';
+  var next = await Swal.fire({
+    icon: res.status === 'existing' ? 'info' : 'success',
+    title: title,
+    text: text,
+    confirmButtonText: 'กรอกรหัส 6 หลัก',
+    cancelButtonText: 'ปิด',
+    showCancelButton: true,
+    confirmButtonColor: '#1d4ed8'
+  });
+  if (next.isConfirmed) openPasswordResetConfirmModal(res.studentId);
+}
+
+async function openPasswordResetConfirmModal(prefillStudentId) {
+  var currentId = prefillStudentId || (document.getElementById('username') ? document.getElementById('username').value.trim() : '');
+  var result = await Swal.fire({
+    title: 'ตั้งรหัสผ่านใหม่',
+    html: '<div class="reset-modal-copy">กรอกรหัสนักเรียน รหัสรีเซ็ต 6 หลักจากครู และรหัสผ่านใหม่</div>'
+      + '<input id="resetStudentId" class="swal2-input reset-swal-input" inputmode="numeric" autocomplete="username" placeholder="รหัสนักเรียน" value="' + escHtml(currentId) + '">'
+      + '<input id="resetCode" class="swal2-input reset-swal-input reset-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="รหัสรีเซ็ต 6 หลัก">'
+      + '<input id="resetNewPassword" type="password" class="swal2-input reset-swal-input" autocomplete="new-password" placeholder="รหัสผ่านใหม่ อย่างน้อย 6 ตัวอักษร">'
+      + '<input id="resetNewPassword2" type="password" class="swal2-input reset-swal-input" autocomplete="new-password" placeholder="ยืนยันรหัสผ่านใหม่">',
+    confirmButtonText: 'เปลี่ยนรหัสผ่าน',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    showLoaderOnConfirm: true,
+    focusConfirm: false,
+    confirmButtonColor: '#1d4ed8',
+    didOpen: function() {
+      var codeEl = document.getElementById('resetCode');
+      var pass2 = document.getElementById('resetNewPassword2');
+      if (codeEl) {
+        codeEl.addEventListener('input', function() { codeEl.value = normalizeResetCode(codeEl.value); });
+      }
+      if (pass2) {
+        pass2.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') Swal.clickConfirm();
+        });
+      }
+    },
+    preConfirm: async function() {
+      var sid = (document.getElementById('resetStudentId').value || '').trim();
+      var code = normalizeResetCode(document.getElementById('resetCode').value);
+      var p1 = (document.getElementById('resetNewPassword').value || '').trim();
+      var p2 = (document.getElementById('resetNewPassword2').value || '').trim();
+      if (!sid) {
+        Swal.showValidationMessage('กรุณากรอกรหัสประจำตัวนักเรียน');
+        return false;
+      }
+      if (code.length !== 6) {
+        Swal.showValidationMessage('กรุณากรอกรหัสรีเซ็ต 6 หลัก');
+        return false;
+      }
+      if (p1.length < 6) {
+        Swal.showValidationMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+        return false;
+      }
+      if (p1 !== p2) {
+        Swal.showValidationMessage('รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+        return false;
+      }
+      try {
+        var res = await verifyPasswordResetCodeDb(sid, code, p1);
+        if (res.status !== 'success') {
+          Swal.showValidationMessage(res.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+          return false;
+        }
+        return res;
+      } catch (e) {
+        Swal.showValidationMessage(e.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+        return false;
+      }
+    },
+    allowOutsideClick: function() { return !Swal.isLoading(); }
+  });
+
+  if (!result.isConfirmed || !result.value) return;
+  if (document.getElementById('username')) document.getElementById('username').value = result.value.studentId || '';
+  if (document.getElementById('password')) document.getElementById('password').value = '';
+  await Swal.fire({
+    icon: 'success',
+    title: 'เปลี่ยนรหัสผ่านสำเร็จ',
+    text: 'เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย',
+    confirmButtonColor: '#047857'
+  });
+}
+
+function renderPasswordResetRequests(rows) {
+  var wrap = document.getElementById('resetRequestList');
+  var countEl = document.getElementById('resetRequestCount');
+  if (!wrap) return;
+  passwordResetRequests = rows || [];
+  if (countEl) countEl.textContent = String(passwordResetRequests.length);
+  if (!passwordResetRequests.length) {
+    wrap.innerHTML = '<div class="reset-empty"><i class="fa-regular fa-circle-check"></i><div><strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong><span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span></div></div>';
+    return;
+  }
+
+  wrap.innerHTML = passwordResetRequests.map(function(row) {
+    var id = Number(row.id);
+    return '<article class="reset-request-card" data-reset-id="' + id + '">'
+      + '<div class="reset-request-main">'
+      + '<div class="reset-student-name">' + escHtml(row.student_name || '-') + '</div>'
+      + '<div class="reset-student-meta"><span>' + escHtml(row.student_id || '-') + '</span><span>' + escHtml(row.grade || '-') + '</span><span>ขอเมื่อ ' + escHtml(formatDateTime(row.created_at)) + '</span></div>'
+      + '</div>'
+      + '<div class="reset-code-wrap">'
+      + '<span class="reset-code-label">รหัสรีเซ็ต</span>'
+      + '<strong class="reset-code-value">' + escHtml(row.reset_code || '') + '</strong>'
+      + '</div>'
+      + '<div class="reset-time-wrap">'
+      + '<span class="reset-code-label">เหลือเวลา</span>'
+      + '<strong class="reset-countdown" data-reset-expires="' + escHtml(row.expires_at || '') + '">' + escHtml(formatResetRemaining(row.expires_at)) + '</strong>'
+      + '</div>'
+      + '<button class="reset-delete-btn" onclick="deletePasswordResetRequest(' + id + ')" aria-label="ลบคำขอของ ' + escHtml(row.student_name || row.student_id || '') + '"><i class="fa-solid fa-trash"></i></button>'
+      + '</article>';
+  }).join('');
+  updatePasswordResetCountdowns();
+}
+
+function updatePasswordResetCountdowns() {
+  var shouldReload = false;
+  document.querySelectorAll('[data-reset-expires]').forEach(function(el) {
+    var expires = safeDate(el.getAttribute('data-reset-expires'));
+    if (!expires) return;
+    var ms = expires.getTime() - Date.now();
+    el.textContent = formatResetRemaining(expires);
+    el.classList.toggle('is-urgent', ms > 0 && ms <= 3 * 60000);
+    el.classList.toggle('is-expired', ms <= 0);
+    if (ms <= 0) shouldReload = true;
+  });
+  if (shouldReload) {
+    setTimeout(function() { loadPasswordResetRequests(); }, 600);
+  }
+}
+
+async function loadPasswordResetRequests() {
+  var wrap = document.getElementById('resetRequestList');
+  if (!wrap) return;
+  try {
+    var rows = await getPasswordResetRequestsDb();
+    renderPasswordResetRequests(rows);
+  } catch (e) {
+    wrap.innerHTML = '<div class="reset-empty reset-empty-error"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>โหลดคำขอรีเซ็ตไม่ได้</strong><span>' + escHtml(e.message || 'กรุณาตรวจสอบว่าอัปเดตฐานข้อมูลแล้ว') + '</span></div></div>';
+  }
+}
+
+function startPasswordResetDashboard() {
+  stopPasswordResetDashboard();
+  loadPasswordResetRequests();
+  passwordResetCountdownTimer = setInterval(updatePasswordResetCountdowns, 1000);
+  passwordResetReloadTimer = setInterval(loadPasswordResetRequests, 30000);
+}
+
+function stopPasswordResetDashboard() {
+  if (passwordResetCountdownTimer) clearInterval(passwordResetCountdownTimer);
+  if (passwordResetReloadTimer) clearInterval(passwordResetReloadTimer);
+  passwordResetCountdownTimer = null;
+  passwordResetReloadTimer = null;
+}
+
+async function deletePasswordResetRequest(requestId) {
+  var row = passwordResetRequests.find(function(item) { return Number(item.id) === Number(requestId); });
+  var name = row ? (row.student_name || row.student_id) : 'รายการนี้';
+  var ok = await Swal.fire({
+    icon: 'warning',
+    title: 'ลบคำขอรีเซ็ต?',
+    text: 'คำขอของ ' + name + ' จะถูกลบออกจากหน้าครูทันที',
+    confirmButtonText: 'ลบคำขอ',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    confirmButtonColor: '#b91c1c'
+  });
+  if (!ok.isConfirmed) return;
+  try {
+    await deletePasswordResetRequestDb(requestId);
+    await loadPasswordResetRequests();
+    Swal.fire({ icon: 'success', title: 'ลบคำขอแล้ว', timer: 1300, showConfirmButton: false });
+  } catch (e) {
+    onErr(e);
   }
 }
 
@@ -1304,6 +1723,7 @@ async function login() {
         await loadCurrentSession();
         await loadSettings();
         await loadTeacherShopItems();
+        startPasswordResetDashboard();
       } else {
         document.getElementById('studentSection').classList.remove('hidden');
         document.getElementById('sNameDisp').textContent = res.name;
@@ -1345,18 +1765,39 @@ async function loadStudentGami() {
 function updateGamiUI(d) {
   var pts = d.totalPoints || 0, lv = d.level || 0, pip = d.pointsInLevel || 0;
   var tier = Math.min(Math.floor(lv / 10), 4);
-  document.getElementById('studentSection').setAttribute('data-tier', String(tier));
-  document.getElementById('lvNum').textContent = lv;
   var pct = Math.round((pip / 5) * 100);
-  document.getElementById('levelRing').style.setProperty('--pct', pct + '%');
-  document.getElementById('xpFill').style.width = pct + '%';
-  document.getElementById('xpLabel').textContent = pip + ' / 5 XP';
-  document.getElementById('ptLabel').textContent = 'แต้มรวม ' + pts;
-  document.querySelectorAll('.trophy').forEach(function(el) {
+
+  var section = document.getElementById('studentSection');
+  if (section && section.getAttribute('data-tier') !== String(tier)) {
+    section.setAttribute('data-tier', String(tier));
+  }
+
+  var lvNum = document.getElementById('lvNum');
+  if (lvNum && lvNum.textContent !== String(lv)) lvNum.textContent = lv;
+
+  var ring = document.getElementById('levelRing');
+  if (ring && ring.style.getPropertyValue('--pct') !== pct + '%') {
+    ring.style.setProperty('--pct', pct + '%');
+  }
+
+  var xpFill = document.getElementById('xpFill');
+  if (xpFill) xpFill.style.transform = 'scaleX(' + (pct / 100) + ')';
+
+  var xpLabel = document.getElementById('xpLabel');
+  var xpText = pip + ' / 5 XP';
+  if (xpLabel && xpLabel.textContent !== xpText) xpLabel.textContent = xpText;
+
+  var ptLabel = document.getElementById('ptLabel');
+  var ptText = 'แต้มรวม ' + pts;
+  if (ptLabel && ptLabel.textContent !== ptText) ptLabel.textContent = ptText;
+
+  var trophies = updateGamiUI._trophies || (updateGamiUI._trophies = Array.prototype.slice.call(document.querySelectorAll('.trophy')));
+  trophies.forEach(function(el) {
     el.classList.toggle('earned', lv >= parseInt(el.dataset.t || '0', 10));
   });
+
   var lc = document.getElementById('levelCard');
-  lc.style.cssText = tier >= 1 ? 'background:transparent;box-shadow:none' : '';
+  if (lc) lc.style.cssText = tier >= 1 ? 'background:transparent;box-shadow:none' : '';
 }
 
 function openPhotoUpload() {
@@ -1496,6 +1937,7 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'stats') loadStats();
+  if (name === 'pin') loadPasswordResetRequests();
   if (name === 'shop') loadTeacherShopItems();
   if (name === 'reward-report') loadRewardReport();
 }
@@ -2252,6 +2694,7 @@ function logout() {
   statsLoaded = false;
   shopItems = null;
   shopWallet = null;
+  stopPasswordResetDashboard();
   location.reload();
 }
 
@@ -3043,9 +3486,16 @@ function updateWalletUI(w, prevCoins) {
   var el = document.getElementById('shopCoinsDisplay');
   el.textContent = w.mathCoins + ' 🪙';
   if (prevCoins !== null && prevCoins !== w.mathCoins) {
-    el.classList.remove('coin-flash');
-    void el.offsetWidth;
-    el.classList.add('coin-flash');
+    if (el.animate) {
+      el.animate([
+        { transform: 'scale(1)', textShadow: '0 0 0 rgba(251,191,36,0)' },
+        { transform: 'scale(1.18)', textShadow: '0 0 14px rgba(251,191,36,.75)' },
+        { transform: 'scale(1)', textShadow: '0 0 0 rgba(251,191,36,0)' }
+      ], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    } else {
+      el.classList.remove('coin-flash');
+      requestAnimationFrame(function() { el.classList.add('coin-flash'); });
+    }
   }
   document.getElementById('shopLifetimeDisplay').textContent =
     'Lifetime EXP: ' + w.lifetimeExp + ' | ใช้ไปแล้ว: ' + w.totalSpent;

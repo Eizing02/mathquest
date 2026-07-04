@@ -20,27 +20,35 @@
 </head>
 <body>
 <!-- ════════ LOGIN ════════ -->
-<div id="loginSection" class="login-wrap">
+<main id="loginSection" class="login-wrap">
   <div class="login-card">
     <div id="loginLogoWrap" class="login-logo-emoji">🏫</div>
-    <h4 id="loginAppName">ระบบเช็คชื่อนักเรียน</h4>
-    <p id="loginSchoolName">กำลังโหลด...</p>
+    <h1 id="loginAppName">ระบบเช็คชื่อนักเรียน</h1>
+    <p id="loginSchoolName" aria-live="polite">กำลังโหลด...</p>
     <input type="text" id="username" class="form-control mb-3" placeholder="รหัสประจำตัวนักเรียน"
-           autocomplete="username" onkeydown="if(event.key==='Enter')login()">
+           autocomplete="username" aria-label="รหัสประจำตัวนักเรียน" onkeydown="if(event.key==='Enter')login()">
     <input type="password" id="password" class="form-control mb-4" placeholder="รหัสผ่าน (รหัสประจำตัวนักเรียน)"
-           autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+           autocomplete="current-password" aria-label="รหัสผ่าน" onkeydown="if(event.key==='Enter')login()">
     <button class="btn-login" onclick="login()">
       <i class="fa-solid fa-right-to-bracket me-2"></i>เข้าสู่ระบบ
     </button>
+    <div class="login-reset-actions" aria-label="ตัวช่วยรหัสผ่าน">
+      <button type="button" class="login-reset-link" onclick="openPasswordResetRequestModal()">
+        <i class="fa-solid fa-key"></i> ลืมรหัสผ่าน / ขอรหัสรีเซ็ต
+      </button>
+      <button type="button" class="login-reset-link muted" onclick="openPasswordResetConfirmModal()">
+        <i class="fa-solid fa-shield-halved"></i> มีรหัส 6 หลักแล้ว
+      </button>
+    </div>
   </div>
-</div>
+</main>
 
 <!-- ════════ STUDENT ════════ -->
-<div id="studentSection" class="hidden" data-tier="0">
+<main id="studentSection" class="hidden" data-tier="0">
   <div class="container" style="max-width:460px;padding:16px 12px">
     <div class="d-flex justify-content-end mb-2">
-      <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()">
-        <i class="fa-solid fa-rotate-right" id="refreshIcon"></i>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()" aria-label="รีเฟรชข้อมูลนักเรียน">
+        <i class="fa-solid fa-rotate-right" id="refreshIcon" aria-hidden="true"></i>
         <span id="refreshLabel">รีเฟรช</span>
       </button>
     </div>
@@ -50,12 +58,12 @@
       <div class="text-center">
         <div class="photo-overlay mb-2">
           <img id="studentPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='32' fill='%234f46e5'%3E👤%3C/text%3E%3C/svg%3E"
-               class="profile-photo" onclick="openPhotoUpload()" alt="profile">
-          <button class="photo-edit-btn" onclick="openPhotoUpload()">
+               class="profile-photo" onclick="openPhotoUpload()" alt="รูปโปรไฟล์นักเรียน">
+          <button class="photo-edit-btn" onclick="openPhotoUpload()" aria-label="เปลี่ยนรูปโปรไฟล์">
             <i class="fa-solid fa-camera" style="font-size:.65rem"></i>
           </button>
         </div>
-        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoChange(event)">
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoChange(event)" aria-label="อัปโหลดรูปโปรไฟล์">
         <div class="ring-wrap mb-2">
           <div class="level-ring" id="levelRing">
             <div class="level-ring-inner">
@@ -91,7 +99,7 @@
       <input type="text" class="pin-input mb-3" id="pinCode"
              inputmode="numeric" maxlength="4" placeholder="• • • •"
              oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-             onkeydown="if(event.key==='Enter')checkIn()" autocomplete="off">
+             onkeydown="if(event.key==='Enter')checkIn()" autocomplete="off" aria-label="กรอก PIN 4 หลัก">
       <button class="btn w-100 py-2 fw-bold" id="checkInBtn"
               style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:14px;font-size:1rem"
               onclick="checkIn()">
@@ -113,10 +121,10 @@
       </button>
     </div>
   </div>
-</div>
+</main>
 
 <!-- ════════ TEACHER ════════ -->
-<div id="teacherSection" class="hidden">
+<main id="teacherSection" class="hidden">
   <div class="t-hdr">
     <div>
       <h4>
@@ -126,7 +134,7 @@
       <small id="tHdrSchool">กุงแก้ววิทยาคาร</small>
     </div>
     <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-radius:10px"
-            onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+            aria-label="ออกจากระบบ" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
   </div>
 
   <div class="container-fluid px-3 py-3" style="max-width:980px;margin:auto">
@@ -144,6 +152,30 @@
       <div id="sessBar" class="sess-bar closed">
         <span id="sessDot"></span><span id="sessText">ยังไม่มีคาบเรียน</span>
       </div>
+      <section class="reset-panel mb-3" id="resetPanel" aria-labelledby="resetPanelTitle">
+        <div class="reset-panel-head">
+          <div>
+            <div class="reset-panel-kicker">Password reset</div>
+            <h6 id="resetPanelTitle"><i class="fa-solid fa-unlock-keyhole me-2"></i>คำขอรีเซ็ตรหัสผ่านนักเรียน</h6>
+            <p>แจ้งรหัส 6 หลักให้นักเรียน ใช้ได้ 15 นาทีและลบอัตโนมัติเมื่อเปลี่ยนสำเร็จ</p>
+          </div>
+          <div class="reset-panel-actions">
+            <span class="reset-count-badge" id="resetRequestCount">0</span>
+            <button type="button" class="reset-refresh-btn" onclick="loadPasswordResetRequests()" aria-label="รีเฟรชคำขอรีเซ็ตรหัสผ่าน">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="reset-request-list" id="resetRequestList" aria-live="polite">
+          <div class="reset-empty">
+            <i class="fa-regular fa-circle-check"></i>
+            <div>
+              <strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong>
+              <span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span>
+            </div>
+          </div>
+        </div>
+      </section>
       <div class="row g-3">
         <div class="col-md-6">
           <div class="card p-4 h-100">
@@ -251,14 +283,14 @@
         <div class="col-md-4">
           <div class="chart-wrap h-100">
             <h6>สัดส่วนเข้าเรียน</h6>
-            <div style="height:160px;position:relative"><canvas id="chartDonut"></canvas></div>
+            <div style="height:160px;position:relative"><canvas id="chartDonut" role="img" aria-label="กราฟสัดส่วนการเข้าเรียน"></canvas></div>
             <div id="donutLeg" class="d-flex justify-content-center gap-3 mt-2" style="font-size:.71rem"></div>
           </div>
         </div>
         <div class="col-md-8">
           <div class="chart-wrap h-100">
             <h6>แนวโน้มรายเดือน (6 เดือนล่าสุด)</h6>
-            <div style="height:160px;position:relative"><canvas id="chartBar"></canvas></div>
+            <div style="height:160px;position:relative"><canvas id="chartBar" role="img" aria-label="กราฟแนวโน้มรายเดือน"></canvas></div>
           </div>
         </div>
       </div>
@@ -583,7 +615,7 @@
     </div>
 
   </div>
-</div><!-- /teacherSection -->
+</main><!-- /teacherSection -->
 
 <!-- ════════ PRINT AREA ════════ -->
 <div id="printArea" class="hidden p-4">
@@ -613,7 +645,7 @@
     <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.15)">
       <div class="modal-header" style="border-radius:20px 20px 0 0;background:linear-gradient(135deg,#064e3b,#10b981);color:#fff;border:none">
         <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus me-2"></i>เพิ่มนักเรียนใหม่</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิดหน้าต่างเพิ่มนักเรียน"></button>
       </div>
       <div class="modal-body p-4">
         <label class="form-label">รหัสประจำตัวนักเรียน</label>
@@ -664,15 +696,15 @@
   <div class="shop-modal" id="shopModal">
     <div class="shop-header">
       <h5><span style="font-size:1.3rem">🛒</span> Magic Shop</h5>
-      <button class="shop-close" onclick="closeShop()"><i class="fa-solid fa-xmark"></i></button>
+      <button class="shop-close" onclick="closeShop()" aria-label="ปิดร้านค้า"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </div>
     <div class="wallet-wrap">
       <div class="wallet-badge">
         <div class="wallet-icon">🪙</div>
         <div class="wallet-info" style="flex:1">
           <div class="wi-label">MathCoins พร้อมใช้งาน</div>
-          <div class="wi-val" id="shopCoinsDisplay">—</div>
-          <div class="wi-sub" id="shopLifetimeDisplay">Lifetime EXP: —</div>
+          <div class="wi-val" id="shopCoinsDisplay" aria-live="polite">—</div>
+          <div class="wi-sub" id="shopLifetimeDisplay" aria-live="polite">Lifetime EXP: —</div>
         </div>
         <button onclick="refreshWallet()"
           style="border:none;background:none;color:#818cf8;font-size:.85rem;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background .2s"
@@ -712,7 +744,7 @@
     <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.15)">
       <div class="modal-header" style="border-radius:20px 20px 0 0;background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;border:none">
         <h5 class="modal-title fw-bold" id="itemModalTitle">เพิ่มสินค้าใหม่</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิดหน้าต่างสินค้า"></button>
       </div>
       <div class="item-form">
         <input type="hidden" id="editItemId">
@@ -720,10 +752,10 @@
         <div class="d-flex gap-3 align-items-center mb-3">
           <div class="item-preview-img" id="itemPreviewWrap">
             <span id="itemPreviewEmoji">🎁</span>
-            <img id="itemPreviewImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px">
+            <img id="itemPreviewImg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="ตัวอย่างรูปสินค้า" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px">
           </div>
           <div>
-            <input type="file" id="itemImageInput" accept="image/*" style="display:none" onchange="handleItemImageChange(event)">
+            <input type="file" id="itemImageInput" accept="image/*" style="display:none" onchange="handleItemImageChange(event)" aria-label="อัปโหลดรูปสินค้า">
             <button class="btn btn-sm btn-outline-primary fw-bold mb-1" style="border-radius:10px;font-size:.8rem;display:block"
                     onclick="document.getElementById('itemImageInput').click()">
               <i class="fa-solid fa-image me-1"></i>เลือกรูปสินค้า
