@@ -33,6 +33,13 @@
     <button class="btn-login" onclick="login()">
       <i class="fa-solid fa-right-to-bracket me-2"></i>เข้าสู่ระบบ
     </button>
+    <button type="button" class="btn-guest-login" onclick="startGuestLogin()">
+      <span class="guest-icon"><i class="fa-solid fa-flask"></i></span>
+      <span>
+        <strong>ทดลองใช้แบบ Guest</strong>
+        <small>ข้อมูลจำลอง ลบอัตโนมัติใน 10 นาที</small>
+      </span>
+    </button>
     <div class="login-reset-actions" aria-label="ตัวช่วยรหัสผ่าน">
       <button type="button" class="login-reset-link" onclick="openPasswordResetRequestModal()">
         <i class="fa-solid fa-key"></i> ลืมรหัสผ่าน / ขอรหัสรีเซ็ต
@@ -53,6 +60,11 @@
         <i class="fa-solid fa-rotate-right" id="refreshIcon" aria-hidden="true"></i>
         <span id="refreshLabel">รีเฟรช</span>
       </button>
+    </div>
+
+    <div class="guest-session-banner hidden" id="guestSessionBanner" role="status" aria-live="polite">
+      <span><i class="fa-solid fa-user-clock"></i> Guest demo</span>
+      <strong id="guestCountdown">10:00</strong>
     </div>
 
     <!-- Profile + Level Card -->

@@ -38,6 +38,10 @@ var PET_PAID_CHANGE_COST = 25;
 var PET_RENAME_LIMIT = 3;
 var petCatalog = null, petCatalogPromise = null, studentPet = null;
 var petGridObserver = null;
+var GUEST_SESSION_KEY = 'checkrean_guest_session_v1';
+var GUEST_TTL_MS = 10 * 60 * 1000;
+var guestSessionTimer = null;
+var guestExpiryHandled = false;
 
 var TH_MO_S = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 var TH_MO_L = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -350,6 +354,263 @@ function sanitizePetName(name, fallback) {
   var clean = String(name || '').replace(/\s+/g, ' ').trim();
   if (!clean) clean = String(fallback || 'Buddy').trim();
   return clean.slice(0, 18);
+}
+
+/* Guest Demo Mode */
+function isGuestMode() {
+  return !!(CU && CU.isGuest);
+}
+
+function isGuestStudentId(studentId) {
+  return String(studentId || '').indexOf('GUEST-') === 0;
+}
+
+function guestRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function guestPick(list) {
+  return list[guestRandomInt(0, list.length - 1)];
+}
+
+function readGuestSessionRaw() {
+  try {
+    var raw = sessionStorage.getItem(GUEST_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeGuestSession(session) {
+  try {
+    sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(session));
+  } catch (e) {}
+}
+
+function clearGuestSession() {
+  try {
+    sessionStorage.removeItem(GUEST_SESSION_KEY);
+  } catch (e) {}
+}
+
+function getActiveGuestSession() {
+  var session = readGuestSessionRaw();
+  if (!session || !session.user || !session.expiresAt) return null;
+  if (Date.now() >= Number(session.expiresAt)) {
+    clearGuestSession();
+    return null;
+  }
+  return session;
+}
+
+function saveActiveGuestSession(session) {
+  if (!session) return;
+  session.updatedAt = Date.now();
+  writeGuestSession(session);
+}
+
+function formatGuestTimeLeft(ms) {
+  var total = Math.ceil(Math.max(0, ms) / 1000);
+  var m = Math.floor(total / 60);
+  var s = total % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function showGuestExpiredAlert() {
+  if (guestExpiryHandled) return;
+  guestExpiryHandled = true;
+  clearGuestSession();
+  if (guestSessionTimer) clearInterval(guestSessionTimer);
+  guestSessionTimer = null;
+  Swal.fire({
+    icon: 'info',
+    title: 'หมดเวลาทดลองใช้งาน',
+    text: 'โหมด Guest ใช้งานได้ครั้งละ 10 นาที ข้อมูลทดลองทั้งหมดถูกลบแล้ว',
+    confirmButtonColor: '#4f46e5'
+  }).then(function() {
+    location.reload();
+  });
+}
+
+function updateGuestSessionBanner() {
+  var banner = document.getElementById('guestSessionBanner');
+  var countdown = document.getElementById('guestCountdown');
+  if (!banner || !countdown) return;
+  if (!isGuestMode()) {
+    banner.classList.add('hidden');
+    return;
+  }
+  var session = getActiveGuestSession();
+  if (!session) {
+    banner.classList.add('hidden');
+    showGuestExpiredAlert();
+    return;
+  }
+  banner.classList.remove('hidden');
+  countdown.textContent = formatGuestTimeLeft(Math.max(0, Number(session.expiresAt) - Date.now()));
+}
+
+function startGuestSessionClock() {
+  if (guestSessionTimer) clearInterval(guestSessionTimer);
+  guestExpiryHandled = false;
+  updateGuestSessionBanner();
+  guestSessionTimer = setInterval(updateGuestSessionBanner, 1000);
+}
+
+function stopGuestSessionClock() {
+  if (guestSessionTimer) clearInterval(guestSessionTimer);
+  guestSessionTimer = null;
+  var banner = document.getElementById('guestSessionBanner');
+  if (banner) banner.classList.add('hidden');
+}
+
+function getGuestShopItems() {
+  return [
+    { rowIndex: 1, itemId: 'GUEST_STICKER', itemName: 'Sticker Pack', cost: 25, description: 'Demo reward for testing shop orders', image: '', imageUrl: '', active: true },
+    { rowIndex: 2, itemId: 'GUEST_PENCIL', itemName: 'Magic Pencil', cost: 40, description: 'A sample classroom reward item', image: '', imageUrl: '', active: true },
+    { rowIndex: 3, itemId: 'GUEST_BADGE', itemName: 'Lucky Badge', cost: 60, description: 'Preview how expensive rewards behave', image: '', imageUrl: '', active: true },
+    { rowIndex: 4, itemId: 'GUEST_PASS', itemName: 'Homework Pass', cost: 90, description: 'Demo item with a higher coin cost', image: '', imageUrl: '', active: true }
+  ];
+}
+
+function createGuestAttendanceLogs(now, totalPoints) {
+  var present = '\u0e21\u0e32';
+  var absent = '\u0e02\u0e32\u0e14';
+  var leave = '\u0e25\u0e32';
+  var logs = [];
+  var remaining = totalPoints;
+  for (var i = 1; i <= 24; i++) {
+    if (Math.random() < 0.28) continue;
+    var d = new Date(now.getTime() - i * 86400000);
+    d.setHours(8 + guestRandomInt(0, 3), guestRandomInt(0, 50), 0, 0);
+    var statusRoll = Math.random();
+    var status = statusRoll < 0.76 ? present : (statusRoll < 0.9 ? absent : leave);
+    var pts = 0;
+    if (status === present && remaining > 0) {
+      pts = Math.min(remaining, guestPick([1, 3, 5]));
+      remaining -= pts;
+    }
+    logs.push({ id: 'GLOG_' + i, timestamp: d.toISOString(), status: status, points: pts });
+  }
+  while (remaining > 0) {
+    var extra = new Date(now.getTime() - guestRandomInt(25, 50) * 86400000);
+    var add = Math.min(remaining, 5);
+    logs.push({ id: 'GLOG_EXTRA_' + remaining, timestamp: extra.toISOString(), status: present, points: add });
+    remaining -= add;
+  }
+  return logs.sort(function(a, b) {
+    return safeDate(b.timestamp) - safeDate(a.timestamp);
+  });
+}
+
+function createGuestSession() {
+  var now = new Date();
+  var grades = GRADE_LIST.filter(function(g) { return String(g).indexOf('/') > -1; });
+  var level = guestRandomInt(1, 40);
+  var pointsInLevel = guestRandomInt(0, 4);
+  var totalPoints = level * 5 + pointsInLevel;
+  var petList = petCatalog && petCatalog.pets && petCatalog.pets.length ? petCatalog.pets : [];
+  var pet = petList.length ? guestPick(petList) : { id: 'leafy', defaultName: 'Leafy' };
+  var coins = guestRandomInt(80, 220);
+  var spent = Math.max(0, totalPoints - coins);
+  var user = {
+    status: 'success',
+    role: 'STUDENT',
+    id: 'GUEST-' + Date.now().toString(36).toUpperCase(),
+    name: 'Test 01',
+    grade: guestPick(grades.length ? grades : GRADE_LIST),
+    isGuest: true,
+    isFirstLogin: false
+  };
+  return {
+    version: 1,
+    createdAt: now.getTime(),
+    updatedAt: now.getTime(),
+    expiresAt: now.getTime() + GUEST_TTL_MS,
+    user: user,
+    profile: {
+      id: user.id,
+      name: user.name,
+      grade: user.grade,
+      photo: null,
+      photo_url: null,
+      level: level,
+      totalPoints: totalPoints,
+      pointsInLevel: pointsInLevel,
+      checkCount: 0
+    },
+    wallet: {
+      lifetimeExp: totalPoints,
+      totalSpent: spent,
+      mathCoins: coins
+    },
+    pet: {
+      student_id: user.id,
+      pet_id: pet.id,
+      pet_name: pet.defaultName || 'Buddy',
+      free_select_used: 1,
+      rename_used: 0,
+      selected_at: now.toISOString(),
+      updated_at: now.toISOString()
+    },
+    attendanceLogs: createGuestAttendanceLogs(now, totalPoints),
+    redemptions: [
+      { timestamp: new Date(now.getTime() - 3 * 86400000).toISOString(), item_name: 'Sticker Pack', points_used: 0, status: 'approved' },
+      { timestamp: new Date(now.getTime() - 6 * 86400000).toISOString(), item_name: 'Magic Pencil', points_used: 40, status: 'pending' }
+    ],
+    shopItems: getGuestShopItems()
+  };
+}
+
+function refreshGuestProfileFromPoints(session) {
+  var total = Number(session.profile.totalPoints) || 0;
+  session.profile.level = Math.floor(total / 5);
+  session.profile.pointsInLevel = total % 5;
+  session.profile.checkCount = (session.attendanceLogs || []).filter(function(log) {
+    return log.status === '\u0e21\u0e32';
+  }).length;
+  session.wallet.lifetimeExp = total;
+}
+
+async function enterStudentApp(res) {
+  document.getElementById('studentSection').classList.remove('hidden');
+  document.getElementById('sNameDisp').textContent = res.name;
+  document.getElementById('sGradeDisp').textContent = '\u0e0a\u0e31\u0e49\u0e19 ' + res.grade;
+  if (res.isGuest) startGuestSessionClock();
+  else stopGuestSessionClock();
+  if (res.isFirstLogin) await forceChangePassword(res.id);
+  await loadStudentProfile();
+  shopWallet = await getWalletBalanceDb(CU.id);
+  updateShopCoinsBadge(shopWallet.mathCoins);
+  await loadStudentPet();
+}
+
+async function startGuestLogin() {
+  loading('กำลังเตรียมโหมดทดลอง...');
+  try {
+    await loadPetCatalog();
+    var session = createGuestSession();
+    session.profile.checkCount = session.attendanceLogs.filter(function(log) {
+      return log.status === '\u0e21\u0e32';
+    }).length;
+    writeGuestSession(session);
+    CU = session.user;
+    document.getElementById('loginSection').classList.add('hidden');
+    Swal.close();
+    await enterStudentApp(CU);
+  } catch (e) {
+    onErr(e);
+  }
+}
+
+async function restoreGuestSessionIfActive() {
+  var session = getActiveGuestSession();
+  if (!session) return false;
+  CU = session.user;
+  document.getElementById('loginSection').classList.add('hidden');
+  await enterStudentApp(CU);
+  return true;
 }
 
 /* ══ Storage Helpers ═════════════════════════════════ */
@@ -976,6 +1237,19 @@ async function deletePasswordResetRequest(requestId) {
 }
 
 async function getStudentPointsAndLevelDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { totalPoints: 0, level: 0, pointsInLevel: 0, checkCount: 0 };
+    }
+    return {
+      totalPoints: session.profile.totalPoints || 0,
+      level: session.profile.level || 0,
+      pointsInLevel: session.profile.pointsInLevel || 0,
+      checkCount: session.profile.checkCount || 0
+    };
+  }
   var client = getSupabase();
   var logs = await runQuery(client.from('attendance_logs')
     .select('status,points')
@@ -996,6 +1270,10 @@ async function getStudentPointsAndLevelDb(studentId) {
 }
 
 async function getStudentProfileDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    return session ? Object.assign({}, session.profile) : null;
+  }
   var client = getSupabase();
   var cid = String(studentId).trim();
   var row = await runQuery(client.from('students')
@@ -1018,6 +1296,14 @@ async function getStudentProfileDb(studentId) {
 }
 
 async function saveProfilePictureDb(studentId, photoUrl) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) return { status: 'fail' };
+    session.profile.photo = photoUrl || '';
+    session.profile.photo_url = photoUrl || '';
+    saveActiveGuestSession(session);
+    return { status: 'success' };
+  }
   var client = getSupabase();
   await runQuery(client.from('students')
     .update({ photo_url: photoUrl || '' })
@@ -1077,6 +1363,24 @@ async function addNewStudentDb(studentId, studentName, grade) {
 }
 
 async function getStudentHistoryDb(studentId, targetMonth) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return [];
+    }
+    return (session.attendanceLogs || []).filter(function(r) {
+      return matchesMonth(r.timestamp, targetMonth || 'all');
+    }).map(function(r) {
+      return {
+        id: r.id,
+        date: formatDate(r.timestamp),
+        dateKey: dateKeyBangkok(r.timestamp),
+        status: String(r.status || '').trim(),
+        points: Number(r.points) || 0
+      };
+    });
+  }
   var client = getSupabase();
   var rows = await runQuery(client.from('attendance_logs')
     .select('id,timestamp,status,points')
@@ -1213,6 +1517,33 @@ async function generateNewPINDb(targetGrade) {
 }
 
 async function submitCheckInDb(studentId, pinCode) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { result: 'error', msg: 'หมดเวลาทดลองใช้งานแล้ว' };
+    }
+    var today = dateKeyBangkok(new Date());
+    var logs = session.attendanceLogs || [];
+    for (var gi = 0; gi < logs.length; gi++) {
+      if (dateKeyBangkok(logs[gi].timestamp) === today) {
+        return { result: 'duplicate', msg: 'เช็คชื่อวันนี้ในโหมดทดลองแล้ว' };
+      }
+    }
+    var pts = guestPick([3, 5]);
+    logs.unshift({
+      id: 'GLOG_TODAY_' + Date.now(),
+      timestamp: new Date().toISOString(),
+      status: '\u0e21\u0e32',
+      points: pts
+    });
+    session.attendanceLogs = logs;
+    session.profile.totalPoints = (Number(session.profile.totalPoints) || 0) + pts;
+    session.wallet.mathCoins = (Number(session.wallet.mathCoins) || 0) + pts;
+    refreshGuestProfileFromPoints(session);
+    saveActiveGuestSession(session);
+    return { result: 'success', points: pts, grade: session.user.grade };
+  }
   var client = getSupabase();
   var cid = String(studentId).trim();
   var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start']);
@@ -1379,6 +1710,10 @@ async function editAttendanceRecordDb(studentId, dateStr, status, points) {
 }
 
 async function getStudentPetDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    return session ? Object.assign({}, session.pet) : null;
+  }
   var client = getSupabase();
   var cid = String(studentId || '').trim();
   if (!cid) return null;
@@ -1394,6 +1729,49 @@ async function logStudentPetEventDb(payload) {
 
 async function selectStudentPetDb(studentId, petId, petName) {
   await loadPetCatalog();
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    var guestPetMeta = findPetById(petId);
+    if (!session || !guestPetMeta) {
+      if (!session) showGuestExpiredAlert();
+      return { status: 'fail', msg: 'ไม่พบข้อมูลสัตว์เลี้ยง' };
+    }
+    var currentGuestPet = session.pet;
+    if (currentGuestPet && currentGuestPet.pet_id === guestPetMeta.id) {
+      return { status: 'same', msg: 'ใช้งานสัตว์เลี้ยงตัวนี้อยู่แล้ว', pet: currentGuestPet };
+    }
+    var guestFreeUsed = currentGuestPet ? clampPetCount(currentGuestPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+    var guestUseFree = guestFreeUsed < PET_FREE_SELECT_LIMIT;
+    var guestCost = guestUseFree ? 0 : PET_PAID_CHANGE_COST;
+    if (guestCost > 0 && session.wallet.mathCoins < guestCost) {
+      return { status: 'fail', msg: 'เหรียญไม่พอ ต้องใช้ ' + guestCost + ' เหรียญ' };
+    }
+    if (guestCost > 0) {
+      session.wallet.mathCoins -= guestCost;
+      session.wallet.totalSpent = (Number(session.wallet.totalSpent) || 0) + guestCost;
+    }
+    var guestNow = new Date().toISOString();
+    var savedGuestPet = {
+      student_id: studentId,
+      pet_id: guestPetMeta.id,
+      pet_name: sanitizePetName(petName, guestPetMeta.defaultName),
+      free_select_used: guestUseFree ? guestFreeUsed + 1 : guestFreeUsed,
+      rename_used: 0,
+      selected_at: guestNow,
+      updated_at: guestNow
+    };
+    session.pet = savedGuestPet;
+    saveActiveGuestSession(session);
+    return {
+      status: 'success',
+      pet: Object.assign({}, savedGuestPet),
+      petMeta: guestPetMeta,
+      cost: guestCost,
+      freeSelectUsed: savedGuestPet.free_select_used,
+      remainingFree: Math.max(0, PET_FREE_SELECT_LIMIT - savedGuestPet.free_select_used),
+      mathCoins: session.wallet.mathCoins
+    };
+  }
   var client = getSupabase();
   var cid = String(studentId || '').trim();
   var pet = findPetById(petId);
@@ -1459,6 +1837,32 @@ async function selectStudentPetDb(studentId, petId, petName) {
 
 async function renameStudentPetDb(studentId, petName) {
   await loadPetCatalog();
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session || !session.pet) {
+      if (!session) showGuestExpiredAlert();
+      return { status: 'fail', msg: 'ยังไม่มีสัตว์เลี้ยงให้เปลี่ยนชื่อ' };
+    }
+    var renameUsedGuest = clampPetCount(session.pet.rename_used, PET_RENAME_LIMIT);
+    if (renameUsedGuest >= PET_RENAME_LIMIT) {
+      return { status: 'fail', msg: 'เปลี่ยนชื่อครบ ' + PET_RENAME_LIMIT + ' ครั้งแล้ว' };
+    }
+    var guestPet = findPetById(session.pet.pet_id);
+    var cleanGuestName = sanitizePetName(petName, guestPet ? guestPet.defaultName : session.pet.pet_name);
+    if (cleanGuestName === String(session.pet.pet_name || '')) {
+      return { status: 'same', msg: 'ชื่อเดิมอยู่แล้ว', pet: session.pet };
+    }
+    session.pet.pet_name = cleanGuestName;
+    session.pet.rename_used = renameUsedGuest + 1;
+    session.pet.updated_at = new Date().toISOString();
+    saveActiveGuestSession(session);
+    return {
+      status: 'success',
+      pet: Object.assign({}, session.pet),
+      renameUsed: session.pet.rename_used,
+      remainingRename: Math.max(0, PET_RENAME_LIMIT - session.pet.rename_used)
+    };
+  }
   var client = getSupabase();
   var cid = String(studentId || '').trim();
   var current = await getStudentPetDb(cid);
@@ -1502,6 +1906,14 @@ async function renameStudentPetDb(studentId, petName) {
 }
 
 async function getWalletBalanceDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { lifetimeExp: 0, totalSpent: 0, mathCoins: 0 };
+    }
+    return Object.assign({}, session.wallet);
+  }
   var client = getSupabase();
   var cid = String(studentId).trim();
   var logData = await runQuery(client.from('attendance_logs')
@@ -1538,6 +1950,16 @@ async function getWalletBalanceDb(studentId) {
 }
 
 async function getShopItemsDb() {
+  if (isGuestMode() || isGuestStudentId(CU && CU.id)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return [];
+    }
+    return (session.shopItems || getGuestShopItems()).map(function(item) {
+      return Object.assign({}, item);
+    });
+  }
   var client = getSupabase();
   var rows = await runQuery(client.from('shop_items')
     .select('*')
@@ -1623,6 +2045,44 @@ async function toggleShopItemActiveDb(itemId) {
 async function buyItemDb(studentId, itemId, itemName, cost) {
   var cid = String(studentId).trim();
   var iid = String(itemId).trim();
+  if (isGuestStudentId(cid)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { status: 'fail', msg: 'หมดเวลาทดลองใช้งานแล้ว' };
+    }
+    var guestItems = session.shopItems || getGuestShopItems();
+    var guestItem = guestItems.find(function(item) { return String(item.itemId) === iid; });
+    if (!guestItem || guestItem.active === false) {
+      return { status: 'fail', msg: 'ไม่พบสินค้าในโหมดทดลอง' };
+    }
+    var guestPrice = Number(guestItem.cost) || Number(cost) || 0;
+    if (session.wallet.mathCoins < guestPrice) {
+      return {
+        status: 'fail',
+        msg: 'เหรียญไม่เพียงพอ (มี ' + session.wallet.mathCoins + ' / ต้องการ ' + guestPrice + ')',
+        mathCoins: session.wallet.mathCoins
+      };
+    }
+    session.wallet.mathCoins -= guestPrice;
+    session.wallet.totalSpent = (Number(session.wallet.totalSpent) || 0) + guestPrice;
+    session.redemptions = session.redemptions || [];
+    session.redemptions.unshift({
+      timestamp: new Date().toISOString(),
+      item_name: guestItem.itemName || itemName || '',
+      points_used: guestPrice,
+      status: 'pending'
+    });
+    saveActiveGuestSession(session);
+    return {
+      status: 'success',
+      msg: 'ซื้อ "' + (guestItem.itemName || itemName || '') + '" สำเร็จในโหมดทดลอง',
+      mathCoins: session.wallet.mathCoins,
+      lifetimeExp: session.wallet.lifetimeExp,
+      pointsUsed: guestPrice,
+      itemName: guestItem.itemName || itemName || ''
+    };
+  }
   var wallet = await getWalletBalanceDb(cid);
   var client = getSupabase();
   var item = await runQuery(client.from('shop_items')
@@ -1703,6 +2163,21 @@ async function grantFreeItemDb(studentIds, itemId, qty) {
 }
 
 async function getRedemptionHistoryDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return [];
+    }
+    return (session.redemptions || []).map(function(r) {
+      return {
+        date: formatDateTime(r.timestamp),
+        itemName: String(r.item_name || '').trim(),
+        cost: Number(r.points_used) || 0,
+        status: String(r.status || 'pending').trim()
+      };
+    });
+  }
   var client = getSupabase();
   var rows = await runQuery(client.from('redemption_logs')
     .select('timestamp,item_name,points_used,status')
@@ -1914,12 +2389,15 @@ window.addEventListener('load', async function() {
   if (manGrade && histGrade) histGrade.innerHTML = manGrade.innerHTML;
   if (!isSupabaseConfigured()) {
     showConfigAlert();
+    await restoreGuestSessionIfActive();
     return;
   }
   try {
     applyAppSettings(await getAppSettingsDb());
   } catch (e) {
     console.warn(e);
+  } finally {
+    await restoreGuestSessionIfActive();
   }
 });
 
@@ -1970,17 +2448,7 @@ async function login() {
         await loadTeacherShopItems();
         startPasswordResetDashboard();
       } else {
-        document.getElementById('studentSection').classList.remove('hidden');
-        document.getElementById('sNameDisp').textContent = res.name;
-        document.getElementById('sGradeDisp').textContent = 'ชั้น ' + res.grade;
-        /* ── First-login: บังคับเปลี่ยนรหัสผ่านก่อนใช้งาน ── */
-        if (res.isFirstLogin) {
-          await forceChangePassword(res.id);
-        }
-        await loadStudentProfile();
-        shopWallet = await getWalletBalanceDb(CU.id);
-        updateShopCoinsBadge(shopWallet.mathCoins);
-        await loadStudentPet();
+        await enterStudentApp(res);
       }
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message, confirmButtonColor: '#4f46e5' });
@@ -2332,12 +2800,24 @@ async function openRenamePetModal() {
 }
 
 function openPhotoUpload() {
+  if (isGuestMode()) {
+    return Swal.fire({
+      icon: 'info',
+      title: 'โหมดทดลอง',
+      text: 'รูปโปรไฟล์ในโหมด Guest จะแสดงได้เฉพาะในแท็บนี้และไม่ถูกบันทึกลงฐานข้อมูล',
+      confirmButtonColor: '#4f46e5'
+    });
+  }
   document.getElementById('photoInput').click();
 }
 
 async function handlePhotoChange(event) {
   var file = event.target.files[0];
   if (!file) return;
+  if (isGuestMode()) {
+    event.target.value = '';
+    return;
+  }
   if (file.size > 5 * 1024 * 1024) {
     event.target.value = '';
     return Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'กรุณาเลือกรูปที่เล็กกว่า 5MB' });
@@ -2413,6 +2893,7 @@ async function submitCheckIn() {
 
 function refreshStudentData() {
   if (refreshCooldown) return;
+  if (isGuestMode() && !getActiveGuestSession()) return showGuestExpiredAlert();
   refreshCooldown = true;
   var btn = document.getElementById('refreshBtn');
   var icon = document.getElementById('refreshIcon');
@@ -3226,6 +3707,8 @@ async function saveSettings() {
 
 /* ══ Logout ══════════════════════════════════════════ */
 function logout() {
+  if (isGuestMode()) clearGuestSession();
+  stopGuestSessionClock();
   CU = {};
   statsCache = null;
   statsLoaded = false;

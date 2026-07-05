@@ -623,6 +623,52 @@ label,
   transform:translateY(-1px);
   box-shadow:none;
 }
+.btn-guest-login{
+  width:100%;
+  min-height:48px;
+  margin-top:9px;
+  border:1px solid rgba(37,99,235,.18);
+  border-radius:var(--radius-control);
+  background:rgba(255,255,255,.78);
+  color:#1e3a8a;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  text-align:left;
+  font-weight:700;
+  transition:var(--tr);
+  box-shadow:0 1px 2px rgba(30,64,175,.06);
+}
+.btn-guest-login:hover,
+.btn-guest-login:focus-visible{
+  background:#fff;
+  border-color:rgba(37,99,235,.42);
+  color:#1d4ed8;
+  transform:translateY(-1px);
+}
+.btn-guest-login .guest-icon{
+  width:30px;
+  height:30px;
+  border-radius:999px;
+  background:rgba(37,99,235,.1);
+  color:#2563eb;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+}
+.btn-guest-login span:last-child{
+  display:flex;
+  flex-direction:column;
+  line-height:1.18;
+  min-width:0;
+}
+.btn-guest-login small{
+  color:#475569;
+  font-size:.68rem;
+  font-weight:650;
+}
 @media(min-width:700px){
   .login-wrap{
     --login-bg-image:url("assets/login-backgrounds/tablet.png");
@@ -707,6 +753,36 @@ label,
 .login-reset-link.muted{
   color:#475569;
   background:rgba(255,255,255,.72);
+}
+.guest-session-banner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 0 12px;
+  padding:8px 12px;
+  border:1px solid rgba(99,102,241,.25);
+  border-radius:999px;
+  background:rgba(255,255,255,.14);
+  color:inherit;
+  font-size:.78rem;
+  font-weight:800;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.guest-session-banner span{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  opacity:.9;
+}
+.guest-session-banner strong{
+  min-width:48px;
+  text-align:center;
+  border-radius:999px;
+  padding:2px 8px;
+  background:rgba(255,255,255,.22);
+  font-variant-numeric:tabular-nums;
 }
 .reset-modal-copy{
   margin:0 auto 12px;
