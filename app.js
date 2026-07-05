@@ -2073,7 +2073,7 @@ function renderStudentPet(row, level, previousLevel) {
   var renameUsed = clampPetCount(row.rename_used, PET_RENAME_LIMIT);
   hero.innerHTML = '<div class="pet-live-card">'
     + '<div class="pet-stage-badge">EVO ' + stage.stage + '</div>'
-    + '<div class="pet-sprite-wrap"><div class="pet-shadow"></div><div class="pet-sprite pet-sprite-live" id="studentPetSprite"></div></div>'
+    + '<div class="pet-sprite-wrap"><div class="pet-shadow"></div><div class="pet-sprite-motion"><div class="pet-sprite pet-sprite-live" id="studentPetSprite"></div></div></div>'
     + '<div class="pet-info">'
     + '<strong>' + escHtml(row.pet_name || pet.defaultName) + '</strong>'
     + '<span>' + escHtml(pet.defaultName) + ' · ' + escHtml(stage.label || ('Stage ' + stage.stage)) + '</span>'
@@ -2200,7 +2200,7 @@ function renderPetGrid() {
     var actionText = isCurrent ? 'ใช้อยู่' : (cost === 0 ? 'เลือกฟรี' : cost + ' เหรียญ');
     var metaText = isCurrent ? 'คู่หูปัจจุบัน' : (cost === 0 ? 'ใช้ฟรีเหลือ ' + Math.max(0, PET_FREE_SELECT_LIMIT - freeUsed) : 'เปลี่ยนด้วย MathCoins');
     return '<article class="pet-card' + (isCurrent ? ' is-current' : '') + (!canChoose ? ' is-locked' : '') + '">'
-      + '<div class="pet-card-preview"><div class="pet-sprite pet-sprite-card" data-pet-sprite="' + escHtml(pet.id) + '"></div></div>'
+      + '<div class="pet-card-preview"><div class="pet-sprite-motion pet-sprite-motion-card"><div class="pet-sprite pet-sprite-card" data-pet-sprite="' + escHtml(pet.id) + '"></div></div></div>'
       + '<div class="pet-card-name">' + escHtml(pet.defaultName) + '</div>'
       + '<div class="pet-card-meta">' + metaText + '</div>'
       + '<button type="button" class="pet-card-btn' + (!canChoose ? ' cant-afford' : '') + '" data-pet-id="' + escHtml(pet.id) + '" ' + (!canChoose || isCurrent ? 'disabled' : '') + '>' + actionText + '</button>'
