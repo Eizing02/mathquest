@@ -527,43 +527,162 @@ label,
 }
 
 .login-wrap{
-  background:var(--bg);
+  --login-bg-image:url("assets/login-backgrounds/phone.png");
+  --login-bg-w:941;
+  --login-bg-h:1672;
+  --login-card-x:49%;
+  --login-card-y:58.9%;
+  --login-card-w:min(59%,292px);
+  min-height:100vh;
+  min-height:100svh;
+  display:grid;
+  place-items:center;
+  padding:0;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 8%,rgba(255,255,255,.72),transparent 34%),
+    linear-gradient(180deg,#dbeafe 0%,#bcd7ff 55%,#8fb8f5 100%);
+}
+.login-stage{
+  position:relative;
+  width:max(100vw,calc(100vh * var(--login-bg-w) / var(--login-bg-h)));
+  height:max(100vh,calc(100vw * var(--login-bg-h) / var(--login-bg-w)));
+  width:max(100vw,calc(100svh * var(--login-bg-w) / var(--login-bg-h)));
+  height:max(100svh,calc(100vw * var(--login-bg-h) / var(--login-bg-w)));
+  background-image:var(--login-bg-image);
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:100% 100%;
 }
 .login-card{
-  max-width:400px;
-  padding:30px 26px;
+  position:absolute;
+  left:var(--login-card-x);
+  top:var(--login-card-y);
+  transform:translate(-50%,-50%);
+  width:var(--login-card-w);
+  max-width:none;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+.login-logo{
+  width:50px;
+  height:50px;
+  margin-bottom:8px;
+  filter:drop-shadow(0 2px 4px rgba(30,64,175,.12));
+}
+.login-logo-emoji{
+  font-size:2.4rem;
+  margin-bottom:8px;
 }
 .login-card h4{
   font-weight:750;
   color:var(--ink);
 }
+.login-card h1,
+.login-card h4{
+  font-size:1rem;
+  line-height:1.2;
+  margin-bottom:4px;
+}
 .login-card p{
-  color:var(--muted);
+  color:#475569;
+  font-size:.76rem;
+  margin-bottom:13px;
+}
+.login-card .form-control{
+  min-height:43px;
+  border-color:rgba(37,99,235,.2);
+  background:rgba(239,246,255,.9);
+  box-shadow:0 1px 2px rgba(30,64,175,.05);
+}
+.login-card .form-control:focus{
+  background:#fff;
+  border-color:rgba(37,99,235,.52);
 }
 .btn-login{
   border-radius:var(--radius-control);
   font-weight:700;
   box-shadow:none!important;
+  min-height:48px;
 }
 .btn-login:hover{
   transform:translateY(-1px);
   box-shadow:none;
+}
+@media(min-width:700px){
+  .login-wrap{
+    --login-bg-image:url("assets/login-backgrounds/tablet.png");
+    --login-bg-w:1122;
+    --login-bg-h:1402;
+    --login-card-x:48.8%;
+    --login-card-y:58.1%;
+    --login-card-w:min(36%,370px);
+  }
+  .login-card{
+    padding:0;
+  }
+  .login-logo{
+    width:64px;
+    height:64px;
+  }
+  .login-card h1,
+  .login-card h4{
+    font-size:1.12rem;
+  }
+  .login-card p{
+    font-size:.82rem;
+    margin-bottom:18px;
+  }
+}
+@media(min-width:1200px){
+  .login-wrap{
+    --login-bg-image:url("assets/login-backgrounds/desktop.png");
+    --login-bg-w:1672;
+    --login-bg-h:941;
+    --login-card-x:50.6%;
+    --login-card-y:58.7%;
+    --login-card-w:min(23%,370px);
+  }
+  .login-card{
+    padding:0;
+  }
+}
+@media(min-width:900px) and (orientation:landscape){
+  .login-wrap{
+    --login-bg-image:url("assets/login-backgrounds/desktop.png");
+    --login-bg-w:1672;
+    --login-bg-h:941;
+    --login-card-x:50.6%;
+    --login-card-y:58.7%;
+    --login-card-w:min(23%,370px);
+  }
+  .login-card{
+    padding:0;
+  }
 }
 
 .login-reset-actions{
   display:flex;
   flex-direction:column;
   gap:6px;
-  margin-top:14px;
-  padding-top:12px;
-  border-top:1px solid var(--border-soft);
+  margin-top:13px;
+  padding-top:10px;
+  border-top:1px solid rgba(148,163,184,.18);
 }
 .login-reset-link{
   width:100%;
   min-height:38px;
   border:1px solid transparent;
   border-radius:var(--radius-control);
-  background:var(--surface-muted);
+  background:rgba(248,250,252,.82);
   color:var(--pri);
   font-size:.82rem;
   font-weight:700;
@@ -580,8 +699,8 @@ label,
   outline:none;
 }
 .login-reset-link.muted{
-  color:var(--ink-muted);
-  background:var(--white);
+  color:#475569;
+  background:rgba(255,255,255,.72);
 }
 .reset-modal-copy{
   margin:0 auto 12px;
