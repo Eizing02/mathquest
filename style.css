@@ -7,7 +7,7 @@
 }
 body{background:var(--bg);font-family:'Sarabun',sans-serif;color:var(--txt);min-height:100vh;
   -webkit-tap-highlight-color:transparent}
-h1,h2,h3,h4,h5,h6{font-family:'Kanit','Sarabun',sans-serif;letter-spacing:0}
+h1,h2,h3,h4,h5,h6{font-family:'Mitr','Sarabun',sans-serif;letter-spacing:0;text-wrap:balance}
 .hidden{display:none!important}
 .card{border:none;border-radius:var(--r);box-shadow:var(--sh);background:var(--card)}
 .btn{font-family:'Sarabun',sans-serif;font-weight:600;border-radius:12px;transition:var(--tr);border:none}
@@ -157,7 +157,17 @@ textarea:focus-visible,
 /* ─── Manual Form ────────────────────────────────────── */
 .man-form{background:#fff;border-radius:var(--r);padding:20px;box-shadow:var(--sh)}
 .status-radio{display:flex;gap:7px}
-.status-radio input{display:none}
+.status-radio input{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
 .status-radio label{flex:1;padding:8px;border-radius:10px;text-align:center;cursor:pointer;
   border:2px solid var(--border-strong);font-weight:700;font-size:.83rem;transition:var(--tr)}
 input[value="มา"]:checked+label{border-color:var(--success-bright);background:var(--success-soft);color:var(--success-hover)}
@@ -253,7 +263,7 @@ input[type="color"]{opacity:0;position:absolute;width:0;height:0}
 #studentSection[data-tier="3"] .lv-num { color: #fb923c; }
 #studentSection[data-tier="3"] .lv-label { color: rgba(251,146,60,0.5); }
 #studentSection[data-tier="3"] .xp-fill {background: linear-gradient(90deg,#dc2626,#f97316,#fbbf24);}
-#studentSection[data-tier="3"]::before {content:'';position:absolute;bottom:0;left:0;right:0;height:45%;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0%,rgba(239,68,68,0.10) 5%,rgba(249,115,22,0.18) 12%,transparent 25%);animation:t3Flames 0.55s ease-in-out infinite alternate;}
+#studentSection[data-tier="3"]::before {content:'';position:absolute;bottom:0;left:0;right:0;height:45%;pointer-events:none;background:radial-gradient(ellipse at 50% 100%,rgba(249,115,22,.28),transparent 68%);animation:t3Flames 1.8s ease-in-out infinite alternate;}
 @keyframes t3Flames{0%{transform:scaleY(1);}100%{transform:scaleY(1.12);}}
 
 #studentSection[data-tier="4"] {background: linear-gradient(160deg,#000000 0%,#0d0221 40%,#050030 100%);color: #e0e7ff;}
@@ -286,14 +296,11 @@ input[type="color"]{opacity:0;position:absolute;width:0;height:0}
 /* ── z-index Fix: บังคับ SweetAlert2 ลอยเหนือทุก Modal/Overlay ── */
 /* Bootstrap modal  = 1055                                          */
 /* .shop-overlay    = 2000  (bottom-sheet ร้านค้า)                 */
-/* .swal2-container default ≈ 1060 → ต้องสูงกว่า 2000             */
-/* ตั้งเป็น 99999 เพื่อให้ชนะทุก layer รวมถึง forceChangePassword  */
-.swal2-container { z-index: 99999 !important; }
-/* double-safety class ที่ส่งจาก tryBuyItem / forceChangePassword */
-.swal-above-shop.swal2-container { z-index: 99999 !important; }
-/* backdrop ต้องสูงกว่า shop-overlay ด้วย */
-.swal2-backdrop-show { z-index: 99998 !important; }
-.shop-overlay {position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:2000;opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s ease;display:flex;align-items:flex-end;justify-content:center;}
+/* Keep alerts above the custom overlays without arbitrary stacking values. */
+.swal2-container { z-index: var(--z-toast,1200) !important; }
+.swal-above-shop.swal2-container { z-index: var(--z-toast,1200) !important; }
+.swal2-backdrop-show { z-index: calc(var(--z-toast,1200) - 1) !important; }
+.shop-overlay {position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:var(--z-overlay,1000);opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s ease;display:flex;align-items:flex-end;justify-content:center;}
 .shop-overlay.open { opacity: 1; visibility: visible; }
 .shop-modal {background:#0f172a;width:100%;max-width:500px;height:85vh;border-radius:24px 24px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform 0.4s cubic-bezier(.22,1,.36,1);border-top:2px solid #4f46e5;box-shadow:0 -10px 40px rgba(79,70,229,0.2);}
 .shop-overlay.open .shop-modal { transform: translateY(0); }
@@ -2019,6 +2026,180 @@ label,
 
 @media(max-width:480px){
   .s-tbl th:nth-child(5),.s-tbl td:nth-child(5){display:table-cell}
+}
+
+/* Impeccable quality pass: accessibility, hierarchy, and responsive behavior */
+:root{
+  --focus-ring:0 0 0 3px rgba(29,78,216,.24);
+  --z-sticky:20;
+  --z-overlay:1000;
+  --z-modal:1100;
+  --z-toast:1200;
+}
+
+html{overflow-x:hidden}
+@media(min-width:700px){html{scrollbar-gutter:stable}}
+body{overflow-wrap:anywhere}
+p{max-width:72ch;text-wrap:pretty}
+.form-control::placeholder{color:#64748b;opacity:1}
+.form-control:focus,.form-select:focus,.btn:focus-visible{box-shadow:var(--focus-ring)}
+
+.login-field{margin-bottom:12px;text-align:left}
+.login-field-password{margin-bottom:16px}
+.login-field label{
+  display:block;
+  margin:0 0 5px;
+  color:var(--ink-soft);
+  font-size:.78rem;
+  font-weight:700;
+}
+.login-field .form-control{min-height:46px;background:rgba(255,255,255,.92)}
+.login-reset-link{min-height:44px}
+@media(max-width:699px){
+  .login-wrap{--login-card-x:50%;--login-card-w:min(72%,292px)}
+  .login-stage{width:100vw;height:100vh;height:100svh}
+}
+
+.student-shell{max-width:460px;padding:16px 12px max(22px,env(safe-area-inset-bottom))}
+.student-name{font-size:1.05rem;font-weight:800;line-height:1.3}
+.student-grade{display:block;color:currentColor;opacity:.78}
+.xp-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:4px;color:var(--ink-muted);font-size:.72rem;font-weight:700;opacity:1}
+.checkin-title{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:0 0 10px;
+  color:var(--ink-strong);
+  font-family:'Mitr','Sarabun',sans-serif;
+  font-size:.92rem;
+  font-weight:600;
+}
+.checkin-title i{color:var(--warning)}
+.checkin-submit{min-height:48px;background:var(--success)!important;color:var(--white)!important;font-size:1rem}
+.session-close-help,.empty-note,.loading-note{color:var(--muted);font-size:.875rem;line-height:1.5}
+.chart-legend{font-size:.75rem}
+.compact-control{font-size:.8125rem;min-height:44px}
+.settings-meta{color:var(--muted);font-size:.875rem}
+.settings-tip{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:.875rem;color:#065f46}
+.print-report-table{font-size:.875rem}
+.student-actions{display:flex;align-items:stretch;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:8px}
+.student-actions>button{min-height:44px}
+.refresh-btn,.photo-edit-btn,.pet-primary-btn,.pet-ghost-btn,.pet-card-btn,.pet-wallet-refresh{min-width:44px;min-height:44px}
+#levelCard .photo-edit-btn{width:44px;height:44px}
+.student-actions .btn-outline-secondary{border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.92);color:var(--ink-soft)}
+.student-logout{border:1px solid #fecaca;background:var(--danger-soft);color:var(--danger)}
+.student-logout:hover{background:var(--danger);color:var(--white)}
+
+#studentSection[data-tier="2"]{background:linear-gradient(160deg,#172033 0%,#283044 55%,#705c18 100%)}
+#studentSection[data-tier="3"]{background:linear-gradient(160deg,#111827 0%,#3f1d2e 52%,#7f1d1d 100%)}
+#studentSection[data-tier] .s-card{
+  border:1px solid rgba(219,227,236,.92);
+  background:rgba(255,255,255,.98);
+  color:var(--ink);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  animation:none;
+}
+#studentSection[data-tier] .pet-live-card,
+#studentSection[data-tier] .pet-empty-state{
+  border:0;
+  background:transparent;
+  color:var(--ink);
+}
+#studentSection[data-tier] .pet-stage-badge{border-color:rgba(255,255,255,.2);background:var(--ink);color:var(--white)}
+#studentSection[data-tier] .guest-session-banner{
+  border-color:rgba(219,227,236,.9);
+  background:rgba(255,255,255,.94);
+  color:var(--ink-soft);
+  backdrop-filter:none;
+}
+#studentSection[data-tier] .guest-session-banner strong{background:var(--surface-brand);color:var(--pri)}
+#studentSection[data-tier] .trophy{filter:none}
+
+.teacher-workspace{max-width:980px;margin:auto;padding:16px 12px 28px}
+.t-hdr{padding:14px max(20px,calc((100vw - 980px)/2));min-height:72px}
+.teacher-logo{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:var(--surface-brand);color:var(--pri);font-size:1rem}
+.teacher-logout{
+  width:44px;
+  height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  border:1px solid var(--border);
+  border-radius:var(--radius-control);
+  background:var(--surface-muted);
+  color:var(--ink-soft);
+  transition:var(--tr);
+}
+.teacher-logout:hover{border-color:#fecaca;background:var(--danger-soft);color:var(--danger)}
+.teacher-logout:focus-visible{outline:3px solid rgba(29,78,216,.3);outline-offset:2px}
+.t-nav{position:sticky;top:8px;z-index:var(--z-sticky)}
+.tn{min-height:44px}
+.tn[aria-selected="true"]{font-weight:800}
+.t-pane[hidden], [role="tabpanel"][hidden]{display:none!important}
+.status-radio input:focus-visible+label{outline:3px solid rgba(29,78,216,.28);outline-offset:2px}
+.toggle-switch input:focus-visible+.toggle-slider{outline:3px solid rgba(29,78,216,.28);outline-offset:3px}
+.card,.man-form,.settings-section,.chart-wrap{border:1px solid var(--border-soft);border-radius:var(--radius-panel);box-shadow:var(--shadow-subtle)}
+.edit-btn,.reset-refresh-btn,.reset-delete-btn,.bulk-date-chip button,.bulk-range-item button{min-width:40px;min-height:40px}
+
+.shop-overlay{z-index:var(--z-overlay);padding-top:max(10px,env(safe-area-inset-top))}
+.shop-modal{
+  height:min(88dvh,760px);
+  max-height:calc(100dvh - max(10px,env(safe-area-inset-top)));
+  padding-bottom:env(safe-area-inset-bottom);
+  border-radius:16px 16px 0 0;
+}
+.shop-scroll{overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#64748b transparent}
+.shop-scroll::-webkit-scrollbar{width:5px}
+.shop-scroll::-webkit-scrollbar-thumb{border-radius:999px;background:#64748b}
+.shop-close,.wallet-refresh-btn,.pet-wallet-refresh{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.wallet-refresh-btn{border:0;border-radius:var(--radius-control);background:transparent;color:#c7d2fe;transition:var(--tr)}
+.wallet-refresh-btn:hover{background:rgba(129,140,248,.16);color:var(--white)}
+.wallet-refresh-btn:focus-visible,.shop-close:focus-visible{outline:3px solid rgba(165,180,252,.72);outline-offset:2px}
+.shop-tab{min-height:44px}
+.shop-item{min-width:0}
+.shop-item-desc{line-height:1.45}
+.shop-buy-btn{min-height:44px}
+.btn-shop{min-height:44px;background:#6d28d9;box-shadow:none}
+.btn-shop:hover{background:#5b21b6;box-shadow:none}
+.swal2-container{z-index:var(--z-toast)!important}
+.swal-above-shop.swal2-container{z-index:var(--z-toast)!important}
+.swal2-backdrop-show{z-index:calc(var(--z-toast) - 1)!important}
+.modal{z-index:var(--z-modal)}
+.modal-backdrop{z-index:calc(var(--z-modal) - 1)}
+.modal-dialog{max-width:min(100% - 24px,540px);margin-left:auto;margin-right:auto}
+.modal-content{max-height:calc(100dvh - 24px);overflow:auto}
+
+@media(max-width:600px){
+  .t-hdr{padding:10px 12px;min-height:64px}
+  .teacher-workspace{padding:10px 8px 24px}
+  .t-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));position:static;gap:4px;padding:5px}
+  .tn{min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:5px 2px;font-size:.68rem;line-height:1.15;white-space:normal}
+  .tn i{margin-right:0!important;font-size:.82rem}
+  .tn-badge{position:absolute;transform:translate(18px,-14px)}
+  .card,.man-form,.settings-section{padding:16px!important}
+  .status-radio{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .status-radio label{min-height:44px;display:flex;align-items:center;justify-content:center}
+  .student-actions{display:grid;grid-template-columns:1fr 1fr}
+  .student-actions .btn-shop{grid-column:1/-1}
+  .shop-header{padding:14px 16px}
+  .wallet-wrap{padding:12px 16px}
+  .shop-tabs{padding:0 16px 10px}
+  .shop-scroll{padding-left:16px;padding-right:16px}
+}
+
+@media(max-width:360px){
+  .student-shell{padding-left:8px;padding-right:8px}
+  .shop-grid{grid-template-columns:1fr}
+  .shop-item{display:grid;grid-template-columns:72px minmax(0,1fr);grid-template-areas:"image name" "image desc" "cost action";align-items:center;text-align:left;gap:4px 10px;padding:12px}
+  .shop-item-img,.shop-item-emoji{grid-area:image;margin:0!important;justify-self:center}
+  .shop-item-name{grid-area:name}
+  .shop-item-desc{grid-area:desc;min-height:0;text-align:left}
+  .shop-item-cost{grid-area:cost;justify-self:center;margin:6px 0 0}
+  .shop-buy-btn{grid-area:action;margin-top:6px;min-height:44px}
+  .pin-input{letter-spacing:9px}
 }
 
 @media(prefers-reduced-motion:reduce){

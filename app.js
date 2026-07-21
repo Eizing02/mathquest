@@ -57,6 +57,8 @@ var GUEST_SESSION_KEY = 'checkrean_guest_session_v1';
 var GUEST_TTL_MS = 10 * 60 * 1000;
 var guestSessionTimer = null;
 var guestExpiryHandled = false;
+var shopReturnFocus = null;
+var petReturnFocus = null;
 
 var TH_MO_S = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 var TH_MO_L = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -2495,6 +2497,8 @@ window.addEventListener('load', async function() {
   if (manGrade && bulkGrade) bulkGrade.innerHTML = manGrade.innerHTML;
   var bulkDate = document.getElementById('bulkSingleDate');
   if (bulkDate) bulkDate.value = dateKeyBangkok(new Date());
+  initAccessibleTabs();
+  initOverlayKeyboardControls();
   if (!isSupabaseConfigured()) {
     showConfigAlert();
     await restoreGuestSessionIfActive();
@@ -2508,6 +2512,58 @@ window.addEventListener('load', async function() {
     await restoreGuestSessionIfActive();
   }
 });
+
+function initAccessibleTabs() {
+  document.querySelectorAll('[role="tablist"]').forEach(function(tablist) {
+    tablist.addEventListener('keydown', function(event) {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(event.key) === -1) return;
+      var tabs = Array.prototype.slice.call(tablist.querySelectorAll('[role="tab"]'));
+      var current = tabs.indexOf(document.activeElement);
+      if (current < 0 || !tabs.length) return;
+      event.preventDefault();
+      var next = current;
+      if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = tabs.length - 1;
+      else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % tabs.length;
+      else next = (current - 1 + tabs.length) % tabs.length;
+      tabs[next].focus();
+      tabs[next].click();
+    });
+  });
+}
+
+function initOverlayKeyboardControls() {
+  document.addEventListener('keydown', function(event) {
+    var petOverlay = document.getElementById('petOverlay');
+    var shopOverlay = document.getElementById('shopOverlay');
+    var openOverlay = petOverlay && petOverlay.classList.contains('open')
+      ? petOverlay
+      : (shopOverlay && shopOverlay.classList.contains('open') ? shopOverlay : null);
+    if (!openOverlay) return;
+    if (event.key === 'Escape') {
+      if (openOverlay === petOverlay) closePetSelector();
+      else closeShop();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    var focusable = Array.prototype.slice.call(openOverlay.querySelectorAll(
+      'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+    )).filter(function(el) { return el.offsetParent !== null; });
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    } else if (!openOverlay.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+}
 
 function applyAppSettings(s) {
   if (!s) return;
@@ -2619,7 +2675,7 @@ function updateGamiUI(d) {
   });
 
   var lc = document.getElementById('levelCard');
-  if (lc) lc.style.cssText = tier >= 1 ? 'background:transparent;box-shadow:none' : '';
+  if (lc) lc.style.cssText = '';
 }
 
 function renderStudentPet(row, level, previousLevel) {
@@ -2698,14 +2754,24 @@ async function loadStudentPet(previousLevel) {
 function openPetSelector() {
   var overlay = document.getElementById('petOverlay');
   if (!overlay) return;
+  petReturnFocus = document.activeElement;
   overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  if (document.getElementById('studentSection')) document.getElementById('studentSection').inert = true;
   document.body.style.overflow = 'hidden';
+  var closeButton = overlay.querySelector('.shop-close');
+  if (closeButton) closeButton.focus();
+  setTimeout(function() { if (closeButton) closeButton.focus(); }, 80);
   loadPetSelectorData();
 }
 
 function closePetSelector() {
   var overlay = document.getElementById('petOverlay');
-  if (overlay) overlay.classList.remove('open');
+  if (overlay) {
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  if (document.getElementById('studentSection')) document.getElementById('studentSection').inert = false;
   if (petGridObserver) {
     petGridObserver.disconnect();
     petGridObserver = null;
@@ -2713,6 +2779,8 @@ function closePetSelector() {
   if (!document.getElementById('shopOverlay') || !document.getElementById('shopOverlay').classList.contains('open')) {
     document.body.style.overflow = '';
   }
+  if (petReturnFocus && typeof petReturnFocus.focus === 'function') petReturnFocus.focus();
+  petReturnFocus = null;
 }
 
 function handlePetOverlayClick(e) {
@@ -3057,10 +3125,17 @@ async function showStudentHistory() {
 
 /* ══ Teacher Tabs ════════════════════════════════════ */
 function switchTab(name, btn) {
-  document.querySelectorAll('.t-pane').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelectorAll('.tn').forEach(function(b) { b.classList.remove('active'); });
-  document.getElementById('tab-' + name).classList.add('active');
-  btn.classList.add('active');
+  document.querySelectorAll('.t-pane').forEach(function(p) {
+    var active = p.id === 'tab-' + name;
+    p.classList.toggle('active', active);
+    p.hidden = !active;
+  });
+  document.querySelectorAll('.tn').forEach(function(b) {
+    var active = b === btn;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', active ? 'true' : 'false');
+    b.tabIndex = active ? 0 : -1;
+  });
   if (name === 'stats') loadStats();
   if (name === 'reset') loadPasswordResetRequests();
   if (name === 'shop') loadTeacherShopItems();
@@ -4384,8 +4459,15 @@ function switchTShopTab(tab, btn) {
   ['items', 'orders', 'wallet'].forEach(function(t) {
     var panel = document.getElementById('tshop-' + t + '-panel');
     var tabBtn = document.getElementById('tstab-' + t);
-    if (panel) panel.classList.toggle('hidden', t !== tab);
-    if (tabBtn) tabBtn.classList.toggle('active', t === tab);
+    if (panel) {
+      panel.classList.toggle('hidden', t !== tab);
+      panel.hidden = t !== tab;
+    }
+    if (tabBtn) {
+      tabBtn.classList.toggle('active', t === tab);
+      tabBtn.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+      tabBtn.tabIndex = t === tab ? 0 : -1;
+    }
   });
   if (tab === 'items') loadTeacherShopItems();
   if (tab === 'orders') loadTeacherOrders();
@@ -4573,7 +4655,7 @@ function renderTeacherItems(items) {
   }
   el.innerHTML = items.map(function(item) {
     var imgHtml = item.image
-      ? '<div class="si-img"><img src="' + item.image + '" alt="รูปสินค้า ' + escHtml(item.itemName) + '"></div>'
+      ? '<div class="si-img"><img src="' + item.image + '" alt="รูปสินค้า ' + escHtml(item.itemName) + '" loading="lazy" width="56" height="56"></div>'
       : '<div class="si-img">🎁</div>';
     return '<div class="si-card">'
       + imgHtml
@@ -4854,14 +4936,26 @@ async function loadWalletSummary() {
    STUDENT MAGIC SHOP
 ═════════════════════════════════════════════════════ */
 function openShop() {
-  document.getElementById('shopOverlay').classList.add('open');
+  var overlay = document.getElementById('shopOverlay');
+  shopReturnFocus = document.activeElement;
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  if (document.getElementById('studentSection')) document.getElementById('studentSection').inert = true;
   document.body.classList.add('shop-lock');
+  var closeButton = overlay.querySelector('.shop-close');
+  if (closeButton) closeButton.focus();
+  setTimeout(function() { if (closeButton) closeButton.focus(); }, 80);
   loadShopData();
 }
 
 function closeShop() {
-  document.getElementById('shopOverlay').classList.remove('open');
+  var overlay = document.getElementById('shopOverlay');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  if (document.getElementById('studentSection')) document.getElementById('studentSection').inert = false;
   document.body.classList.remove('shop-lock');
+  if (shopReturnFocus && typeof shopReturnFocus.focus === 'function') shopReturnFocus.focus();
+  shopReturnFocus = null;
 }
 
 function handleShopOverlayClick(e) {
@@ -4870,10 +4964,20 @@ function handleShopOverlayClick(e) {
 
 function switchShopTab(tab) {
   shopTabCurrent = tab;
-  document.getElementById('shopTabContent').classList.toggle('hidden', tab !== 'shop');
-  document.getElementById('historyTabContent').classList.toggle('hidden', tab !== 'history');
-  document.getElementById('stab-shop').classList.toggle('active', tab === 'shop');
-  document.getElementById('stab-history').classList.toggle('active', tab === 'history');
+  var shopPanel = document.getElementById('shopTabContent');
+  var historyPanel = document.getElementById('historyTabContent');
+  var shopTab = document.getElementById('stab-shop');
+  var historyTab = document.getElementById('stab-history');
+  shopPanel.classList.toggle('hidden', tab !== 'shop');
+  shopPanel.hidden = tab !== 'shop';
+  historyPanel.classList.toggle('hidden', tab !== 'history');
+  historyPanel.hidden = tab !== 'history';
+  shopTab.classList.toggle('active', tab === 'shop');
+  shopTab.setAttribute('aria-selected', tab === 'shop' ? 'true' : 'false');
+  shopTab.tabIndex = tab === 'shop' ? 0 : -1;
+  historyTab.classList.toggle('active', tab === 'history');
+  historyTab.setAttribute('aria-selected', tab === 'history' ? 'true' : 'false');
+  historyTab.tabIndex = tab === 'history' ? 0 : -1;
   if (tab === 'history') loadRedemptionHistory();
 }
 
@@ -4938,7 +5042,7 @@ function renderShopItems(items) {
   grid.innerHTML = items.map(function(item) {
     var canAfford = coins >= item.cost;
     var imgHtml = item.image
-      ? '<img src="' + item.image + '" class="shop-item-img" alt="รูปสินค้า ' + escHtml(item.itemName) + '" onerror="this.classList.add(\'hidden\');this.nextElementSibling.classList.remove(\'hidden\')"><span class="shop-item-emoji hidden">🎁</span>'
+      ? '<img src="' + item.image + '" class="shop-item-img" alt="รูปสินค้า ' + escHtml(item.itemName) + '" loading="lazy" width="60" height="60" onerror="this.classList.add(\'hidden\');this.nextElementSibling.classList.remove(\'hidden\')"><span class="shop-item-emoji hidden">🎁</span>'
       : '<span class="shop-item-emoji">🎁</span>';
     return '<div class="shop-item">'
       + imgHtml
@@ -4960,7 +5064,7 @@ async function buyShopItem(itemId, itemName, cost) {
 }
 
 function tryBuyItem(itemId, itemName, cost) {
-  /* ── z-index fix: บังคับ SweetAlert2 ลอยเหนือ .shop-overlay (z-index:2000) ── */
+  /* Keep SweetAlert2 above the shop overlay token. */
   var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
 
   if (!shopWallet) return Swal.fire(Object.assign({ icon: 'info', title: 'กรุณารอ', text: 'กำลังโหลดข้อมูลเหรียญ' }, SWAL_ABOVE));
