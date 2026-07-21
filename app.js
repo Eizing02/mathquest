@@ -5,16 +5,26 @@ var STORAGE_BUCKET = 'mathquest-storage';
 var BANGKOK_TZ = 'Asia/Bangkok';
 var supabaseClient = null;
 var configAlertShown = false;
+var BLANK_IMAGE_SRC = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+var UI_COLOR_PRIMARY = '#4f46e5';
+var UI_COLOR_SUCCESS = '#10b981';
+var UI_COLOR_DANGER = '#ef4444';
+var UI_COLOR_WARNING = '#f59e0b';
+var UI_COLOR_CANVAS_BORDER = '#fff';
+var UI_CHART_PRESENT = 'rgba(16,185,129,.75)';
+var UI_CHART_ABSENT = 'rgba(239,68,68,.72)';
+var UI_CHART_LEAVE = 'rgba(245,158,11,.72)';
+var UI_CHART_GRID = 'rgba(0,0,0,.04)';
 
 /* ══ State ════════════════════════════════════════════ */
 var CU = {}, cDonut = null, cBar = null;
 var statsLoaded = false, statsCache = null;
 var refreshCooldown = false;
-var settingsLogoUrl = '', settingsColor = '#4f46e5';
+var settingsLogoUrl = '', settingsColor = UI_COLOR_PRIMARY;
 var appSettings = {
   appName: 'ระบบเช็คชื่อนักเรียน',
   schoolName: 'กุงแก้ววิทยาคาร',
-  accentColor: '#4f46e5',
+  accentColor: UI_COLOR_PRIMARY,
   logoBase64: '',
   logoUrl: ''
 };
@@ -72,7 +82,7 @@ function showConfigAlert() {
     icon: 'info',
     title: 'ยังไม่ได้ตั้งค่า Supabase',
     html: 'กรุณาแก้ค่า <code>SUPABASE_URL</code> และ <code>SUPABASE_ANON_KEY</code> ในไฟล์ <code>app.js</code> ก่อนใช้งาน',
-    confirmButtonColor: '#4f46e5'
+    confirmButtonColor: UI_COLOR_PRIMARY
   });
 }
 
@@ -99,7 +109,7 @@ function onErr(e) {
     icon: 'error',
     title: 'เกิดข้อผิดพลาด',
     text: e ? (e.message || String(e)) : 'ไม่สามารถเชื่อมต่อระบบได้',
-    confirmButtonColor: '#4f46e5'
+    confirmButtonColor: UI_COLOR_PRIMARY
   });
 }
 
@@ -321,7 +331,7 @@ async function getAppSettingsDb() {
   return {
     appName: s.app_name || 'ระบบเช็คชื่อนักเรียน',
     schoolName: s.school_name || 'กุงแก้ววิทยาคาร',
-    accentColor: s.accent_color || '#4f46e5',
+    accentColor: s.accent_color || UI_COLOR_PRIMARY,
     logoBase64: logoUrl,
     logoUrl: logoUrl
   };
@@ -331,7 +341,7 @@ async function saveAppSettingsDb(settings) {
   await upsertSettings({
     app_name: settings.appName || 'ระบบเช็คชื่อนักเรียน',
     school_name: settings.schoolName || 'กุงแก้ววิทยาคาร',
-    accent_color: settings.accentColor || '#4f46e5',
+    accent_color: settings.accentColor || UI_COLOR_PRIMARY,
     logo_url: settings.logoUrl || ''
   });
   return { status: 'success' };
@@ -378,12 +388,12 @@ async function forceChangePassword(studentId) {
   while (true) {
     var result = await Swal.fire({
       title: '🔐 ตั้งรหัสผ่านใหม่',
-      html: '<p style="color:#64748b;font-size:.87rem;margin-bottom:16px">นี่คือการเข้าสู่ระบบครั้งแรกของคุณ<br>กรุณาตั้งรหัสผ่านใหม่ เพื่อความปลอดภัย</p>'
+      html: '<p class="swal-pw-note">นี่คือการเข้าสู่ระบบครั้งแรกของคุณ<br>กรุณาตั้งรหัสผ่านใหม่ เพื่อความปลอดภัย</p>'
         + '<input id="swal-np1" type="password" class="swal2-input" placeholder="รหัสผ่านใหม่" autocomplete="new-password">'
         + '<input id="swal-np2" type="password" class="swal2-input" placeholder="ยืนยันรหัสผ่านใหม่" autocomplete="new-password">'
-        + '<p id="swal-pw-err" style="color:#ef4444;font-size:.8rem;margin:6px 0 0;min-height:1.1em"></p>',
+        + '<p id="swal-pw-err" class="swal-error-line"></p>',
       confirmButtonText: '✅ บันทึกรหัสผ่าน',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: UI_COLOR_PRIMARY,
       allowOutsideClick: false,
       allowEscapeKey: false,
       showCancelButton: false,
@@ -428,7 +438,7 @@ async function forceChangePassword(studentId) {
         icon: 'success',
         title: 'ตั้งรหัสผ่านสำเร็จ! 🎉',
         text: 'รหัสผ่านใหม่ของคุณถูกบันทึกแล้ว',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: UI_COLOR_SUCCESS,
         timer: 2000,
         timerProgressBar: true
       });
@@ -438,7 +448,7 @@ async function forceChangePassword(studentId) {
         icon: 'error',
         title: 'บันทึกไม่สำเร็จ',
         text: e.message || 'กรุณาลองใหม่',
-        confirmButtonColor: '#ef4444'
+        confirmButtonColor: UI_COLOR_DANGER
       });
       /* loop กลับไปถามใหม่ */
     }
@@ -1262,7 +1272,7 @@ window.addEventListener('load', async function() {
 function applyAppSettings(s) {
   if (!s) return;
   appSettings = s;
-  if (s.accentColor && s.accentColor !== '#4f46e5') {
+  if (s.accentColor && s.accentColor !== UI_COLOR_PRIMARY) {
     document.documentElement.style.setProperty('--pri', s.accentColor);
     document.documentElement.style.setProperty('--pri-l', s.accentColor + '99');
   }
@@ -1270,14 +1280,14 @@ function applyAppSettings(s) {
   document.getElementById('loginSchoolName').textContent = s.schoolName || 'กุงแก้ววิทยาคาร';
   if (s.logoBase64) {
     var w = document.getElementById('loginLogoWrap');
-    w.innerHTML = '<img src="' + s.logoBase64 + '" class="login-logo" alt="logo">';
+    w.innerHTML = '<img src="' + s.logoBase64 + '" class="login-logo" alt="โลโก้แอป">';
   }
   document.title = s.appName || 'ระบบเช็คชื่อนักเรียน';
   if (document.getElementById('tHdrSchool')) {
     document.getElementById('tHdrSchool').textContent = s.schoolName || 'กุงแก้ววิทยาคาร';
   }
   if (s.logoBase64 && document.getElementById('tHdrLogo')) {
-    document.getElementById('tHdrLogo').innerHTML = '<img src="' + s.logoBase64 + '" style="width:26px;height:26px;border-radius:6px;object-fit:cover">';
+    document.getElementById('tHdrLogo').innerHTML = '<img src="' + s.logoBase64 + '" class="header-logo-img" alt="โลโก้โรงเรียน">';
   }
 }
 
@@ -1286,7 +1296,7 @@ async function login() {
   var u = document.getElementById('username').value.trim();
   var p = document.getElementById('password').value.trim();
   if (!u || !p) {
-    return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonColor: '#4f46e5' });
+    return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonColor: UI_COLOR_PRIMARY });
   }
   loading('กำลังตรวจสอบ...');
   try {
@@ -1317,7 +1327,7 @@ async function login() {
         updateShopCoinsBadge(shopWallet.mathCoins);
       }
     } else {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message, confirmButtonColor: '#4f46e5' });
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message, confirmButtonColor: UI_COLOR_PRIMARY });
     }
   } catch (e) {
     onErr(e);
@@ -1347,16 +1357,16 @@ function updateGamiUI(d) {
   var tier = Math.min(Math.floor(lv / 10), 4);
   document.getElementById('studentSection').setAttribute('data-tier', String(tier));
   document.getElementById('lvNum').textContent = lv;
-  var pct = Math.round((pip / 5) * 100);
+  var pct = Math.max(0, Math.min(100, Math.round((pip / 5) * 100)));
   document.getElementById('levelRing').style.setProperty('--pct', pct + '%');
-  document.getElementById('xpFill').style.width = pct + '%';
+  document.getElementById('xpFill').style.transform = 'scaleX(' + (pct / 100) + ')';
   document.getElementById('xpLabel').textContent = pip + ' / 5 XP';
   document.getElementById('ptLabel').textContent = 'แต้มรวม ' + pts;
   document.querySelectorAll('.trophy').forEach(function(el) {
     el.classList.toggle('earned', lv >= parseInt(el.dataset.t || '0', 10));
   });
   var lc = document.getElementById('levelCard');
-  lc.style.cssText = tier >= 1 ? 'background:transparent;box-shadow:none' : '';
+  lc.classList.toggle('level-card-flat', tier >= 1);
 }
 
 function openPhotoUpload() {
@@ -1380,7 +1390,7 @@ async function handlePhotoChange(event) {
     });
     await saveProfilePictureDb(CU.id, uploaded.publicUrl);
     document.getElementById('studentPhoto').src = uploaded.publicUrl;
-    Swal.fire({ icon: 'success', title: 'บันทึกรูปแล้ว', timer: 1500, timerProgressBar: true, confirmButtonColor: '#4f46e5' });
+    Swal.fire({ icon: 'success', title: 'บันทึกรูปแล้ว', timer: 1500, timerProgressBar: true, confirmButtonColor: UI_COLOR_PRIMARY });
   } catch (e) {
     onErr(e);
   } finally {
@@ -1391,7 +1401,7 @@ async function handlePhotoChange(event) {
 async function checkIn() {
   var pin = document.getElementById('pinCode').value.trim();
   if (pin.length !== 4) {
-    return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุ PIN 4 หลัก', confirmButtonColor: '#4f46e5' });
+    return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุ PIN 4 หลัก', confirmButtonColor: UI_COLOR_PRIMARY });
   }
   loading('กำลังบันทึก...');
   try {
@@ -1402,7 +1412,7 @@ async function checkIn() {
         icon: 'success',
         title: 'สำเร็จ ✅',
         text: pts > 0 ? 'ได้รับ +' + pts + ' คะแนน 🎉' : 'เช็คชื่อเรียบร้อย',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: UI_COLOR_SUCCESS,
         timer: 2200,
         timerProgressBar: true
       });
@@ -1424,7 +1434,7 @@ async function checkIn() {
         icon: res.result === 'duplicate' ? 'info' : 'error',
         title: res.result === 'duplicate' ? 'เรียบร้อยแล้ว' : 'ผิดพลาด',
         text: res.msg,
-        confirmButtonColor: '#4f46e5'
+        confirmButtonColor: UI_COLOR_PRIMARY
       });
     }
   } catch (e) {
@@ -1434,6 +1444,10 @@ async function checkIn() {
 
 async function submitCheckIn() {
   return checkIn();
+}
+
+function attendancePillClass(status) {
+  return status === 'มา' ? 'p-g' : (status === 'ขาด' ? 'p-r' : 'p-y');
 }
 
 function refreshStudentData() {
@@ -1465,23 +1479,22 @@ async function showStudentHistory() {
   loading('กำลังโหลด...');
   try {
     var logs = await getStudentHistoryDb(CU.id, 'all');
-    var bc = function(s) { return s === 'มา' ? '#10b981' : (s === 'ขาด' ? '#ef4444' : '#f59e0b'); };
     var pts = function(l) {
       return l.points > 0
-        ? '<span style="background:#eff6ff;color:#4f46e5;border-radius:5px;padding:1px 6px;font-size:.69rem;font-weight:700">+' + l.points + 'pt</span>'
+        ? '<span class="point-chip">+' + l.points + 'pt</span>'
         : '';
     };
     var html = logs.length ? logs.map(function(l) {
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 9px;border-radius:9px;margin-bottom:4px;background:#f8fafc">'
-        + '<span style="font-size:.78rem;color:#64748b">' + l.date + '</span>'
-        + '<div style="display:flex;gap:5px;align-items:center">' + pts(l)
-        + '<span style="background:' + bc(l.status) + ';color:#fff;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:700">' + l.status + '</span>'
+      return '<div class="history-row">'
+        + '<span class="history-date">' + l.date + '</span>'
+        + '<div class="history-actions">' + pts(l)
+        + '<span class="pill ' + attendancePillClass(l.status) + '">' + l.status + '</span>'
         + '</div></div>';
-    }).join('') : '<div style="text-align:center;color:#94a3b8;padding:16px">ไม่มีข้อมูล</div>';
+    }).join('') : '<div class="empty-message">ไม่มีข้อมูล</div>';
     Swal.fire({
       title: 'ประวัติ ' + CU.name,
-      html: '<div style="max-height:65vh;overflow-y:auto">' + html + '</div>',
-      confirmButtonColor: '#4f46e5',
+      html: '<div class="swal-scroll">' + html + '</div>',
+      confirmButtonColor: UI_COLOR_PRIMARY,
       width: 400
     });
   } catch (e) {
@@ -1530,7 +1543,7 @@ async function loadCurrentSession() {
 
 async function generatePIN() {
   var g = document.getElementById('targetGrade').value;
-  if (!g) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกระดับชั้น', confirmButtonColor: '#4f46e5' });
+  if (!g) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกระดับชั้น', confirmButtonColor: UI_COLOR_PRIMARY });
   loading('กำลังสร้างรหัส...');
   try {
     var res = await generateNewPINDb(g);
@@ -1545,7 +1558,7 @@ async function generatePIN() {
         icon: res.status === 'active' ? 'warning' : 'error',
         title: res.status === 'active' ? 'ยังมีคาบเปิดอยู่' : 'ผิดพลาด',
         text: res.message,
-        confirmButtonColor: res.status === 'active' ? '#f59e0b' : '#ef4444'
+        confirmButtonColor: res.status === 'active' ? UI_COLOR_WARNING : UI_COLOR_DANGER
       });
     }
   } catch (e) {
@@ -1559,21 +1572,21 @@ async function closeSession() {
     var pending = await getPendingCloseSessionStudentsDb();
     Swal.close();
     if (pending.status !== 'success') {
-      return Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: pending.msg || '', confirmButtonColor: '#ef4444' });
+      return Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: pending.msg || '', confirmButtonColor: UI_COLOR_DANGER });
     }
     var rows = (pending.students || []).map(function(st, i) {
       return '<tr>'
         + '<td class="text-muted">' + (i + 1) + '</td>'
         + '<td class="text-start"><div class="fw-bold">' + escHtml(st.name) + '</div><small class="text-muted">' + escHtml(st.id) + ' | ' + escHtml(st.grade) + '</small></td>'
-        + '<td style="width:110px"><select class="form-select form-select-sm close-status" data-sid="' + escHtml(st.id) + '">'
+        + '<td class="close-status-cell"><select class="form-select form-select-sm close-status" data-sid="' + escHtml(st.id) + '">'
         + '<option value="ขาด">ขาด</option>'
         + '<option value="ลา">ลา</option>'
         + '</select></td>'
         + '</tr>';
     }).join('');
     var html = pending.students.length
-      ? '<div class="text-start mb-2" style="font-size:.84rem;color:#64748b">คาบชั้น ' + escHtml(pending.grade) + ' | นักเรียนที่ยังไม่เช็คชื่อ ' + pending.students.length + ' คน</div>'
-        + '<div style="max-height:55vh;overflow:auto;border:1px solid #e5e7eb;border-radius:12px">'
+      ? '<div class="text-start mb-2 close-session-summary">คาบชั้น ' + escHtml(pending.grade) + ' | นักเรียนที่ยังไม่เช็คชื่อ ' + pending.students.length + ' คน</div>'
+        + '<div class="close-session-list">'
         + '<table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th>#</th><th class="text-start">นักเรียน</th><th>สถานะ</th></tr></thead><tbody>'
         + rows + '</tbody></table></div>'
       : '<div class="text-center py-3"><div class="fw-bold mb-1">นักเรียนทุกคนเช็คชื่อแล้ว</div><div class="text-muted">กดยืนยันเพื่อปิดคาบและลบ PIN</div></div>';
@@ -1583,7 +1596,7 @@ async function closeSession() {
       html: html,
       width: 720,
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
+      confirmButtonColor: UI_COLOR_DANGER,
       confirmButtonText: 'บันทึกและปิดคาบ',
       cancelButtonText: 'ยกเลิก',
       focusConfirm: false,
@@ -1599,14 +1612,14 @@ async function closeSession() {
     var res = await closeAttendanceAndMarkAbsentDb(r.value || []);
     Swal.close();
     if (res.status === 'success') {
-      Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.msg, confirmButtonColor: '#4f46e5' });
+      Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.msg, confirmButtonColor: UI_COLOR_PRIMARY });
       document.getElementById('displayPIN').textContent = '- - - -';
       document.getElementById('expiryLabel').textContent = '';
       document.getElementById('pinGradeLabel').textContent = '';
       await loadCurrentSession();
       if (statsLoaded) await loadStats();
     } else {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg || '', confirmButtonColor: '#ef4444' });
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg || '', confirmButtonColor: UI_COLOR_DANGER });
     }
   } catch (e) {
     onErr(e);
@@ -1651,21 +1664,20 @@ function renderTable(data) {
   var m = document.getElementById('statMonth');
   var mt = m ? m.options[m.selectedIndex].text : 'ทั้งหมด';
   if (!data.length) {
-    document.getElementById('statsTbody').innerHTML = '<tr><td colspan="7" class="text-center py-4" style="color:var(--muted)">ไม่พบข้อมูล</td></tr>';
+    document.getElementById('statsTbody').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">ไม่พบข้อมูล</td></tr>';
     return;
   }
   document.getElementById('statsTbody').innerHTML = data.map(function(s) {
     var lv = s.level || 0, tier = Math.min(Math.floor(lv / 10), 4);
-    var lvBadge = '<span class="lv-banner lv-t' + tier + '"><i class="fa-solid fa-star" style="font-size:.65rem"></i>Lv.' + lv + '</span>';
+    var lvBadge = '<span class="lv-banner lv-t' + tier + '"><i class="fa-solid fa-star icon-xs"></i>Lv.' + lv + '</span>';
     return '<tr>'
-      + '<td style="color:#94a3b8;font-size:.78rem">' + s.id + '</td>'
-      + '<td class="fw-bold" style="font-size:.87rem">' + s.name + '</td>'
+      + '<td class="text-muted-soft small">' + s.id + '</td>'
+      + '<td class="fw-bold student-banner-name">' + s.name + '</td>'
       + '<td>' + lvBadge + '</td>'
       + '<td class="text-center"><span class="pill p-g">' + s.present + '</span></td>'
       + '<td class="text-center"><span class="pill p-r">' + s.absent + '</span></td>'
       + '<td class="text-center"><span class="pill p-y">' + s.leave + '</span></td>'
-      + '<td class="text-center no-print"><button class="btn btn-sm fw-bold" '
-      + 'style="background:#eff6ff;color:#4f46e5;border-radius:8px;font-size:.76rem" '
+      + '<td class="text-center no-print"><button class="btn btn-sm fw-bold btn-soft-primary btn-compact" '
       + 'onclick="showHistory(\'' + s.id + '\',\'' + mt + '\')"><i class="fa-solid fa-clock-rotate-left me-1"></i>ประวัติ</button></td></tr>';
   }).join('');
 }
@@ -1682,9 +1694,9 @@ function renderDonut(data) {
       labels: ['มา', 'ขาด', 'ลา'],
       datasets: [{
         data: [pre, abs, lv],
-        backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+        backgroundColor: [UI_COLOR_SUCCESS, UI_COLOR_DANGER, UI_COLOR_WARNING],
         borderWidth: 3,
-        borderColor: '#fff',
+        borderColor: UI_COLOR_CANVAS_BORDER,
         hoverBorderWidth: 4
       }]
     },
@@ -1709,9 +1721,9 @@ function renderDonut(data) {
   var p1 = all > 0 ? Math.round(abs / all * 100) : 0;
   var p2 = all > 0 ? Math.round(lv / all * 100) : 0;
   document.getElementById('donutLeg').innerHTML =
-    '<span style="color:#10b981">●มา ' + p0 + '%</span>'
-    + '<span style="color:#ef4444">●ขาด ' + p1 + '%</span>'
-    + '<span style="color:#f59e0b">●ลา ' + p2 + '%</span>';
+    '<span class="legend-ok">●มา ' + p0 + '%</span>'
+    + '<span class="legend-no">●ขาด ' + p1 + '%</span>'
+    + '<span class="legend-warn">●ลา ' + p2 + '%</span>';
 }
 
 function renderBar(months) {
@@ -1727,9 +1739,9 @@ function renderBar(months) {
     data: {
       labels: labels,
       datasets: [
-        { label: 'มา', data: last.map(function(m) { return m.present; }), backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 6, borderSkipped: false },
-        { label: 'ขาด', data: last.map(function(m) { return m.absent; }), backgroundColor: 'rgba(239,68,68,.72)', borderRadius: 6, borderSkipped: false },
-        { label: 'ลา', data: last.map(function(m) { return m.leave; }), backgroundColor: 'rgba(245,158,11,.72)', borderRadius: 6, borderSkipped: false }
+        { label: 'มา', data: last.map(function(m) { return m.present; }), backgroundColor: UI_CHART_PRESENT, borderRadius: 6, borderSkipped: false },
+        { label: 'ขาด', data: last.map(function(m) { return m.absent; }), backgroundColor: UI_CHART_ABSENT, borderRadius: 6, borderSkipped: false },
+        { label: 'ลา', data: last.map(function(m) { return m.leave; }), backgroundColor: UI_CHART_LEAVE, borderRadius: 6, borderSkipped: false }
       ]
     },
     options: {
@@ -1738,7 +1750,7 @@ function renderBar(months) {
       plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-        y: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } } }
+        y: { grid: { color: UI_CHART_GRID }, ticks: { font: { size: 11 } } }
       }
     }
   });
@@ -1756,22 +1768,21 @@ async function showHistory(id, mt) {
     var histData = pair[1];
     var lv = profileData ? profileData.level : 0;
     var tier = Math.min(Math.floor(lv / 10), 4);
-    var lvHtml = profileData ? '<div class="text-center mb-2"><span class="lv-banner lv-t' + tier + '"><i class="fa-solid fa-star" style="font-size:.65rem"></i>Lv.' + lv + ' | ' + profileData.totalPoints + ' XP</span></div>' : '';
-    var bc = function(s) { return s === 'มา' ? '#10b981' : (s === 'ขาด' ? '#ef4444' : '#f59e0b'); };
+    var lvHtml = profileData ? '<div class="text-center mb-2"><span class="lv-banner lv-t' + tier + '"><i class="fa-solid fa-star icon-xs"></i>Lv.' + lv + ' | ' + profileData.totalPoints + ' XP</span></div>' : '';
     var pts = function(l) {
-      return l.points > 0 ? '<span style="background:#eff6ff;color:#4f46e5;border-radius:5px;padding:1px 6px;font-size:.68rem;font-weight:700">+' + l.points + 'pt</span>' : '';
+      return l.points > 0 ? '<span class="point-chip pill-xs">+' + l.points + 'pt</span>' : '';
     };
     var html = histData.length ? histData.map(function(l) {
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 9px;border-radius:9px;margin-bottom:4px;background:#f8fafc">'
-        + '<span style="font-size:.79rem;color:#64748b">' + l.date + '</span>'
-        + '<div style="display:flex;gap:5px;align-items:center">' + pts(l)
-        + '<span style="background:' + bc(l.status) + ';color:#fff;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:700">' + l.status + '</span>'
+      return '<div class="history-row">'
+        + '<span class="history-date">' + l.date + '</span>'
+        + '<div class="history-actions">' + pts(l)
+        + '<span class="pill ' + attendancePillClass(l.status) + '">' + l.status + '</span>'
         + '</div></div>';
-    }).join('') : '<div style="text-align:center;color:#94a3b8;padding:14px">ไม่มีข้อมูล</div>';
+    }).join('') : '<div class="empty-message">ไม่มีข้อมูล</div>';
     Swal.fire({
       title: 'ประวัติ รหัส ' + id,
-      html: lvHtml + '<p style="color:#94a3b8;font-size:.76rem;margin-bottom:6px">เดือน: ' + (mt || 'ทั้งหมด') + '</p><div style="max-height:55vh;overflow-y:auto">' + html + '</div>',
-      confirmButtonColor: '#4f46e5',
+      html: lvHtml + '<p class="history-date mb-2">เดือน: ' + (mt || 'ทั้งหมด') + '</p><div class="swal-scroll">' + html + '</div>',
+      confirmButtonColor: UI_COLOR_PRIMARY,
       width: 420
     });
   } catch (e) {
@@ -1867,7 +1878,7 @@ function promptIndividualPDF() {
     showCancelButton: true,
     confirmButtonText: 'พิมพ์',
     cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#4f46e5',
+    confirmButtonColor: UI_COLOR_PRIMARY,
     width: 520,
     focusConfirm: false,
     didOpen: function() {
@@ -1957,7 +1968,7 @@ async function addNewStudent() {
       icon: 'warning',
       title: 'กรอกข้อมูลไม่ครบ',
       text: 'กรุณากรอกรหัสประจำตัว ชื่อ-นามสกุล และห้องเรียนให้ครบถ้วน',
-      confirmButtonColor: '#4f46e5'
+      confirmButtonColor: UI_COLOR_PRIMARY
     });
   }
   loading('กำลังเพิ่มนักเรียน...');
@@ -1965,7 +1976,7 @@ async function addNewStudent() {
     var res = await addNewStudentDb(sid, name, grade);
     Swal.close();
     if (res.status !== 'success') {
-      return Swal.fire({ icon: 'error', title: 'เพิ่มนักเรียนไม่สำเร็จ', text: res.msg || '', confirmButtonColor: '#ef4444' });
+      return Swal.fire({ icon: 'error', title: 'เพิ่มนักเรียนไม่สำเร็จ', text: res.msg || '', confirmButtonColor: UI_COLOR_DANGER });
     }
     bootstrap.Modal.getInstance(document.getElementById('addStudentModal'))?.hide();
     await refreshStudentViewsAfterAdd(res.student);
@@ -1973,7 +1984,7 @@ async function addNewStudent() {
       icon: 'success',
       title: 'เพิ่มนักเรียนสำเร็จ',
       text: res.student.name + ' (' + res.student.grade + ')',
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: UI_COLOR_SUCCESS,
       timer: 1800,
       timerProgressBar: true
     });
@@ -1982,7 +1993,7 @@ async function addNewStudent() {
     var msg = e && e.code === '23505'
       ? 'รหัสประจำตัวนักเรียนนี้มีอยู่ในระบบแล้ว'
       : (e.message || 'ไม่สามารถเพิ่มนักเรียนได้');
-    Swal.fire({ icon: 'error', title: 'เพิ่มนักเรียนไม่สำเร็จ', text: msg, confirmButtonColor: '#ef4444' });
+    Swal.fire({ icon: 'error', title: 'เพิ่มนักเรียนไม่สำเร็จ', text: msg, confirmButtonColor: UI_COLOR_DANGER });
   }
 }
 
@@ -2014,7 +2025,7 @@ async function loadHistoryStudents() {
   var banner = document.getElementById('histStudentBanner');
   if (idInput) idInput.value = '';
   if (banner) banner.classList.add('hidden');
-  if (list) list.innerHTML = '<div class="text-center py-4" style="color:var(--muted);font-size:.83rem">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>';
+  if (list) list.innerHTML = '<div class="text-center py-4 text-muted small">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>';
   sel.innerHTML = '<option value="">-- กำลังโหลด... --</option>';
   sel.disabled = true;
   if (!g) {
@@ -2044,8 +2055,8 @@ async function submitManual() {
   var date = document.getElementById('manDate').value;
   var status = '';
   document.querySelectorAll('input[name="manStatus"]').forEach(function(r) { if (r.checked) status = r.value; });
-  if (!sid) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกนักเรียน', confirmButtonColor: '#4f46e5' });
-  if (!date) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกวันที่', confirmButtonColor: '#4f46e5' });
+  if (!sid) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกนักเรียน', confirmButtonColor: UI_COLOR_PRIMARY });
+  if (!date) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกวันที่', confirmButtonColor: UI_COLOR_PRIMARY });
   loading('กำลังบันทึก...');
   try {
     var res = await manualCheckInDb(sid, date, status);
@@ -2057,7 +2068,7 @@ async function submitManual() {
       icon: res.status === 'updated' ? 'info' : 'success',
       title: res.status === 'updated' ? 'อัปเดตแล้ว' : 'เพิ่มแล้ว',
       text: res.msg,
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: UI_COLOR_PRIMARY,
       timer: 1800,
       timerProgressBar: true
     });
@@ -2072,7 +2083,7 @@ async function loadHistEdit() {
   var histSel = document.getElementById('histStudent');
   var sid = (histSel && histSel.value ? histSel.value : document.getElementById('histId').value).trim();
   document.getElementById('histId').value = sid;
-  if (!sid) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุรหัสนักเรียน', confirmButtonColor: '#4f46e5' });
+  if (!sid) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุรหัสนักเรียน', confirmButtonColor: UI_COLOR_PRIMARY });
   var list = document.getElementById('histEditList');
   var banner = document.getElementById('histStudentBanner');
   list.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
@@ -2086,37 +2097,36 @@ async function loadHistEdit() {
     var logs = pair[1];
     if (p) {
       var tier = Math.min(Math.floor((p.level || 0) / 10), 4);
-      banner.innerHTML = '<div class="d-flex align-items-center gap-2 p-2" style="background:#f8fafc;border-radius:10px">'
-        + (p.photo ? '<img src="' + p.photo + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover">' : '')
-        + '<div><div class="fw-bold" style="font-size:.87rem">' + p.name + '</div>'
-        + '<span class="lv-banner lv-t' + tier + '"><i class="fa-solid fa-star" style="font-size:.6rem"></i>Lv.' + p.level + ' | ' + p.totalPoints + ' XP</span></div></div>';
+      banner.innerHTML = '<div class="d-flex align-items-center gap-2 p-2 student-banner">'
+        + (p.photo ? '<img src="' + p.photo + '" class="avatar-sm" alt="รูปนักเรียน ' + escHtml(p.name) + '">' : '')
+        + '<div><div class="fw-bold student-banner-name">' + p.name + '</div>'
+        + '<span class="lv-banner lv-t' + tier + '"><i class="fa-solid fa-star icon-xs"></i>Lv.' + p.level + ' | ' + p.totalPoints + ' XP</span></div></div>';
       banner.classList.remove('hidden');
     }
     if (!logs.length) {
-      list.innerHTML = '<div class="text-center py-4" style="color:var(--muted);font-size:.83rem">ไม่พบข้อมูล</div>';
+      list.innerHTML = '<div class="text-center py-4 text-muted small">ไม่พบข้อมูล</div>';
       return;
     }
-    var bc = function(s) { return s === 'มา' ? 'p-g' : (s === 'ขาด' ? 'p-r' : 'p-y'); };
     list.innerHTML = logs.map(function(l) {
       var dk = l.dateKey;
       var points = Number(l.points) || 0;
       return '<div class="hist-item" id="hi-' + dk + '">'
         + '<span class="hist-date">' + l.date + '</span>'
-        + '<div style="display:flex;align-items:center;gap:6px">'
-        + '<span class="pill p-pri" id="pt-' + dk + '" style="font-size:.68rem;display:' + (points > 0 ? 'inline-flex' : 'none') + '">+' + points + 'pt</span>'
-        + '<span class="pill ' + bc(l.status) + '" id="st-' + dk + '">' + l.status + '</span>'
-        + '<button class="edit-btn" data-sid="' + sid + '" data-dk="' + dk + '" onclick="toggleEdit(this)"><i class="fa-solid fa-pen"></i></button>'
+        + '<div class="history-actions">'
+        + '<span class="pill p-pri pill-xs' + (points > 0 ? '' : ' hidden') + '" id="pt-' + dk + '">+' + points + 'pt</span>'
+        + '<span class="pill ' + attendancePillClass(l.status) + '" id="st-' + dk + '">' + l.status + '</span>'
+        + '<button class="edit-btn" data-sid="' + sid + '" data-dk="' + dk + '" aria-label="แก้ไขประวัติวันที่ ' + escHtml(l.date) + '" title="แก้ไข" onclick="toggleEdit(this)"><i class="fa-solid fa-pen"></i></button>'
         + '</div></div>'
-        + '<div id="er-' + dk + '" style="display:none;padding:6px 8px;background:#eff6ff;border-radius:8px;margin-bottom:5px">'
-        + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-        + '<select id="esel-' + dk + '" class="form-select form-select-sm" style="width:auto;min-width:86px" onchange="syncEditPointsState(\'' + dk + '\')">'
+        + '<div id="er-' + dk + '" class="edit-row">'
+        + '<div class="edit-row-inner">'
+        + '<select id="esel-' + dk + '" class="form-select form-select-sm edit-status-select" onchange="syncEditPointsState(\'' + dk + '\')">'
         + '<option value="มา"' + (l.status === 'มา' ? ' selected' : '') + '>มา</option>'
         + '<option value="ขาด"' + (l.status === 'ขาด' ? ' selected' : '') + '>ขาด</option>'
         + '<option value="ลา"' + (l.status === 'ลา' ? ' selected' : '') + '>ลา</option>'
         + '</select>'
-        + '<input id="epts-' + dk + '" type="number" min="0" step="1" class="form-control form-control-sm" style="width:84px" value="' + points + '" placeholder="แต้ม">'
-        + '<button class="btn btn-sm fw-bold" style="background:#4f46e5;color:#fff;border-radius:8px;font-size:.76rem" data-sid="' + sid + '" data-dk="' + dk + '" onclick="saveEdit(this)">บันทึก</button>'
-        + '<button class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.76rem" data-dk="' + dk + '" onclick="document.getElementById(\'er-\'+this.dataset.dk).style.display=\'none\'">ยกเลิก</button>'
+        + '<input id="epts-' + dk + '" type="number" min="0" step="1" class="form-control form-control-sm edit-points-input" value="' + points + '" placeholder="แต้ม">'
+        + '<button class="btn btn-sm fw-bold btn-primary-action btn-compact" data-sid="' + sid + '" data-dk="' + dk + '" onclick="saveEdit(this)">บันทึก</button>'
+        + '<button class="btn btn-sm btn-outline-secondary btn-compact" data-dk="' + dk + '" onclick="document.getElementById(\'er-\'+this.dataset.dk).classList.remove(\'is-open\')">ยกเลิก</button>'
         + '</div></div>';
     }).join('');
   } catch (e) {
@@ -2126,7 +2136,7 @@ async function loadHistEdit() {
 
 function toggleEdit(btn) {
   var r = document.getElementById('er-' + btn.dataset.dk);
-  r.style.display = r.style.display === 'none' ? 'block' : 'none';
+  r.classList.toggle('is-open');
   syncEditPointsState(btn.dataset.dk);
 }
 
@@ -2151,18 +2161,18 @@ async function saveEdit(btn) {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg });
       return;
     }
-    Swal.fire({ icon: 'success', title: 'อัปเดตแล้ว', text: res.msg, confirmButtonColor: '#4f46e5', timer: 1500, timerProgressBar: true });
+    Swal.fire({ icon: 'success', title: 'อัปเดตแล้ว', text: res.msg, confirmButtonColor: UI_COLOR_PRIMARY, timer: 1500, timerProgressBar: true });
     var pill = document.getElementById('st-' + dk);
     if (pill) {
-      pill.className = 'pill ' + (nst === 'มา' ? 'p-g' : (nst === 'ขาด' ? 'p-r' : 'p-y'));
+      pill.className = 'pill ' + attendancePillClass(nst);
       pill.textContent = nst;
     }
     var pointPill = document.getElementById('pt-' + dk);
     if (pointPill) {
       pointPill.textContent = '+' + (nst === 'มา' ? pts : 0) + 'pt';
-      pointPill.style.display = nst === 'มา' && pts > 0 ? 'inline-flex' : 'none';
+      pointPill.classList.toggle('hidden', !(nst === 'มา' && pts > 0));
     }
-    document.getElementById('er-' + dk).style.display = 'none';
+    document.getElementById('er-' + dk).classList.remove('is-open');
     if (statsLoaded) loadStats();
   } catch (e) {
     onErr(e);
@@ -2176,7 +2186,7 @@ async function loadSettings() {
     if (!s) return;
     document.getElementById('setAppName').value = s.appName || '';
     document.getElementById('setSchoolName').value = s.schoolName || '';
-    var col = s.accentColor || '#4f46e5';
+    var col = s.accentColor || UI_COLOR_PRIMARY;
     document.getElementById('setColor').value = col;
     settingsColor = col;
     updateColorPreview(col);
@@ -2192,8 +2202,8 @@ function updateColorPreview(c) {
 }
 
 function resetColor() {
-  updateColorPreview('#4f46e5');
-  document.getElementById('setColor').value = '#4f46e5';
+  updateColorPreview(UI_COLOR_PRIMARY);
+  document.getElementById('setColor').value = UI_COLOR_PRIMARY;
 }
 
 async function handleLogoChange(ev) {
@@ -2226,7 +2236,7 @@ async function saveSettings() {
   var s = {
     appName: document.getElementById('setAppName').value.trim() || 'ระบบเช็คชื่อนักเรียน',
     schoolName: document.getElementById('setSchoolName').value.trim() || 'กุงแก้ววิทยาคาร',
-    accentColor: settingsColor || '#4f46e5',
+    accentColor: settingsColor || UI_COLOR_PRIMARY,
     logoBase64: settingsLogoUrl || '',
     logoUrl: settingsLogoUrl || ''
   };
@@ -2236,7 +2246,7 @@ async function saveSettings() {
     if (res.status === 'success') {
       appSettings = s;
       applyAppSettings(s);
-      Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', confirmButtonColor: '#4f46e5', timer: 2000, timerProgressBar: true });
+      Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', confirmButtonColor: UI_COLOR_PRIMARY, timer: 2000, timerProgressBar: true });
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg });
     }
@@ -2296,11 +2306,11 @@ function rewardReportActionButtons(item) {
   var approvedDisabled = item.status === 'approved' ? ' disabled' : '';
   var rejectedDisabled = item.status === 'rejected' ? ' disabled' : '';
   return '<div class="d-flex gap-1 justify-content-center flex-wrap">'
-    + '<button class="btn btn-sm btn-outline-warning fw-bold" style="border-radius:8px;font-size:.72rem"'
+    + '<button class="btn btn-sm btn-outline-warning fw-bold btn-compact"'
     + pendingDisabled + ' onclick="setRewardReportStatus(' + item.groupId + ',\'pending\')">รอ</button>'
-    + '<button class="btn btn-sm btn-outline-success fw-bold" style="border-radius:8px;font-size:.72rem"'
+    + '<button class="btn btn-sm btn-outline-success fw-bold btn-compact"'
     + approvedDisabled + ' onclick="setRewardReportStatus(' + item.groupId + ',\'approved\')">อนุมัติ</button>'
-    + '<button class="btn btn-sm btn-outline-danger fw-bold" style="border-radius:8px;font-size:.72rem"'
+    + '<button class="btn btn-sm btn-outline-danger fw-bold btn-compact"'
     + rejectedDisabled + ' onclick="setRewardReportStatus(' + item.groupId + ',\'rejected\')">ปฏิเสธ</button>'
     + '</div>';
 }
@@ -2326,7 +2336,7 @@ function renderRewardReport(groups) {
         + '<td class="fw-semibold">' + escHtml(item.itemName) + ' <span class="badge text-bg-primary ms-1">x' + item.quantity + '</span></td>'
         + '<td class="text-center">' + item.totalCost + '</td>'
         + '<td>' + rewardReportSourceBadge(item) + '</td>'
-        + '<td style="white-space:nowrap">' + escHtml(item.latestDate) + '</td>'
+        + '<td class="nowrap">' + escHtml(item.latestDate) + '</td>'
         + '<td>' + rewardReportStatusBadge(item.status) + '</td>'
         + '<td class="text-center">' + rewardReportActionButtons(item) + '</td>'
         + '</tr>';
@@ -2342,7 +2352,7 @@ function renderRewardReport(groups) {
       + '<div id="' + collapseId + '" class="accordion-collapse collapse ' + (i === 0 ? 'show' : '') + '" aria-labelledby="' + collapseId + '-head" data-bs-parent="#rewardReportAccordion">'
       + '<div class="accordion-body p-0"><div class="table-responsive">'
       + '<table class="table table-sm table-hover align-middle mb-0">'
-      + '<thead class="table-light"><tr><th style="width:54px">#</th><th>ของรางวัล</th><th class="text-center">ใช้เหรียญ</th><th>ประเภท</th><th>ล่าสุด</th><th>สถานะ</th><th class="text-center">จัดการ</th></tr></thead>'
+      + '<thead class="table-light"><tr><th class="w-54">#</th><th>ของรางวัล</th><th class="text-center">ใช้เหรียญ</th><th>ประเภท</th><th>ล่าสุด</th><th>สถานะ</th><th class="text-center">จัดการ</th></tr></thead>'
       + '<tbody>' + itemRows + '</tbody></table></div></div></div></div>';
   }).join('') + '</div>';
 }
@@ -2359,7 +2369,7 @@ function findRewardReportItem(groupId) {
 
 async function setRewardReportStatus(groupId, newStatus) {
   var item = findRewardReportItem(groupId);
-  if (!item) return Swal.fire({ icon: 'error', title: 'ไม่พบรายการ', confirmButtonColor: '#ef4444' });
+  if (!item) return Swal.fire({ icon: 'error', title: 'ไม่พบรายการ', confirmButtonColor: UI_COLOR_DANGER });
   var label = newStatus === 'approved' ? 'อนุมัติแล้ว' : (newStatus === 'rejected' ? 'ปฏิเสธ' : 'รอดำเนินการ');
   var note = newStatus === 'rejected'
     ? '<br><small class="text-muted">ระบบคำนวณเหรียญคงเหลือโดยไม่นับรายการที่ถูกปฏิเสธ จึงถือว่าเด็กได้คะแนนคืน</small>'
@@ -2373,7 +2383,7 @@ async function setRewardReportStatus(groupId, newStatus) {
     showCancelButton: true,
     confirmButtonText: 'ยืนยัน',
     cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: newStatus === 'approved' ? '#10b981' : '#ef4444'
+    confirmButtonColor: newStatus === 'approved' ? UI_COLOR_SUCCESS : UI_COLOR_DANGER
   });
   if (!r.isConfirmed) return;
   loading('กำลังอัปเดตสถานะ...');
@@ -2381,7 +2391,7 @@ async function setRewardReportStatus(groupId, newStatus) {
     var res = await updateRedemptionStatusByIdsDb(item.rowIds, newStatus);
     Swal.close();
     if (res.status !== 'success') {
-      Swal.fire({ icon: 'error', title: 'อัปเดตไม่สำเร็จ', text: res.msg || '', confirmButtonColor: '#ef4444' });
+      Swal.fire({ icon: 'error', title: 'อัปเดตไม่สำเร็จ', text: res.msg || '', confirmButtonColor: UI_COLOR_DANGER });
       return;
     }
     item.status = newStatus;
@@ -2393,7 +2403,7 @@ async function setRewardReportStatus(groupId, newStatus) {
         if (item.rowIds.indexOf(row.rowIndex) !== -1) row.status = newStatus;
       });
     }
-    Swal.fire({ icon: 'success', title: 'อัปเดตสถานะแล้ว', timer: 1300, timerProgressBar: true, confirmButtonColor: '#10b981' });
+    Swal.fire({ icon: 'success', title: 'อัปเดตสถานะแล้ว', timer: 1300, timerProgressBar: true, confirmButtonColor: UI_COLOR_SUCCESS });
   } catch (e) {
     onErr(e);
   }
@@ -2412,7 +2422,7 @@ function ensureRewardReportLoaded() {
       icon: 'info',
       title: 'ยังไม่มีข้อมูลสำหรับ Export',
       text: 'กรุณาโหลดรายงานการแลกของรางวัลก่อน',
-      confirmButtonColor: '#4f46e5'
+      confirmButtonColor: UI_COLOR_PRIMARY
     });
     return false;
   }
@@ -2558,25 +2568,25 @@ function openGrantItemModal() {
       + '<select id="grantGrade" class="form-select mb-3">' + buildGradeSelectOptions(currentGrade) + '</select>'
       + '<label class="form-label">นักเรียนที่ได้รับ</label>'
       + '<div class="d-flex gap-2 align-items-center mb-2 flex-wrap">'
-      + '<button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="grantSelectAll" style="border-radius:8px;font-size:.76rem">เลือกทั้งหมด</button>'
-      + '<button type="button" class="btn btn-sm btn-outline-secondary fw-bold" id="grantClearAll" style="border-radius:8px;font-size:.76rem">ล้าง</button>'
+      + '<button type="button" class="btn btn-sm btn-outline-primary fw-bold btn-compact" id="grantSelectAll">เลือกทั้งหมด</button>'
+      + '<button type="button" class="btn btn-sm btn-outline-secondary fw-bold btn-compact" id="grantClearAll">ล้าง</button>'
       + '<small class="text-muted ms-auto" id="grantSelectedCount">เลือก 0 คน</small>'
       + '</div>'
-      + '<div id="grantStudentsBox" style="max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;padding:8px;margin-bottom:14px">'
+      + '<div id="grantStudentsBox" class="grant-students-box">'
       + '<div class="text-center py-3 text-muted">เลือกชั้น/ห้องเพื่อโหลดรายชื่อ</div>'
       + '</div>'
       + '<label class="form-label">ไอเทม</label>'
       + '<select id="grantItem" class="form-select mb-3"><option value="">กำลังโหลดไอเทม...</option></select>'
       + '<label class="form-label">จำนวนต่อคน</label>'
       + '<input id="grantQty" type="number" min="1" max="99" step="1" value="1" class="form-control mb-2">'
-      + '<div class="alert mb-0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px;font-size:.8rem;color:#065f46">'
+      + '<div class="alert mb-0 alert-note">'
       + 'รายการนี้จะถูกบันทึกเป็นสถานะอนุมัติแล้ว และไม่หักเหรียญนักเรียน'
       + '</div></div>',
     width: 720,
     showCancelButton: true,
     confirmButtonText: 'มอบไอเทม',
     cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#10b981',
+    confirmButtonColor: UI_COLOR_SUCCESS,
     focusConfirm: false,
     didOpen: function() {
       var popup = Swal.getPopup();
@@ -2633,9 +2643,9 @@ function openGrantItemModal() {
             return;
           }
           box.innerHTML = students.map(function(st) {
-            return '<label class="d-flex align-items-start gap-2 py-2 px-2" style="border-bottom:1px solid #f1f5f9;cursor:pointer">'
+            return '<label class="d-flex align-items-start gap-2 py-2 px-2 grant-student-option">'
               + '<input type="checkbox" class="form-check-input grant-student mt-1" value="' + escHtml(st.id) + '">'
-              + '<span style="line-height:1.25"><span class="fw-bold">' + escHtml(st.id) + '</span> '
+              + '<span class="grant-student-text"><span class="fw-bold">' + escHtml(st.id) + '</span> '
               + escHtml(st.name) + '<br><small class="text-muted">' + escHtml(st.grade) + '</small></span>'
               + '</label>';
           }).join('');
@@ -2677,7 +2687,7 @@ function openGrantItemModal() {
       var res = await grantFreeItemDb(r.value.studentIds, r.value.itemId, r.value.quantity);
       Swal.close();
       if (res.status !== 'success') {
-        return Swal.fire({ icon: 'error', title: 'มอบไอเทมไม่สำเร็จ', text: res.msg || '', confirmButtonColor: '#ef4444' });
+        return Swal.fire({ icon: 'error', title: 'มอบไอเทมไม่สำเร็จ', text: res.msg || '', confirmButtonColor: UI_COLOR_DANGER });
       }
       tShopOrders = null;
       rewardReportCache = null;
@@ -2689,7 +2699,7 @@ function openGrantItemModal() {
         icon: 'success',
         title: 'มอบไอเทมสำเร็จ',
         text: 'มอบ "' + res.itemName + '" จำนวน ' + res.quantity + ' ชิ้น/คน ให้ ' + res.studentCount + ' คน',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: UI_COLOR_SUCCESS,
         timer: 2200,
         timerProgressBar: true
       });
@@ -2702,12 +2712,12 @@ function openGrantItemModal() {
 function renderTeacherItems(items) {
   var el = document.getElementById('teacherItemsList');
   if (!items || !items.length) {
-    el.innerHTML = '<div class="text-center py-5 text-muted"><div style="font-size:3rem;opacity:.3">📦</div><p class="mt-2">ยังไม่มีสินค้า กดปุ่ม "เพิ่มสินค้า" เพื่อเริ่มต้น</p></div>';
+    el.innerHTML = '<div class="text-center py-5 text-muted"><div class="empty-icon">📦</div><p class="mt-2">ยังไม่มีสินค้า กดปุ่ม "เพิ่มสินค้า" เพื่อเริ่มต้น</p></div>';
     return;
   }
   el.innerHTML = items.map(function(item) {
     var imgHtml = item.image
-      ? '<div class="si-img"><img src="' + item.image + '" alt=""></div>'
+      ? '<div class="si-img"><img src="' + item.image + '" alt="รูปสินค้า ' + escHtml(item.itemName) + '"></div>'
       : '<div class="si-img">🎁</div>';
     return '<div class="si-card">'
       + imgHtml
@@ -2719,10 +2729,10 @@ function renderTeacherItems(items) {
       + (item.active ? '<span class="si-badge-on">✓ แสดงในร้าน</span>' : '<span class="si-badge-off">✕ ซ่อน</span>')
       + '</div></div>'
       + '<div class="si-actions">'
-      + '<button class="btn btn-sm fw-bold" style="background:#eff6ff;color:#4f46e5;border-radius:8px;font-size:.73rem" onclick="openEditItemModal(\'' + escHtml(item.itemId) + '\')"><i class="fa-solid fa-pen"></i></button>'
-      + '<button class="btn btn-sm fw-bold" style="background:' + (item.active ? '#fff7ed' : '#f0fdf4') + ';color:' + (item.active ? '#c2410c' : '#15803d') + ';border-radius:8px;font-size:.73rem" onclick="toggleItem(\'' + escHtml(item.itemId) + '\',this)" title="' + (item.active ? 'ซ่อน' : 'แสดง') + '">'
+      + '<button class="btn btn-sm fw-bold btn-xs-soft btn-soft-primary" aria-label="แก้ไขสินค้า ' + escHtml(item.itemName) + '" title="แก้ไข" onclick="openEditItemModal(\'' + escHtml(item.itemId) + '\')"><i class="fa-solid fa-pen"></i></button>'
+      + '<button class="btn btn-sm fw-bold btn-xs-soft ' + (item.active ? 'btn-soft-warning' : 'btn-soft-success') + '" onclick="toggleItem(\'' + escHtml(item.itemId) + '\',this)" aria-label="' + (item.active ? 'ซ่อนสินค้า ' : 'แสดงสินค้า ') + escHtml(item.itemName) + '" title="' + (item.active ? 'ซ่อน' : 'แสดง') + '">'
       + (item.active ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>') + '</button>'
-      + '<button class="btn btn-sm fw-bold" style="background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.73rem" onclick="deleteItem(\'' + escHtml(item.itemId) + '\',\'' + escHtml(item.itemName) + '\')"><i class="fa-solid fa-trash"></i></button>'
+      + '<button class="btn btn-sm fw-bold btn-xs-soft btn-soft-danger-strong" aria-label="ลบสินค้า ' + escHtml(item.itemName) + '" title="ลบ" onclick="deleteItem(\'' + escHtml(item.itemId) + '\',\'' + escHtml(item.itemName) + '\')"><i class="fa-solid fa-trash"></i></button>'
       + '</div></div>';
   }).join('');
 }
@@ -2747,7 +2757,7 @@ function deleteItem(itemId, itemName) {
     title: 'ยืนยันการลบ?',
     html: 'ต้องการลบสินค้า <b>"' + escHtml(itemName) + '"</b> ออกจากระบบ?<br><small class="text-muted">การลบจะไม่สามารถกู้คืนได้</small>',
     showCancelButton: true,
-    confirmButtonColor: '#ef4444',
+    confirmButtonColor: UI_COLOR_DANGER,
     confirmButtonText: 'ลบเลย',
     cancelButtonText: 'ยกเลิก'
   }).then(async function(r) {
@@ -2757,7 +2767,7 @@ function deleteItem(itemId, itemName) {
       var res = await deleteShopItemDb(itemId);
       Swal.close();
       if (res.status === 'success') {
-        Swal.fire({ icon: 'success', title: 'ลบแล้ว', timer: 1500, timerProgressBar: true, confirmButtonColor: '#4f46e5' });
+        Swal.fire({ icon: 'success', title: 'ลบแล้ว', timer: 1500, timerProgressBar: true, confirmButtonColor: UI_COLOR_PRIMARY });
         tShopItems = null;
         await loadTeacherShopItems();
       } else {
@@ -2769,6 +2779,17 @@ function deleteItem(itemId, itemName) {
   });
 }
 
+function setItemPreviewImage(src) {
+  var emoji = document.getElementById('itemPreviewEmoji');
+  var img = document.getElementById('itemPreviewImg');
+  var hasImage = !!src;
+  if (emoji) emoji.classList.toggle('hidden', hasImage);
+  if (img) {
+    img.classList.toggle('hidden', !hasImage);
+    img.src = hasImage ? src : BLANK_IMAGE_SRC;
+  }
+}
+
 function openAddItemModal() {
   document.getElementById('itemModalTitle').textContent = 'เพิ่มสินค้าใหม่';
   document.getElementById('editItemId').value = '';
@@ -2777,9 +2798,7 @@ function openAddItemModal() {
   document.getElementById('itemDesc').value = '';
   document.getElementById('itemActive').checked = true;
   itemImageUrl = '';
-  document.getElementById('itemPreviewEmoji').style.display = '';
-  document.getElementById('itemPreviewImg').style.display = 'none';
-  document.getElementById('itemPreviewImg').src = '';
+  setItemPreviewImage('');
   document.getElementById('itemImageInput').value = '';
   var modal = new bootstrap.Modal(document.getElementById('itemModal'));
   modal.show();
@@ -2800,14 +2819,7 @@ function openEditItemModal(itemId) {
   document.getElementById('itemDesc').value = item.description;
   document.getElementById('itemActive').checked = item.active;
   itemImageUrl = item.image || '';
-  if (item.image) {
-    document.getElementById('itemPreviewEmoji').style.display = 'none';
-    document.getElementById('itemPreviewImg').style.display = 'block';
-    document.getElementById('itemPreviewImg').src = item.image;
-  } else {
-    document.getElementById('itemPreviewEmoji').style.display = '';
-    document.getElementById('itemPreviewImg').style.display = 'none';
-  }
+  setItemPreviewImage(itemImageUrl);
   document.getElementById('itemImageInput').value = '';
   var modal = new bootstrap.Modal(document.getElementById('itemModal'));
   modal.show();
@@ -2829,9 +2841,7 @@ async function handleItemImageChange(event) {
       quality: 0.8
     });
     itemImageUrl = uploaded.publicUrl;
-    document.getElementById('itemPreviewEmoji').style.display = 'none';
-    document.getElementById('itemPreviewImg').style.display = 'block';
-    document.getElementById('itemPreviewImg').src = itemImageUrl;
+    setItemPreviewImage(itemImageUrl);
     Swal.close();
   } catch (e) {
     onErr(e);
@@ -2842,9 +2852,7 @@ async function handleItemImageChange(event) {
 
 function clearItemImage() {
   itemImageUrl = '';
-  document.getElementById('itemPreviewEmoji').style.display = '';
-  document.getElementById('itemPreviewImg').style.display = 'none';
-  document.getElementById('itemPreviewImg').src = '';
+  setItemPreviewImage('');
   document.getElementById('itemImageInput').value = '';
 }
 
@@ -2872,7 +2880,7 @@ async function saveItemModal() {
         text: res.msg || '',
         timer: 1800,
         timerProgressBar: true,
-        confirmButtonColor: '#4f46e5'
+        confirmButtonColor: UI_COLOR_PRIMARY
       });
       tShopItems = null;
       await loadTeacherShopItems();
@@ -2910,30 +2918,30 @@ function renderTeacherOrders(orders, filter) {
   var lbl = document.getElementById('orderCountLabel');
   if (lbl) lbl.textContent = 'พบ ' + filtered.length + ' รายการ';
   if (!filtered.length) {
-    el.innerHTML = '<div class="text-center py-5 text-muted"><div style="font-size:2.5rem;opacity:.3">📋</div><p class="mt-2">ไม่มีรายการ</p></div>';
+    el.innerHTML = '<div class="text-center py-5 text-muted"><div class="empty-icon">📋</div><p class="mt-2">ไม่มีรายการ</p></div>';
     return;
   }
   var statusBadge = function(s) {
-    if (s === 'approved') return '<span class="pill p-g" style="font-size:.72rem">✅ อนุมัติ</span>';
-    if (s === 'rejected') return '<span class="pill p-r" style="font-size:.72rem">❌ ปฏิเสธ</span>';
-    return '<span class="pill p-y" style="font-size:.72rem">⏳ รอ</span>';
+    if (s === 'approved') return '<span class="pill p-g pill-sm">✅ อนุมัติ</span>';
+    if (s === 'rejected') return '<span class="pill p-r pill-sm">❌ ปฏิเสธ</span>';
+    return '<span class="pill p-y pill-sm">⏳ รอ</span>';
   };
   el.innerHTML = filtered.map(function(o) {
     var isPending = o.status === 'pending';
     var costHtml = o.cost > 0
       ? '<div class="order-cost">-' + o.cost + ' 🪙</div>'
-      : '<div class="order-cost" style="color:#4f46e5">ครูมอบให้</div>';
+      : '<div class="order-cost order-free">ครูมอบให้</div>';
     return '<div class="order-row" id="orow-' + o.rowIndex + '">'
-      + '<div style="flex:1;min-width:0">'
-      + '<div class="order-student">' + escHtml(o.studentName) + ' <span style="color:#94a3b8;font-size:.76rem">(' + escHtml(o.studentId) + ')</span></div>'
+      + '<div class="order-main">'
+      + '<div class="order-student">' + escHtml(o.studentName) + ' <span class="student-id-muted">(' + escHtml(o.studentId) + ')</span></div>'
       + '<div class="order-item">🎁 ' + escHtml(o.itemName) + '</div>'
       + '<div class="order-date">' + o.date + '</div>'
       + '</div>'
-      + '<div style="text-align:right;flex-shrink:0">' + costHtml + statusBadge(o.status) + '</div>'
+      + '<div class="order-side">' + costHtml + statusBadge(o.status) + '</div>'
       + (isPending
         ? '<div class="order-actions">'
-          + '<button class="btn btn-sm fw-bold" style="background:#dcfce7;color:#15803d;border-radius:8px;font-size:.73rem" onclick="setOrderStatus(' + o.rowIndex + ',\'approved\')">✅ อนุมัติ</button>'
-          + '<button class="btn btn-sm fw-bold" style="background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.73rem" onclick="setOrderStatus(' + o.rowIndex + ',\'rejected\')">❌ ปฏิเสธ</button>'
+          + '<button class="btn btn-sm fw-bold btn-xs-soft btn-soft-success" onclick="setOrderStatus(' + o.rowIndex + ',\'approved\')">✅ อนุมัติ</button>'
+          + '<button class="btn btn-sm fw-bold btn-xs-soft btn-soft-danger-strong" onclick="setOrderStatus(' + o.rowIndex + ',\'rejected\')">❌ ปฏิเสธ</button>'
           + '</div>'
         : '')
       + '</div>';
@@ -2946,7 +2954,7 @@ async function setOrderStatus(rowIndex, newStatus) {
     var res = await updateRedemptionStatusByRowDb(rowIndex, newStatus);
     Swal.close();
     if (res.status === 'success') {
-      Swal.fire({ icon: 'success', title: 'อัปเดตแล้ว', timer: 1200, timerProgressBar: true, confirmButtonColor: '#4f46e5' });
+      Swal.fire({ icon: 'success', title: 'อัปเดตแล้ว', timer: 1200, timerProgressBar: true, confirmButtonColor: UI_COLOR_PRIMARY });
       if (tShopOrders) {
         for (var i = 0; i < tShopOrders.length; i++) {
           if (tShopOrders[i].rowIndex === rowIndex) { tShopOrders[i].status = newStatus; break; }
@@ -2978,7 +2986,7 @@ async function loadWalletSummary() {
       + '</div>'
       + '<div class="table-responsive"><table class="s-tbl"><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th class="text-center">EXP รวม</th><th class="text-center">เหรียญคงเหลือ</th></tr></thead><tbody>'
       + data.map(function(s, i) {
-        return '<tr><td style="color:#94a3b8;font-size:.78rem">' + (i + 1) + '</td><td class="fw-bold" style="font-size:.87rem">' + escHtml(s.name) + '<br><small style="color:#94a3b8;font-weight:400">' + escHtml(s.id) + '</small></td><td class="text-center"><span class="pill p-pri">' + s.lifetimeExp + '</span></td><td class="text-center"><span class="pill ' + (s.mathCoins > 0 ? 'p-y' : 'p-gray') + '" style="font-size:.85rem">🪙 ' + s.mathCoins + '</span></td></tr>';
+        return '<tr><td class="text-muted-soft small">' + (i + 1) + '</td><td class="fw-bold student-banner-name">' + escHtml(s.name) + '<br><small class="text-muted-soft fw-normal">' + escHtml(s.id) + '</small></td><td class="text-center"><span class="pill p-pri">' + s.lifetimeExp + '</span></td><td class="text-center"><span class="pill ' + (s.mathCoins > 0 ? 'p-y' : 'p-gray') + '">🪙 ' + s.mathCoins + '</span></td></tr>';
       }).join('')
       + '</tbody></table></div>';
   } catch (e) {
@@ -2991,13 +2999,13 @@ async function loadWalletSummary() {
 ═════════════════════════════════════════════════════ */
 function openShop() {
   document.getElementById('shopOverlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  document.body.classList.add('shop-lock');
   loadShopData();
 }
 
 function closeShop() {
   document.getElementById('shopOverlay').classList.remove('open');
-  document.body.style.overflow = '';
+  document.body.classList.remove('shop-lock');
 }
 
 function handleShopOverlayClick(e) {
@@ -3006,8 +3014,8 @@ function handleShopOverlayClick(e) {
 
 function switchShopTab(tab) {
   shopTabCurrent = tab;
-  document.getElementById('shopTabContent').style.display = tab === 'shop' ? 'block' : 'none';
-  document.getElementById('historyTabContent').style.display = tab === 'history' ? 'block' : 'none';
+  document.getElementById('shopTabContent').classList.toggle('hidden', tab !== 'shop');
+  document.getElementById('historyTabContent').classList.toggle('hidden', tab !== 'history');
   document.getElementById('stab-shop').classList.toggle('active', tab === 'shop');
   document.getElementById('stab-history').classList.toggle('active', tab === 'history');
   if (tab === 'history') loadRedemptionHistory();
@@ -3025,7 +3033,7 @@ async function loadShopData() {
     shopItems = await getShopItemsDb();
     renderShopItems(shopItems);
   } catch (e) {
-    document.getElementById('shopGrid').innerHTML = '<div class="shop-empty" style="grid-column:1/-1"><div class="shop-empty-icon">😵</div><p>โหลดสินค้าไม่สำเร็จ</p></div>';
+    document.getElementById('shopGrid').innerHTML = '<div class="shop-empty shop-empty-full"><div class="shop-empty-icon">😵</div><p>โหลดสินค้าไม่สำเร็จ</p></div>';
   }
 }
 
@@ -3059,14 +3067,14 @@ function updateShopCoinsBadge(coins) {
 function renderShopItems(items) {
   var grid = document.getElementById('shopGrid');
   if (!items || !items.length) {
-    grid.innerHTML = '<div class="shop-empty" style="grid-column:1/-1"><div class="shop-empty-icon">🏪</div><p>ยังไม่มีสินค้าในร้านค้าตอนนี้</p></div>';
+    grid.innerHTML = '<div class="shop-empty shop-empty-full"><div class="shop-empty-icon">🏪</div><p>ยังไม่มีสินค้าในร้านค้าตอนนี้</p></div>';
     return;
   }
   var coins = shopWallet ? shopWallet.mathCoins : 0;
   grid.innerHTML = items.map(function(item) {
     var canAfford = coins >= item.cost;
     var imgHtml = item.image
-      ? '<img src="' + item.image + '" class="shop-item-img" alt="' + escHtml(item.itemName) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="shop-item-emoji" style="display:none">🎁</span>'
+      ? '<img src="' + item.image + '" class="shop-item-img" alt="รูปสินค้า ' + escHtml(item.itemName) + '" onerror="this.classList.add(\'hidden\');this.nextElementSibling.classList.remove(\'hidden\')"><span class="shop-item-emoji hidden">🎁</span>'
       : '<span class="shop-item-emoji">🎁</span>';
     return '<div class="shop-item">'
       + imgHtml
@@ -3097,16 +3105,16 @@ function tryBuyItem(itemId, itemName, cost) {
       icon: 'warning',
       title: 'เหรียญไม่เพียงพอ',
       html: 'คุณมี <b>' + shopWallet.mathCoins + ' 🪙</b><br>ต้องการ <b>' + cost + ' 🪙</b>',
-      confirmButtonColor: '#4f46e5'
+      confirmButtonColor: UI_COLOR_PRIMARY
     }, SWAL_ABOVE));
   }
   Swal.fire(Object.assign({
     title: 'ยืนยันการซื้อ',
-    html: '<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#1e293b;margin-bottom:8px">' + escHtml(itemName) + '</div><div style="display:inline-flex;align-items:center;gap:6px;background:#fef9c3;border:1px solid #fde68a;border-radius:999px;padding:4px 16px"><span>🪙</span><span style="font-size:1.1rem;font-weight:800;color:#92400e">' + cost + '</span></div><div style="margin-top:10px;font-size:.82rem;color:#64748b">เหลือ ' + (shopWallet.mathCoins - cost) + ' 🪙</div></div>',
+      html: '<div class="swal-purchase"><div class="swal-purchase-title">' + escHtml(itemName) + '</div><div class="swal-coin-chip"><span>🪙</span><span class="swal-coin-value">' + cost + '</span></div><div class="swal-subtle">เหลือ ' + (shopWallet.mathCoins - cost) + ' 🪙</div></div>',
     showCancelButton: true,
     confirmButtonText: '🛍️ ยืนยันซื้อ',
     cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#4f46e5'
+    confirmButtonColor: UI_COLOR_PRIMARY
   }, SWAL_ABOVE)).then(async function(r) {
     if (!r.isConfirmed) return;
     loading('กำลังดำเนินการ...');
@@ -3126,13 +3134,13 @@ function tryBuyItem(itemId, itemName, cost) {
         Swal.fire(Object.assign({
           icon: 'success',
           title: 'ซื้อสำเร็จ! 🎉',
-          html: escHtml(res.itemName || itemName) + '<br><small style="color:#64748b">ครูจะตรวจสอบและมอบของรางวัลให้เร็วๆ นี้</small><br><br>เหลือ <b style="color:#92400e">' + res.mathCoins + ' 🪙</b>',
-          confirmButtonColor: '#10b981',
+          html: escHtml(res.itemName || itemName) + '<br><small class="text-muted">ครูจะตรวจสอบและมอบของรางวัลให้เร็วๆ นี้</small><br><br>เหลือ <b class="swal-coin-value">' + res.mathCoins + ' 🪙</b>',
+          confirmButtonColor: UI_COLOR_SUCCESS,
           timer: 4000,
           timerProgressBar: true
         }, SWAL_ABOVE));
       } else {
-        Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: res.msg, confirmButtonColor: '#ef4444' }, SWAL_ABOVE));
+        Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: res.msg, confirmButtonColor: UI_COLOR_DANGER }, SWAL_ABOVE));
       }
     } catch (e) {
       onErr(e);
@@ -3154,7 +3162,7 @@ function fireShopConfetti() {
 
 async function loadRedemptionHistory() {
   var el = document.getElementById('redemptionList');
-  el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon" style="font-size:1.5rem">⏳</div><p>กำลังโหลด...</p></div>';
+  el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon empty-icon-sm">⏳</div><p>กำลังโหลด...</p></div>';
   try {
     var logs = await getRedemptionHistoryDb(CU.id);
     if (!logs.length) {
@@ -3169,8 +3177,8 @@ async function loadRedemptionHistory() {
     el.innerHTML = logs.map(function(l) {
       var costHtml = l.cost > 0
         ? '<div class="ri-cost">-' + l.cost + ' 🪙</div>'
-        : '<div class="ri-cost" style="color:#a5b4fc">ครูมอบให้</div>';
-      return '<div class="redeem-item"><div style="flex:1;min-width:0"><div class="ri-name">' + escHtml(l.itemName) + '</div><div class="ri-date">' + l.date + '</div></div><div style="text-align:right;flex-shrink:0">' + costHtml + statusBadge(l.status) + '</div></div>';
+        : '<div class="ri-cost redeem-free">ครูมอบให้</div>';
+      return '<div class="redeem-item"><div class="redeem-main"><div class="ri-name">' + escHtml(l.itemName) + '</div><div class="ri-date">' + l.date + '</div></div><div class="redeem-side">' + costHtml + statusBadge(l.status) + '</div></div>';
     }).join('');
   } catch (e) {
     el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">😵</div><p>โหลดประวัติไม่สำเร็จ</p></div>';
