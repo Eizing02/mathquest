@@ -86,6 +86,9 @@ create index if not exists attendance_logs_session_id_idx on public.attendance_l
   where session_id is not null;
 create index if not exists redemption_logs_student_id_idx on public.redemption_logs(student_id);
 create index if not exists redemption_logs_timestamp_idx  on public.redemption_logs(timestamp desc);
+create index if not exists redemption_logs_pending_timestamp_idx
+  on public.redemption_logs(timestamp desc)
+  where status = 'pending';
 create index if not exists shop_items_is_active_idx       on public.shop_items(is_active);
 create index if not exists password_reset_requests_student_id_idx
   on public.password_reset_requests(student_id);
@@ -308,6 +311,29 @@ create policy "password_reset_requests_public_all" on public.password_reset_requ
 drop policy if exists "system_settings_public_all"   on public.system_settings;
 create policy "system_settings_public_all" on public.system_settings
   for all to public using (true) with check (true);
+
+-- Enable live teacher notifications for new and updated shop orders.
+do $realtime$
+begin
+  if not exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) then
+    raise exception 'Supabase Realtime publication was not found';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'redemption_logs'
+  ) then
+    alter publication supabase_realtime add table public.redemption_logs;
+  end if;
+end
+$realtime$;
 
 -- ──────────────────────────────────────────────────────────
 -- 5. Storage bucket

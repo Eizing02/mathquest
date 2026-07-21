@@ -174,7 +174,10 @@
       <button class="tn active" id="teacher-tab-pin" data-tab="pin" role="tab" aria-selected="true" aria-controls="tab-pin" onclick="switchTab('pin',this)"><i class="fa-solid fa-key me-1"></i>คาบ</button>
       <button class="tn" id="teacher-tab-stats" data-tab="stats" role="tab" aria-selected="false" aria-controls="tab-stats" tabindex="-1" onclick="switchTab('stats',this)"><i class="fa-solid fa-chart-pie me-1"></i>สถิติ</button>
       <button class="tn" id="teacher-tab-manual" data-tab="manual" role="tab" aria-selected="false" aria-controls="tab-manual" tabindex="-1" onclick="switchTab('manual',this)"><i class="fa-solid fa-pen-to-square me-1"></i>แก้ไข</button>
-      <button class="tn" id="teacher-tab-shop" data-tab="shop" role="tab" aria-selected="false" aria-controls="tab-shop" tabindex="-1" onclick="switchTab('shop',this)"><i class="fa-solid fa-store me-1"></i>ร้านค้า</button>
+      <button class="tn" id="teacher-tab-shop" data-tab="shop" role="tab" aria-selected="false" aria-controls="tab-shop" aria-label="ร้านค้า ไม่มีออเดอร์รอดำเนินการ" tabindex="-1" onclick="switchTab('shop',this)">
+        <i class="fa-solid fa-store me-1" aria-hidden="true"></i>ร้านค้า
+        <span class="tn-badge hidden" id="shopNavCount" aria-hidden="true">0</span>
+      </button>
       <button class="tn" id="teacher-tab-reward-report" data-tab="reward-report" role="tab" aria-selected="false" aria-controls="tab-reward-report" tabindex="-1" onclick="switchTab('reward-report',this)"><i class="fa-solid fa-clipboard-list me-1"></i>รายงานแลกของ</button>
       <button class="tn" id="teacher-tab-reset" data-tab="reset" role="tab" aria-selected="false" aria-controls="tab-reset" tabindex="-1" onclick="switchTab('reset',this)">
         <i class="fa-solid fa-unlock-keyhole me-1"></i>รีเซ็ตรหัส
@@ -544,8 +547,9 @@
           <button class="tshop-tab active" id="tstab-items" role="tab" aria-selected="true" aria-controls="tshop-items-panel" onclick="switchTShopTab('items',this)">
             <i class="fa-solid fa-box me-1"></i>สินค้า
           </button>
-          <button class="tshop-tab" id="tstab-orders" role="tab" aria-selected="false" aria-controls="tshop-orders-panel" tabindex="-1" onclick="switchTShopTab('orders',this)">
-            <i class="fa-solid fa-receipt me-1"></i>ออเดอร์
+          <button class="tshop-tab" id="tstab-orders" role="tab" aria-selected="false" aria-controls="tshop-orders-panel" aria-label="ออเดอร์ ไม่มีออเดอร์รอดำเนินการ" tabindex="-1" onclick="switchTShopTab('orders',this)">
+            <i class="fa-solid fa-receipt" aria-hidden="true"></i>ออเดอร์
+            <span class="shop-order-tab-badge hidden" id="shopOrderTabCount" aria-hidden="true">0</span>
           </button>
           <button class="tshop-tab" id="tstab-wallet" role="tab" aria-selected="false" aria-controls="tshop-wallet-panel" tabindex="-1" onclick="switchTShopTab('wallet',this)">
             <i class="fa-solid fa-coins me-1"></i>เหรียญนักเรียน
@@ -569,10 +573,10 @@
           <!-- Orders Panel -->
           <div id="tshop-orders-panel" class="hidden" role="tabpanel" aria-labelledby="tstab-orders" hidden>
             <div class="order-filter">
-              <button class="order-filter-btn active" onclick="filterOrders('all',this)">ทั้งหมด</button>
-              <button class="order-filter-btn" onclick="filterOrders('pending',this)">⏳ รอดำเนินการ</button>
-              <button class="order-filter-btn" onclick="filterOrders('approved',this)">✅ อนุมัติแล้ว</button>
-              <button class="order-filter-btn" onclick="filterOrders('rejected',this)">❌ ปฏิเสธ</button>
+              <button class="order-filter-btn active" data-order-filter="all" onclick="filterOrders('all',this)">ทั้งหมด</button>
+              <button class="order-filter-btn" data-order-filter="pending" onclick="filterOrders('pending',this)"><i class="fa-regular fa-clock" aria-hidden="true"></i> รอดำเนินการ</button>
+              <button class="order-filter-btn" data-order-filter="approved" onclick="filterOrders('approved',this)"><i class="fa-solid fa-check" aria-hidden="true"></i> อนุมัติแล้ว</button>
+              <button class="order-filter-btn" data-order-filter="rejected" onclick="filterOrders('rejected',this)"><i class="fa-solid fa-xmark" aria-hidden="true"></i> ปฏิเสธ</button>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-3">
               <small class="text-muted" id="orderCountLabel">กำลังโหลด...</small>
@@ -947,6 +951,8 @@
     </div>
   </div>
 </div>
+<div id="shopOrderToastRegion" class="shop-order-toast-region" aria-live="polite" aria-relevant="additions" aria-label="การแจ้งเตือนออเดอร์ใหม่"></div>
+<div id="shopOrderStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <script defer src="./app.js"></script>
 </body>
 </html>

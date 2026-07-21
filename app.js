@@ -40,6 +40,20 @@ var tShopOrders = null;
 var tOrderFilter = 'all';
 var itemImageUrl = '';
 var rewardReportCache = null;
+var SHOP_ORDER_POLL_MS = 30000;
+var SHOP_ORDER_SNAPSHOT_LIMIT = 100;
+var SHOP_ORDER_TOAST_STORAGE_KEY = 'mathquest_shop_order_toasts_v1';
+var pendingShopOrderCount = 0;
+var shopOrderKnownPendingIds = {};
+var shopOrderToastClaims = {};
+var shopOrderStudentNameCache = {};
+var shopOrderNotificationChannel = null;
+var shopOrderNotificationPollTimer = null;
+var shopOrderNotificationRefreshTimer = null;
+var shopOrderListRefreshTimer = null;
+var shopOrderNotificationStarted = false;
+var shopOrderInitialSnapshotLoaded = false;
+var shopOrderRefreshInFlight = null;
 var PASSWORD_RESET_TTL_MINUTES = 15;
 var passwordResetRequests = [];
 var passwordResetCountdownTimer = null;
@@ -2324,6 +2338,41 @@ async function getAllRedemptionsForTeacherDb() {
   });
 }
 
+async function getPendingShopOrderSnapshotDb() {
+  var res = await getSupabase().from('redemption_logs')
+    .select('id,timestamp,student_id,item_name,status', { count: 'exact' })
+    .eq('status', 'pending')
+    .order('timestamp', { ascending: false })
+    .limit(SHOP_ORDER_SNAPSHOT_LIMIT);
+  if (res.error) throw res.error;
+  var rows = res.data || [];
+  return {
+    count: typeof res.count === 'number' ? res.count : rows.length,
+    rows: rows.map(function(row) {
+      return {
+        id: Number(row.id),
+        timestamp: row.timestamp || '',
+        studentId: String(row.student_id || '').trim(),
+        itemName: String(row.item_name || '').trim(),
+        status: String(row.status || '').trim()
+      };
+    })
+  };
+}
+
+async function getShopOrderStudentNameDb(studentId) {
+  var sid = String(studentId || '').trim();
+  if (!sid) return '';
+  if (shopOrderStudentNameCache[sid]) return shopOrderStudentNameCache[sid];
+  var row = await runQuery(getSupabase().from('students')
+    .select('name')
+    .eq('id', sid)
+    .maybeSingle());
+  var name = row && row.name ? String(row.name).trim() : sid;
+  shopOrderStudentNameCache[sid] = name;
+  return name;
+}
+
 async function getRewardRedemptionReportDb(grade) {
   var client = getSupabase();
   var targetGrade = normalizeGrade(grade);
@@ -2614,6 +2663,7 @@ async function login() {
         await loadSettings();
         await loadTeacherShopItems();
         startPasswordResetDashboard();
+        startShopOrderNotifications();
       } else {
         await enterStudentApp(res);
       }
@@ -4198,6 +4248,7 @@ function logout() {
   shopWallet = null;
   studentPet = null;
   stopPasswordResetDashboard();
+  stopShopOrderNotifications();
   location.reload();
 }
 
@@ -4339,6 +4390,7 @@ async function setRewardReportStatus(groupId, newStatus) {
         if (item.rowIds.indexOf(row.rowIndex) !== -1) row.status = newStatus;
       });
     }
+    schedulePendingShopOrderRefresh(250);
     Swal.fire({ icon: 'success', title: 'อัปเดตสถานะแล้ว', timer: 1300, timerProgressBar: true, confirmButtonColor: UI_COLOR_SUCCESS });
   } catch (e) {
     onErr(e);
@@ -4459,6 +4511,303 @@ function exportRewardReportPDF() {
 /* ════════════════════════════════════════════════════
    TEACHER SHOP MANAGEMENT
 ═════════════════════════════════════════════════════ */
+
+function isTeacherShopNotificationActive() {
+  return shopOrderNotificationStarted && CU && CU.role === 'TEACHER';
+}
+
+function formatShopOrderNotificationCount(count) {
+  return count > 99 ? '99+' : String(count);
+}
+
+function updatePendingShopOrderBadges(count, announce) {
+  var nextCount = Math.max(0, Math.floor(Number(count) || 0));
+  var changed = nextCount !== pendingShopOrderCount;
+  pendingShopOrderCount = nextCount;
+  var displayCount = formatShopOrderNotificationCount(nextCount);
+  ['shopNavCount', 'shopOrderTabCount'].forEach(function(id) {
+    var badge = document.getElementById(id);
+    if (!badge) return;
+    badge.textContent = displayCount;
+    badge.classList.toggle('hidden', nextCount === 0);
+  });
+  var shopTab = document.getElementById('teacher-tab-shop');
+  var orderTab = document.getElementById('tstab-orders');
+  var label = nextCount > 0 ? ' มีออเดอร์รอดำเนินการ ' + nextCount + ' รายการ' : ' ไม่มีออเดอร์รอดำเนินการ';
+  if (shopTab) shopTab.setAttribute('aria-label', 'ร้านค้า' + label);
+  if (orderTab) orderTab.setAttribute('aria-label', 'ออเดอร์' + label);
+  if (changed && announce !== false) {
+    var live = document.getElementById('shopOrderStatusLive');
+    if (live) live.textContent = nextCount > 0 ? 'มีออเดอร์รอดำเนินการ ' + nextCount + ' รายการ' : 'ดำเนินการออเดอร์ครบแล้ว';
+  }
+}
+
+function syncPendingShopOrdersFromTeacherOrders(orders, announce) {
+  var pendingIds = {};
+  var count = 0;
+  (orders || []).forEach(function(order) {
+    if (order.status !== 'pending') return;
+    count++;
+    pendingIds[Number(order.rowIndex)] = true;
+    if (order.studentId && order.studentName) {
+      shopOrderStudentNameCache[order.studentId] = order.studentName;
+    }
+  });
+  shopOrderKnownPendingIds = pendingIds;
+  shopOrderInitialSnapshotLoaded = true;
+  updatePendingShopOrderBadges(count, announce);
+}
+
+function claimShopOrderToast(orderId) {
+  var id = String(orderId || '');
+  if (!id || shopOrderToastClaims[id]) return false;
+  shopOrderToastClaims[id] = true;
+  try {
+    var now = Date.now();
+    var stored = JSON.parse(localStorage.getItem(SHOP_ORDER_TOAST_STORAGE_KEY) || '{}');
+    Object.keys(stored).forEach(function(key) {
+      if (!Number(stored[key]) || now - Number(stored[key]) > 24 * 60 * 60 * 1000) delete stored[key];
+    });
+    if (stored[id]) return false;
+    stored[id] = now;
+    localStorage.setItem(SHOP_ORDER_TOAST_STORAGE_KEY, JSON.stringify(stored));
+  } catch (e) {}
+  return true;
+}
+
+function removeShopOrderToast(toast) {
+  if (!toast || !toast.parentNode) return;
+  if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+  toast.classList.add('is-leaving');
+  setTimeout(function() {
+    if (toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 180);
+}
+
+function showShopOrderToast(order, studentName) {
+  var region = document.getElementById('shopOrderToastRegion');
+  if (!region || !isTeacherShopNotificationActive()) return;
+  while (region.children.length >= 3) region.removeChild(region.firstElementChild);
+
+  var toast = document.createElement('div');
+  toast.className = 'shop-order-toast';
+  var main = document.createElement('button');
+  main.type = 'button';
+  main.className = 'shop-order-toast-main';
+  main.setAttribute('aria-label', 'เปิดออเดอร์ใหม่ของ ' + (studentName || order.studentId || 'นักเรียน') + ' สินค้า ' + (order.itemName || 'ไม่ระบุสินค้า'));
+
+  var icon = document.createElement('span');
+  icon.className = 'shop-order-toast-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = '<i class="fa-solid fa-receipt"></i>';
+  var content = document.createElement('span');
+  content.className = 'shop-order-toast-content';
+  var title = document.createElement('strong');
+  title.textContent = 'มีออเดอร์ใหม่';
+  var student = document.createElement('span');
+  student.className = 'shop-order-toast-student';
+  student.textContent = studentName || order.studentId || 'นักเรียน';
+  var item = document.createElement('span');
+  item.className = 'shop-order-toast-item';
+  item.textContent = order.itemName || 'ไม่ระบุสินค้า';
+  content.appendChild(title);
+  content.appendChild(student);
+  content.appendChild(item);
+  main.appendChild(icon);
+  main.appendChild(content);
+
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'shop-order-toast-close';
+  close.title = 'ปิด';
+  close.setAttribute('aria-label', 'ปิดการแจ้งเตือนนี้');
+  close.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+  main.addEventListener('click', function() {
+    removeShopOrderToast(toast);
+    openPendingShopOrders();
+  });
+  close.addEventListener('click', function() { removeShopOrderToast(toast); });
+  toast.appendChild(main);
+  toast.appendChild(close);
+  region.appendChild(toast);
+
+  function armDismissTimer() {
+    if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+    toast._dismissTimer = setTimeout(function() { removeShopOrderToast(toast); }, 8000);
+  }
+  toast.addEventListener('mouseenter', function() {
+    if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+  });
+  toast.addEventListener('mouseleave', armDismissTimer);
+  toast.addEventListener('focusin', function() {
+    if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+  });
+  toast.addEventListener('focusout', armDismissTimer);
+  armDismissTimer();
+}
+
+async function notifyNewShopOrder(order) {
+  if (!order || !claimShopOrderToast(order.id)) return;
+  var studentName = order.studentId || 'นักเรียน';
+  try {
+    studentName = await getShopOrderStudentNameDb(order.studentId);
+  } catch (e) {
+    console.warn('โหลดชื่อนักเรียนสำหรับการแจ้งเตือนไม่สำเร็จ', e);
+  }
+  showShopOrderToast(order, studentName);
+}
+
+async function refreshPendingShopOrderSnapshot(notifyMissed) {
+  if (!isTeacherShopNotificationActive()) return false;
+  if (shopOrderRefreshInFlight) return shopOrderRefreshInFlight;
+  var previousIds = shopOrderKnownPendingIds;
+  shopOrderRefreshInFlight = (async function() {
+    try {
+      var snapshot = await getPendingShopOrderSnapshotDb();
+      var shouldNotify = notifyMissed && shopOrderInitialSnapshotLoaded;
+      var newRows = [];
+      if (shouldNotify) {
+        newRows = snapshot.rows.filter(function(row) { return !previousIds[row.id]; }).reverse();
+        newRows.forEach(function(row) { notifyNewShopOrder(row); });
+      }
+      var nextIds = {};
+      snapshot.rows.forEach(function(row) { nextIds[row.id] = true; });
+      shopOrderKnownPendingIds = nextIds;
+      shopOrderInitialSnapshotLoaded = true;
+      updatePendingShopOrderBadges(snapshot.count, notifyMissed && newRows.length === 0);
+      return true;
+    } catch (e) {
+      console.warn('อัปเดตการแจ้งเตือนออเดอร์ไม่สำเร็จ', e);
+      return false;
+    } finally {
+      shopOrderRefreshInFlight = null;
+    }
+  })();
+  return shopOrderRefreshInFlight;
+}
+
+function schedulePendingShopOrderRefresh(delay) {
+  if (shopOrderNotificationRefreshTimer) clearTimeout(shopOrderNotificationRefreshTimer);
+  shopOrderNotificationRefreshTimer = setTimeout(function() {
+    shopOrderNotificationRefreshTimer = null;
+    refreshPendingShopOrderSnapshot(false);
+  }, typeof delay === 'number' ? delay : 400);
+}
+
+function teacherOrdersPanelIsVisible() {
+  var shopPane = document.getElementById('tab-shop');
+  var ordersPanel = document.getElementById('tshop-orders-panel');
+  return !!(shopPane && shopPane.classList.contains('active') && ordersPanel && !ordersPanel.hidden);
+}
+
+function scheduleVisibleTeacherOrdersRefresh() {
+  if (!teacherOrdersPanelIsVisible()) return;
+  if (shopOrderListRefreshTimer) clearTimeout(shopOrderListRefreshTimer);
+  shopOrderListRefreshTimer = setTimeout(function() {
+    shopOrderListRefreshTimer = null;
+    loadTeacherOrders();
+  }, 500);
+}
+
+function handleShopOrderRealtimeInsert(payload) {
+  var row = payload && payload.new ? payload.new : {};
+  if (String(row.status || '') !== 'pending') return;
+  var id = Number(row.id);
+  if (!id || shopOrderKnownPendingIds[id]) return;
+  shopOrderKnownPendingIds[id] = true;
+  updatePendingShopOrderBadges(pendingShopOrderCount + 1, false);
+  notifyNewShopOrder({
+    id: id,
+    timestamp: row.timestamp || '',
+    studentId: String(row.student_id || '').trim(),
+    itemName: String(row.item_name || '').trim(),
+    status: 'pending'
+  });
+  schedulePendingShopOrderRefresh(600);
+  scheduleVisibleTeacherOrdersRefresh();
+}
+
+function handleShopOrderRealtimeChange(payload) {
+  var row = payload && payload.new ? payload.new : {};
+  var id = Number(row.id || (payload.old && payload.old.id));
+  var isPending = String(row.status || '') === 'pending';
+  if (id && isPending && !shopOrderKnownPendingIds[id]) {
+    shopOrderKnownPendingIds[id] = true;
+    updatePendingShopOrderBadges(pendingShopOrderCount + 1, true);
+  } else if (id && !isPending && shopOrderKnownPendingIds[id]) {
+    delete shopOrderKnownPendingIds[id];
+    updatePendingShopOrderBadges(pendingShopOrderCount - 1, true);
+  }
+  schedulePendingShopOrderRefresh(350);
+  scheduleVisibleTeacherOrdersRefresh();
+}
+
+function handleShopOrderVisibilityRefresh() {
+  if (!document.hidden && isTeacherShopNotificationActive()) refreshPendingShopOrderSnapshot(true);
+}
+
+function openPendingShopOrders() {
+  if (!CU || CU.role !== 'TEACHER') return;
+  var shopTab = document.getElementById('teacher-tab-shop');
+  var ordersTab = document.getElementById('tstab-orders');
+  var pendingFilter = document.querySelector('.order-filter-btn[data-order-filter="pending"]');
+  if (shopTab) switchTab('shop', shopTab);
+  if (ordersTab) switchTShopTab('orders', ordersTab);
+  if (pendingFilter) {
+    filterOrders('pending', pendingFilter);
+    setTimeout(function() { pendingFilter.focus(); }, 0);
+  }
+}
+
+async function startShopOrderNotifications() {
+  stopShopOrderNotifications();
+  if (!CU || CU.role !== 'TEACHER') return;
+  shopOrderNotificationStarted = true;
+  document.addEventListener('visibilitychange', handleShopOrderVisibilityRefresh);
+  window.addEventListener('online', handleShopOrderVisibilityRefresh);
+  await refreshPendingShopOrderSnapshot(false);
+  if (!isTeacherShopNotificationActive()) return;
+  try {
+    shopOrderNotificationChannel = getSupabase().channel('teacher-shop-order-notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'redemption_logs' }, handleShopOrderRealtimeInsert)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'redemption_logs' }, handleShopOrderRealtimeChange)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'redemption_logs' }, handleShopOrderRealtimeChange)
+      .subscribe(function(status) {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime ออเดอร์ไม่พร้อม ระบบจะใช้การตรวจทุก 30 วินาทีแทน');
+        }
+      });
+  } catch (e) {
+    console.warn('เปิด Realtime ออเดอร์ไม่สำเร็จ ระบบจะใช้การตรวจทุก 30 วินาทีแทน', e);
+  }
+  shopOrderNotificationPollTimer = setInterval(function() {
+    refreshPendingShopOrderSnapshot(true);
+  }, SHOP_ORDER_POLL_MS);
+}
+
+function stopShopOrderNotifications() {
+  shopOrderNotificationStarted = false;
+  document.removeEventListener('visibilitychange', handleShopOrderVisibilityRefresh);
+  window.removeEventListener('online', handleShopOrderVisibilityRefresh);
+  if (shopOrderNotificationPollTimer) clearInterval(shopOrderNotificationPollTimer);
+  if (shopOrderNotificationRefreshTimer) clearTimeout(shopOrderNotificationRefreshTimer);
+  if (shopOrderListRefreshTimer) clearTimeout(shopOrderListRefreshTimer);
+  shopOrderNotificationPollTimer = null;
+  shopOrderNotificationRefreshTimer = null;
+  shopOrderListRefreshTimer = null;
+  if (shopOrderNotificationChannel && supabaseClient) {
+    supabaseClient.removeChannel(shopOrderNotificationChannel);
+  }
+  shopOrderNotificationChannel = null;
+  shopOrderRefreshInFlight = null;
+  shopOrderInitialSnapshotLoaded = false;
+  shopOrderKnownPendingIds = {};
+  shopOrderToastClaims = {};
+  shopOrderStudentNameCache = {};
+  updatePendingShopOrderBadges(0, false);
+  var region = document.getElementById('shopOrderToastRegion');
+  if (region) region.innerHTML = '';
+}
 
 function switchTShopTab(tab, btn) {
   ['items', 'orders', 'wallet'].forEach(function(t) {
@@ -4842,6 +5191,7 @@ async function loadTeacherOrders() {
   try {
     var orders = await getAllRedemptionsForTeacherDb();
     tShopOrders = orders;
+    syncPendingShopOrdersFromTeacherOrders(orders, false);
     renderTeacherOrders(orders, tOrderFilter);
   } catch (e) {
     el.innerHTML = '<div class="text-center py-4 text-danger">โหลดไม่สำเร็จ</div>';
@@ -4899,11 +5249,24 @@ async function setOrderStatus(rowIndex, newStatus) {
     if (res.status === 'success') {
       Swal.fire({ icon: 'success', title: 'อัปเดตแล้ว', timer: 1200, timerProgressBar: true, confirmButtonColor: UI_COLOR_PRIMARY });
       if (tShopOrders) {
+        var previousStatus = '';
         for (var i = 0; i < tShopOrders.length; i++) {
-          if (tShopOrders[i].rowIndex === rowIndex) { tShopOrders[i].status = newStatus; break; }
+          if (tShopOrders[i].rowIndex === rowIndex) {
+            previousStatus = tShopOrders[i].status;
+            tShopOrders[i].status = newStatus;
+            break;
+          }
+        }
+        if (previousStatus === 'pending' && newStatus !== 'pending' && shopOrderKnownPendingIds[Number(rowIndex)]) {
+          delete shopOrderKnownPendingIds[Number(rowIndex)];
+          updatePendingShopOrderBadges(pendingShopOrderCount - 1, true);
+        } else if (previousStatus !== 'pending' && newStatus === 'pending' && !shopOrderKnownPendingIds[Number(rowIndex)]) {
+          shopOrderKnownPendingIds[Number(rowIndex)] = true;
+          updatePendingShopOrderBadges(pendingShopOrderCount + 1, true);
         }
         renderTeacherOrders(tShopOrders, tOrderFilter);
       }
+      schedulePendingShopOrderRefresh(250);
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg });
     }
