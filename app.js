@@ -12,6 +12,7 @@ var UI_COLOR_DANGER = '#ef4444';
 var UI_COLOR_WARNING = '#f59e0b';
 var UI_COLOR_CANVAS_BORDER = '#fff';
 var UI_CHART_PRESENT = 'rgba(16,185,129,.75)';
+var UI_CHART_ACTIVITY = 'rgba(14,165,233,.75)';
 var UI_CHART_ABSENT = 'rgba(239,68,68,.72)';
 var UI_CHART_LEAVE = 'rgba(245,158,11,.72)';
 var UI_CHART_GRID = 'rgba(0,0,0,.04)';
@@ -19,6 +20,10 @@ var UI_CHART_GRID = 'rgba(0,0,0,.04)';
 /* ══ State ════════════════════════════════════════════ */
 var CU = {}, cDonut = null, cBar = null;
 var statsLoaded = false, statsCache = null;
+var bulkStudents = [];
+var bulkSelectedStudentIds = {};
+var bulkSingleDates = [];
+var bulkDateRanges = [];
 var refreshCooldown = false;
 var settingsLogoUrl = '', settingsColor = UI_COLOR_PRIMARY;
 var appSettings = {
@@ -224,6 +229,21 @@ function formatTime(value) {
 
 function toNoonIso(dateStr) {
   return new Date(dateStr + 'T12:00:00+07:00').toISOString();
+}
+
+function createAttendanceSessionId() {
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+  return 'session-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+}
+
+function attendancePillClass(status) {
+  if (status === 'มา') return 'p-g';
+  if (status === 'กิจกรรม') return 'p-a';
+  if (status === 'ขาด') return 'p-r';
+  if (status === 'ลา') return 'p-y';
+  return 'p-gray';
 }
 
 function sanitizeFilename(name) {
@@ -488,6 +508,7 @@ function createGuestAttendanceLogs(now, totalPoints) {
   var present = '\u0e21\u0e32';
   var absent = '\u0e02\u0e32\u0e14';
   var leave = '\u0e25\u0e32';
+  var activity = 'กิจกรรม';
   var logs = [];
   var remaining = totalPoints;
   for (var i = 1; i <= 24; i++) {
@@ -495,7 +516,7 @@ function createGuestAttendanceLogs(now, totalPoints) {
     var d = new Date(now.getTime() - i * 86400000);
     d.setHours(8 + guestRandomInt(0, 3), guestRandomInt(0, 50), 0, 0);
     var statusRoll = Math.random();
-    var status = statusRoll < 0.76 ? present : (statusRoll < 0.9 ? absent : leave);
+    var status = statusRoll < 0.7 ? present : (statusRoll < 0.8 ? activity : (statusRoll < 0.92 ? absent : leave));
     var pts = 0;
     if (status === present && remaining > 0) {
       pts = Math.min(remaining, guestPick([1, 3, 5]));
@@ -578,7 +599,7 @@ function refreshGuestProfileFromPoints(session) {
   session.profile.level = Math.floor(total / 5);
   session.profile.pointsInLevel = total % 5;
   session.profile.checkCount = (session.attendanceLogs || []).filter(function(log) {
-    return log.status === '\u0e21\u0e32';
+    return log.status === '\u0e21\u0e32' || log.status === 'กิจกรรม';
   }).length;
   session.wallet.lifetimeExp = total;
 }
@@ -602,7 +623,7 @@ async function startGuestLogin() {
     await loadPetCatalog();
     var session = createGuestSession();
     session.profile.checkCount = session.attendanceLogs.filter(function(log) {
-      return log.status === '\u0e21\u0e32';
+      return log.status === '\u0e21\u0e32' || log.status === 'กิจกรรม';
     }).length;
     writeGuestSession(session);
     CU = session.user;
@@ -1267,9 +1288,9 @@ async function getStudentPointsAndLevelDb(studentId) {
   var pts = 0, cnt = 0;
   (logs || []).forEach(function(log) {
     if (String(log.status).trim() === 'มา') {
-      cnt++;
       pts += Number(log.points) || 0;
     }
+    if (log.status === 'มา' || log.status === 'กิจกรรม') cnt++;
   });
   return {
     totalPoints: pts,
@@ -1429,18 +1450,20 @@ async function getAttendanceStatsDb(targetGrade, targetMonth) {
       levelMap[sid].totalPoints += Number(log.points) || 0;
     }
     if (!matchesMonth(log.timestamp, targetMonth || 'all')) return;
-    if (!bySt[sid]) bySt[sid] = { present: 0, absent: 0, leave: 0 };
+    if (!bySt[sid]) bySt[sid] = { present: 0, activity: 0, absent: 0, leave: 0 };
     if (log.status === 'มา') bySt[sid].present++;
+    else if (log.status === 'กิจกรรม') bySt[sid].activity++;
     else if (log.status === 'ขาด') bySt[sid].absent++;
     else if (log.status === 'ลา') bySt[sid].leave++;
   });
   return students.map(function(s) {
-    var h = bySt[s.id] || { present: 0, absent: 0, leave: 0 };
+    var h = bySt[s.id] || { present: 0, activity: 0, absent: 0, leave: 0 };
     var totalPoints = (levelMap[s.id] && levelMap[s.id].totalPoints) || 0;
     return {
       id: s.id,
       name: s.name || '',
       present: h.present,
+      activity: h.activity,
       absent: h.absent,
       leave: h.leave,
       level: Math.floor(totalPoints / 5),
@@ -1463,8 +1486,9 @@ async function getDashboardChartDataDb(grade) {
   (logs || []).forEach(function(log) {
     var mk = monthKeyBangkok(log.timestamp);
     if (!mk) return;
-    if (!mp[mk]) mp[mk] = { present: 0, absent: 0, leave: 0 };
+    if (!mp[mk]) mp[mk] = { present: 0, activity: 0, absent: 0, leave: 0 };
     if (log.status === 'มา') mp[mk].present++;
+    else if (log.status === 'กิจกรรม') mp[mk].activity++;
     else if (log.status === 'ขาด') mp[mk].absent++;
     else if (log.status === 'ลา') mp[mk].leave++;
   });
@@ -1473,6 +1497,7 @@ async function getDashboardChartDataDb(grade) {
       return {
         month: k,
         present: mp[k].present,
+        activity: mp[k].activity,
         absent: mp[k].absent,
         leave: mp[k].leave
       };
@@ -1482,7 +1507,7 @@ async function getDashboardChartDataDb(grade) {
 }
 
 async function getCurrentSessionStatusDb() {
-  var s = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start']);
+  var s = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start', 'active_session_id']);
   var pin = (s.pin || '').trim();
   var expiry = safeDate(s.pin_expiry);
   var grade = (s.current_grade || '').trim();
@@ -1493,16 +1518,20 @@ async function getCurrentSessionStatusDb() {
     active: true,
     pin: pin,
     grade: grade,
+    sessionId: String(s.active_session_id || '').trim(),
+    sessionDate: start ? dateKeyBangkok(start) : '',
+    sessionDateLabel: start ? formatThaiLongDate(start) : '',
     expiry: formatTime(expiry),
     startTime: start ? start.getTime() : null,
-    expired: now > expiry
+    expired: now > expiry,
+    stale: start ? dateKeyBangkok(start) !== dateKeyBangkok(now) : false
   };
 }
 
 async function generateNewPINDb(targetGrade) {
   if (!targetGrade) return { status: 'fail', message: 'กรุณาเลือกระดับชั้น' };
   var client = getSupabase();
-  var active = await getSettingsMap(['pin', 'pin_expiry', 'current_grade']);
+  var active = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'active_session_id']);
   if ((active.pin || '').trim() && safeDate(active.pin_expiry) && normalizeGrade(active.current_grade)) {
     return {
       status: 'active',
@@ -1512,17 +1541,21 @@ async function generateNewPINDb(targetGrade) {
   var pin = Math.floor(1000 + Math.random() * 9000).toString();
   var now = await getServerNowDb(client);
   var expiry = new Date(now.getTime() + 40 * 60000);
+  var sessionId = createAttendanceSessionId();
   await upsertSettings({
     pin: pin,
     pin_expiry: expiry.toISOString(),
     current_grade: normalizeGrade(targetGrade),
-    session_start: now.toISOString()
+    session_start: now.toISOString(),
+    active_session_id: sessionId
   });
   return {
     status: 'success',
     pin: pin,
     expiry: formatTime(expiry),
-    startTime: now.getTime()
+    startTime: now.getTime(),
+    sessionId: sessionId,
+    sessionDate: dateKeyBangkok(now)
   };
 }
 
@@ -1556,16 +1589,18 @@ async function submitCheckInDb(studentId, pinCode) {
   }
   var client = getSupabase();
   var cid = String(studentId).trim();
-  var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start']);
+  var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start', 'active_session_id']);
   if (!settings.pin) return { result: 'error', msg: 'ยังไม่มีคาบเรียนที่เปิดอยู่' };
   var pin = String(settings.pin || '').trim();
   var expiry = safeDate(settings.pin_expiry);
   var startTime = safeDate(settings.session_start);
+  var sessionId = String(settings.active_session_id || '').trim() || null;
   var now = await getServerNowDb(client);
   var grade = String(settings.current_grade || '').trim();
   if (!expiry) return { result: 'error', msg: 'การตั้งค่าไม่ถูกต้อง' };
   if (String(pinCode).trim() !== pin) return { result: 'error', msg: 'รหัส PIN ไม่ถูกต้อง ❌' };
   if (!grade) return { result: 'error', msg: 'ไม่พบข้อมูลชั้นเรียนของคาบนี้' };
+  if (now > expiry) return { result: 'error', msg: 'รหัส PIN หมดอายุแล้ว ⏰' };
 
   var student = await runQuery(client.from('students')
     .select('id,grade')
@@ -1583,13 +1618,12 @@ async function submitCheckInDb(studentId, pinCode) {
     .select('id,timestamp')
     .eq('student_id', cid)
     .order('timestamp', { ascending: false }));
-  var today = dateKeyBangkok(now);
+  var sessionDate = startTime ? dateKeyBangkok(startTime) : dateKeyBangkok(now);
   for (var i = 0; i < existing.length; i++) {
-    if (dateKeyBangkok(existing[i].timestamp) === today) {
-      return { result: 'duplicate', msg: 'เช็คชื่อวันนี้เรียบร้อยแล้ว ✅' };
+    if (dateKeyBangkok(existing[i].timestamp) === sessionDate) {
+      return { result: 'duplicate', msg: 'เช็คชื่อคาบวันที่ ' + formatDate(toNoonIso(sessionDate)) + ' เรียบร้อยแล้ว ✅' };
     }
   }
-  if (now > expiry) return { result: 'error', msg: 'รหัส PIN หมดอายุแล้ว ⏰' };
 
   var pts = 0;
   if (startTime) {
@@ -1599,10 +1633,11 @@ async function submitCheckInDb(studentId, pinCode) {
   }
 
   await runQuery(client.from('attendance_logs').insert([{
-    timestamp: now.toISOString(),
+    timestamp: dateKeyBangkok(now) === sessionDate ? now.toISOString() : toNoonIso(sessionDate),
     student_id: cid,
     status: 'มา',
-    points: pts
+    points: pts,
+    session_id: sessionId
   }]));
 
   return { result: 'success', points: pts, grade: grade };
@@ -1610,9 +1645,12 @@ async function submitCheckInDb(studentId, pinCode) {
 
 async function getPendingCloseSessionStudentsDb() {
   var client = getSupabase();
-  var s = await getSettingsMap(['current_grade']);
+  var s = await getSettingsMap(['current_grade', 'session_start', 'active_session_id']);
   var grade = normalizeGrade(s.current_grade);
   if (!grade) return { status: 'fail', msg: 'ไม่มีคาบเรียนที่เปิดอยู่', students: [] };
+  var start = safeDate(s.session_start);
+  var sessionDate = start ? dateKeyBangkok(start) : '';
+  if (!sessionDate) return { status: 'fail', msg: 'ไม่พบวันที่เปิดคาบ กรุณาตรวจสอบการตั้งค่าคาบ', students: [] };
   var allStudents = await runQuery(client.from('students')
     .select('id,name,grade')
     .eq('role', 'STUDENT')
@@ -1621,15 +1659,13 @@ async function getPendingCloseSessionStudentsDb() {
     return isStudentInSessionGrade(st.grade, grade);
   });
   var ids = students.map(function(st) { return st.id; });
-  var now = await getServerNowDb(client);
-  var today = dateKeyBangkok(now);
   var checked = {};
   if (ids.length) {
     var logs = await runQuery(client.from('attendance_logs')
       .select('student_id,timestamp')
       .in('student_id', ids));
     (logs || []).forEach(function(log) {
-      if (dateKeyBangkok(log.timestamp) === today) checked[log.student_id] = true;
+      if (dateKeyBangkok(log.timestamp) === sessionDate) checked[log.student_id] = true;
     });
   }
   var pending = students.filter(function(st) {
@@ -1641,12 +1677,21 @@ async function getPendingCloseSessionStudentsDb() {
       grade: st.grade || ''
     };
   });
-  return { status: 'success', grade: grade, students: pending };
+  var now = await getServerNowDb(client);
+  return {
+    status: 'success',
+    grade: grade,
+    students: pending,
+    sessionId: String(s.active_session_id || '').trim(),
+    sessionDate: sessionDate,
+    sessionDateLabel: formatThaiLongDate(toNoonIso(sessionDate)),
+    stale: sessionDate !== dateKeyBangkok(now)
+  };
 }
 
 async function closeAttendanceAndMarkAbsentDb(statusRows) {
   var client = getSupabase();
-  var s = await getSettingsMap(['current_grade']);
+  var s = await getSettingsMap(['current_grade', 'session_start', 'active_session_id']);
   var grade = normalizeGrade(s.current_grade);
   if (!grade) return { status: 'fail', msg: 'ไม่มีคาบเรียนที่เปิดอยู่' };
   var pending = await getPendingCloseSessionStudentsDb();
@@ -1655,16 +1700,17 @@ async function closeAttendanceAndMarkAbsentDb(statusRows) {
   (statusRows || []).forEach(function(row) {
     var sid = String(row.studentId || row.id || '').trim();
     var st = String(row.status || '').trim();
-    if (sid && (st === 'ขาด' || st === 'ลา')) statusMap[sid] = st;
+    if (sid && (st === 'ขาด' || st === 'ลา' || st === 'กิจกรรม')) statusMap[sid] = st;
   });
-  var now = await getServerNowDb(client);
-  var nowIso = now.toISOString();
+  var sessionDate = pending.sessionDate;
+  var sessionId = pending.sessionId || null;
   var rows = (pending.students || []).map(function(st) {
     return {
-      timestamp: nowIso,
+      timestamp: toNoonIso(sessionDate),
       student_id: st.id,
       status: statusMap[st.id] || 'ขาด',
-      points: 0
+      points: 0,
+      session_id: sessionId
     };
   });
   if (rows.length) await runQuery(client.from('attendance_logs').insert(rows));
@@ -1672,17 +1718,65 @@ async function closeAttendanceAndMarkAbsentDb(statusRows) {
     pin: '',
     pin_expiry: '',
     current_grade: '',
-    session_start: ''
+    session_start: '',
+    active_session_id: ''
   });
   var absent = rows.filter(function(row) { return row.status === 'ขาด'; }).length;
   var leave = rows.filter(function(row) { return row.status === 'ลา'; }).length;
-  return { status: 'success', msg: 'ปิดคาบ ' + grade + ' เรียบร้อย: ขาด ' + absent + ' คน, ลา ' + leave + ' คน' };
+  var activity = rows.filter(function(row) { return row.status === 'กิจกรรม'; }).length;
+  return { status: 'success', msg: 'ปิดคาบ ' + grade + ' วันที่ ' + pending.sessionDateLabel + ' เรียบร้อย: ขาด ' + absent + ' คน, ลา ' + leave + ' คน, กิจกรรม ' + activity + ' คน' };
+}
+
+async function getSessionCheckInsDb(sessionId) {
+  var sid = String(sessionId || '').trim();
+  if (!sid) return [];
+  var client = getSupabase();
+  var logs = await runQuery(client.from('attendance_logs')
+    .select('id,student_id,status,points,timestamp')
+    .eq('session_id', sid)
+    .order('timestamp', { ascending: true }));
+  if (!logs.length) return [];
+  var studentIds = logs.map(function(log) { return log.student_id; });
+  var students = await runQuery(client.from('students')
+    .select('id,name,grade')
+    .in('id', studentIds));
+  var studentMap = {};
+  (students || []).forEach(function(student) { studentMap[student.id] = student; });
+  return logs.map(function(log) {
+    var student = studentMap[log.student_id] || {};
+    return {
+      id: log.id,
+      studentId: log.student_id,
+      name: student.name || log.student_id,
+      grade: student.grade || '',
+      status: log.status,
+      points: Number(log.points) || 0,
+      timestamp: log.timestamp
+    };
+  });
+}
+
+async function cancelAttendanceSessionDb(sessionId) {
+  var data = await runQuery(getSupabase().rpc('cancel_attendance_session', {
+    p_session_id: String(sessionId || '').trim()
+  }));
+  return data || { deleted_count: 0 };
+}
+
+async function bulkSetAttendanceDb(studentIds, dates, status, points) {
+  var data = await runQuery(getSupabase().rpc('bulk_set_attendance', {
+    p_student_ids: studentIds,
+    p_dates: dates,
+    p_status: status,
+    p_points: points == null ? null : points
+  }));
+  return data || {};
 }
 
 async function manualCheckInDb(studentId, dateStr, status, points) {
   var client = getSupabase();
   var cid = String(studentId || '').trim();
-  if (['มา', 'ขาด', 'ลา'].indexOf(status) === -1) return { status: 'fail', msg: 'สถานะไม่ถูกต้อง' };
+  if (['มา', 'ขาด', 'ลา', 'กิจกรรม'].indexOf(status) === -1) return { status: 'fail', msg: 'สถานะไม่ถูกต้อง' };
   if (!cid || !dateStr) return { status: 'fail', msg: 'ข้อมูลไม่ครบ' };
   var hasPoints = points !== undefined && points !== null && points !== '';
   var pointValue = Math.max(0, Math.floor(Number(points) || 0));
@@ -2397,6 +2491,10 @@ window.addEventListener('load', async function() {
   var manGrade = document.getElementById('manGrade');
   var histGrade = document.getElementById('histGrade');
   if (manGrade && histGrade) histGrade.innerHTML = manGrade.innerHTML;
+  var bulkGrade = document.getElementById('bulkGrade');
+  if (manGrade && bulkGrade) bulkGrade.innerHTML = manGrade.innerHTML;
+  var bulkDate = document.getElementById('bulkSingleDate');
+  if (bulkDate) bulkDate.value = dateKeyBangkok(new Date());
   if (!isSupabaseConfigured()) {
     showConfigAlert();
     await restoreGuestSessionIfActive();
@@ -2976,23 +3074,41 @@ async function loadCurrentSession() {
     var bar = document.getElementById('sessBar');
     var txt = document.getElementById('sessText');
     var dot = document.getElementById('sessDot');
+    var dateLabel = document.getElementById('sessionDateLabel');
+    var closeBtn = document.getElementById('closeSessionBtn');
+    var cancelBtn = document.getElementById('cancelSessionBtn');
     if (res && res.active) {
+      if (closeBtn) closeBtn.disabled = false;
+      if (cancelBtn) {
+        cancelBtn.disabled = !res.sessionId;
+        cancelBtn.title = res.sessionId ? '' : 'คาบเก่าไม่มีรหัสคาบ จึงยกเลิกแบบลบข้อมูลอัตโนมัติไม่ได้';
+      }
+      if (dateLabel) {
+        dateLabel.textContent = 'วันที่เข้าเรียน ' + res.sessionDateLabel + (res.stale ? ' (คาบค้าง)' : '');
+        dateLabel.className = 'pin-sub' + (res.stale ? ' session-date-stale' : '');
+      }
+      document.getElementById('displayPIN').textContent = res.pin;
+      document.getElementById('expiryLabel').textContent = 'หมดอายุ ' + res.expiry + ' น.';
+      document.getElementById('pinGradeLabel').textContent = 'ชั้น ' + res.grade;
       if (res.expired) {
         bar.className = 'sess-bar expired';
-        dot.textContent = '⚠️';
-        txt.textContent = 'คาบชั้น ' + res.grade + ' หมดอายุแล้ว (PIN: ' + res.pin + ') — กรุณาปิดคาบ';
+        dot.textContent = '!';
+        txt.textContent = 'คาบชั้น ' + res.grade + ' วันที่ ' + res.sessionDateLabel + ' หมดอายุแล้ว (PIN: ' + res.pin + ') กรุณาปิดคาบ';
       } else {
         bar.className = 'sess-bar open';
         dot.innerHTML = '<span class="pulse"></span>';
-        txt.textContent = 'คาบ: ' + res.grade + ' | PIN: ' + res.pin + ' | หมดอายุ ' + res.expiry + ' น.';
-        document.getElementById('displayPIN').textContent = res.pin;
-        document.getElementById('expiryLabel').textContent = 'หมดอายุ ' + res.expiry + ' น.';
-        document.getElementById('pinGradeLabel').textContent = 'ชั้น ' + res.grade;
+        txt.textContent = 'คาบ: ' + res.grade + ' | วันที่ ' + res.sessionDateLabel + ' | PIN: ' + res.pin + ' | หมดอายุ ' + res.expiry + ' น.';
       }
     } else {
       bar.className = 'sess-bar closed';
       dot.textContent = '—';
       txt.textContent = 'ยังไม่มีคาบเรียนที่เปิดอยู่';
+      if (closeBtn) closeBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
+      if (dateLabel) {
+        dateLabel.textContent = '';
+        dateLabel.className = 'pin-sub';
+      }
     }
   } catch (e) {}
 }
@@ -3037,15 +3153,19 @@ async function closeSession() {
         + '<td class="close-status-cell"><select class="form-select form-select-sm close-status" data-sid="' + escHtml(st.id) + '">'
         + '<option value="ขาด">ขาด</option>'
         + '<option value="ลา">ลา</option>'
+        + '<option value="กิจกรรม">กิจกรรม (นับว่ามา, 0 คะแนน)</option>'
         + '</select></td>'
         + '</tr>';
     }).join('');
     var html = pending.students.length
-      ? '<div class="text-start mb-2 close-session-summary">คาบชั้น ' + escHtml(pending.grade) + ' | นักเรียนที่ยังไม่เช็คชื่อ ' + pending.students.length + ' คน</div>'
+      ? '<div class="text-start mb-2 close-session-summary"><strong>วันที่เข้าเรียน ' + escHtml(pending.sessionDateLabel) + '</strong><br>คาบชั้น ' + escHtml(pending.grade) + ' | นักเรียนที่ยังไม่เช็คชื่อ ' + pending.students.length + ' คน'
+        + (pending.stale ? '<div class="close-session-stale"><i class="fa-solid fa-triangle-exclamation me-1"></i>คาบนี้เปิดจากวันก่อน ข้อมูลทั้งหมดจะบันทึกลงวันที่เปิดคาบ</div>' : '') + '</div>'
         + '<div class="close-session-list">'
         + '<table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th>#</th><th class="text-start">นักเรียน</th><th>สถานะ</th></tr></thead><tbody>'
         + rows + '</tbody></table></div>'
-      : '<div class="text-center py-3"><div class="fw-bold mb-1">นักเรียนทุกคนเช็คชื่อแล้ว</div><div class="text-muted">กดยืนยันเพื่อปิดคาบและลบ PIN</div></div>';
+      : '<div class="text-center py-3"><div class="fw-bold mb-1">นักเรียนทุกคนเช็คชื่อแล้ว</div><div class="text-muted">วันที่เข้าเรียน ' + escHtml(pending.sessionDateLabel) + '</div>'
+        + (pending.stale ? '<div class="close-session-stale text-start"><i class="fa-solid fa-triangle-exclamation me-1"></i>คาบนี้เปิดจากวันก่อน ระบบจะยึดวันที่เปิดคาบ</div>' : '')
+        + '<div class="text-muted mt-1">กดยืนยันเพื่อปิดคาบและลบ PIN</div></div>';
     var r = await Swal.fire({
       icon: 'warning',
       title: 'ปิดคาบเรียน?',
@@ -3082,6 +3202,62 @@ async function closeSession() {
   }
 }
 
+async function cancelSession() {
+  loading('กำลังตรวจสอบข้อมูลของคาบ...');
+  try {
+    var session = await getCurrentSessionStatusDb();
+    if (!session.active) {
+      return Swal.fire({ icon: 'info', title: 'ไม่มีคาบที่เปิดอยู่', confirmButtonColor: UI_COLOR_PRIMARY });
+    }
+    if (!session.sessionId) {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'ยกเลิกอัตโนมัติไม่ได้',
+        text: 'คาบนี้สร้างก่อนระบบรหัสคาบ กรุณาปิดคาบตามปกติเพื่อป้องกันการลบข้อมูลผิดรายการ',
+        confirmButtonColor: UI_COLOR_WARNING
+      });
+    }
+    var logs = await getSessionCheckInsDb(session.sessionId);
+    Swal.close();
+    var totalPoints = logs.reduce(function(sum, log) { return sum + (Number(log.points) || 0); }, 0);
+    var rows = logs.map(function(log, i) {
+      return '<tr><td>' + (i + 1) + '</td><td class="text-start"><strong>' + escHtml(log.name) + '</strong><br><small>' + escHtml(log.studentId) + '</small></td>'
+        + '<td><span class="pill ' + attendancePillClass(log.status) + '">' + escHtml(log.status) + '</span></td><td>' + (Number(log.points) || 0) + '</td></tr>';
+    }).join('');
+    var detail = logs.length
+      ? '<div class="cancel-session-summary">จะลบ ' + logs.length + ' รายการ รวม ' + totalPoints + ' คะแนน จาก PIN รอบนี้เท่านั้น</div>'
+        + '<div class="close-session-list"><table class="table table-sm align-middle mb-0"><thead><tr><th>#</th><th class="text-start">นักเรียน</th><th>สถานะ</th><th>คะแนน</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      : '<div class="cancel-session-summary">ยังไม่มีนักเรียนเช็คชื่อใน PIN รอบนี้ ระบบจะล้างคาบและ PIN เท่านั้น</div>';
+    var answer = await Swal.fire({
+      icon: 'warning',
+      title: 'ยกเลิกคาบ ' + session.grade + '?',
+      html: '<div class="text-start mb-2"><strong>วันที่เปิดคาบ ' + escHtml(session.sessionDateLabel) + '</strong></div>' + detail,
+      width: 720,
+      showCancelButton: true,
+      confirmButtonColor: UI_COLOR_DANGER,
+      confirmButtonText: 'ยืนยันยกเลิกคาบ',
+      cancelButtonText: 'กลับ',
+      focusConfirm: false
+    });
+    if (!answer.isConfirmed) return;
+    loading('กำลังยกเลิกคาบ...');
+    var result = await cancelAttendanceSessionDb(session.sessionId);
+    document.getElementById('displayPIN').textContent = '- - - -';
+    document.getElementById('expiryLabel').textContent = '';
+    document.getElementById('pinGradeLabel').textContent = '';
+    await loadCurrentSession();
+    if (statsLoaded) await loadStats();
+    Swal.fire({
+      icon: 'success',
+      title: 'ยกเลิกคาบแล้ว',
+      text: 'ลบข้อมูลจาก PIN รอบนี้ ' + (Number(result.deleted_count) || 0) + ' รายการ นักเรียนสามารถเช็คชื่อรอบใหม่ได้',
+      confirmButtonColor: UI_COLOR_PRIMARY
+    });
+  } catch (e) {
+    onErr(e);
+  }
+}
+
 /* ══ Stats & Charts ══════════════════════════════════ */
 async function loadStats() {
   var g = document.getElementById('statGrade') && document.getElementById('statGrade').value;
@@ -3106,21 +3282,22 @@ async function loadStats() {
 }
 
 function renderSummary(data) {
-  var tot = data.length, pre = 0, abs = 0, lv = 0;
-  data.forEach(function(s) { pre += s.present; abs += s.absent; lv += s.leave; });
-  var all = pre + abs + lv, rate = all > 0 ? Math.round(pre / all * 100) : 0;
+  var tot = data.length, pre = 0, act = 0, abs = 0, lv = 0;
+  data.forEach(function(s) { pre += s.present; act += s.activity || 0; abs += s.absent; lv += s.leave; });
+  var all = pre + act + abs + lv, rate = all > 0 ? Math.round((pre + act) / all * 100) : 0;
   document.getElementById('summaryCards').innerHTML =
-    '<div class="col-6 col-md-3"><div class="stat-card sc-b"><div class="ico"><i class="fa-solid fa-users"></i></div><div><div class="val">' + tot + '</div><div class="lbl">นักเรียน</div></div></div></div>'
-    + '<div class="col-6 col-md-3"><div class="stat-card sc-g"><div class="ico"><i class="fa-solid fa-circle-check"></i></div><div><div class="val">' + pre + '</div><div class="lbl">มา (ครั้ง)</div></div></div></div>'
-    + '<div class="col-6 col-md-3"><div class="stat-card sc-r"><div class="ico"><i class="fa-solid fa-circle-xmark"></i></div><div><div class="val">' + abs + '</div><div class="lbl">ขาด (ครั้ง)</div></div></div></div>'
-    + '<div class="col-6 col-md-3"><div class="stat-card sc-y"><div class="ico"><i class="fa-solid fa-percent"></i></div><div><div class="val">' + rate + '%</div><div class="lbl">อัตราเข้าเรียน</div></div></div></div>';
+    '<div class="col-6 col-lg"><div class="stat-card sc-b"><div class="ico"><i class="fa-solid fa-users"></i></div><div><div class="val">' + tot + '</div><div class="lbl">นักเรียน</div></div></div></div>'
+    + '<div class="col-6 col-lg"><div class="stat-card sc-g"><div class="ico"><i class="fa-solid fa-circle-check"></i></div><div><div class="val">' + pre + '</div><div class="lbl">มา (ครั้ง)</div></div></div></div>'
+    + '<div class="col-6 col-lg"><div class="stat-card sc-a"><div class="ico"><i class="fa-solid fa-flag"></i></div><div><div class="val">' + act + '</div><div class="lbl">กิจกรรม</div></div></div></div>'
+    + '<div class="col-6 col-lg"><div class="stat-card sc-r"><div class="ico"><i class="fa-solid fa-circle-xmark"></i></div><div><div class="val">' + abs + '</div><div class="lbl">ขาด (ครั้ง)</div></div></div></div>'
+    + '<div class="col-12 col-lg"><div class="stat-card sc-y"><div class="ico"><i class="fa-solid fa-percent"></i></div><div><div class="val">' + rate + '%</div><div class="lbl">อัตราเข้าเรียน</div></div></div></div>';
 }
 
 function renderTable(data) {
   var m = document.getElementById('statMonth');
   var mt = m ? m.options[m.selectedIndex].text : 'ทั้งหมด';
   if (!data.length) {
-    document.getElementById('statsTbody').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">ไม่พบข้อมูล</td></tr>';
+    document.getElementById('statsTbody').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">ไม่พบข้อมูล</td></tr>';
     return;
   }
   document.getElementById('statsTbody').innerHTML = data.map(function(s) {
@@ -3131,6 +3308,7 @@ function renderTable(data) {
       + '<td class="fw-bold student-banner-name">' + s.name + '</td>'
       + '<td>' + lvBadge + '</td>'
       + '<td class="text-center"><span class="pill p-g">' + s.present + '</span></td>'
+      + '<td class="text-center"><span class="pill p-a">' + (s.activity || 0) + '</span></td>'
       + '<td class="text-center"><span class="pill p-r">' + s.absent + '</span></td>'
       + '<td class="text-center"><span class="pill p-y">' + s.leave + '</span></td>'
       + '<td class="text-center no-print"><button class="btn btn-sm fw-bold btn-soft-primary btn-compact" '
@@ -3139,18 +3317,18 @@ function renderTable(data) {
 }
 
 function renderDonut(data) {
-  var pre = 0, abs = 0, lv = 0;
-  data.forEach(function(s) { pre += s.present; abs += s.absent; lv += s.leave; });
-  var all = pre + abs + lv;
+  var pre = 0, act = 0, abs = 0, lv = 0;
+  data.forEach(function(s) { pre += s.present; act += s.activity || 0; abs += s.absent; lv += s.leave; });
+  var all = pre + act + abs + lv;
   var ctx = document.getElementById('chartDonut').getContext('2d');
   if (cDonut) { cDonut.destroy(); cDonut = null; }
   cDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['มา', 'ขาด', 'ลา'],
+      labels: ['มา', 'กิจกรรม', 'ขาด', 'ลา'],
       datasets: [{
-        data: [pre, abs, lv],
-        backgroundColor: [UI_COLOR_SUCCESS, UI_COLOR_DANGER, UI_COLOR_WARNING],
+        data: [pre, act, abs, lv],
+        backgroundColor: [UI_COLOR_SUCCESS, UI_CHART_ACTIVITY, UI_COLOR_DANGER, UI_COLOR_WARNING],
         borderWidth: 3,
         borderColor: UI_COLOR_CANVAS_BORDER,
         hoverBorderWidth: 4
@@ -3174,10 +3352,12 @@ function renderDonut(data) {
     }
   });
   var p0 = all > 0 ? Math.round(pre / all * 100) : 0;
+  var pa = all > 0 ? Math.round(act / all * 100) : 0;
   var p1 = all > 0 ? Math.round(abs / all * 100) : 0;
   var p2 = all > 0 ? Math.round(lv / all * 100) : 0;
   document.getElementById('donutLeg').innerHTML =
     '<span class="legend-ok">●มา ' + p0 + '%</span>'
+    + '<span class="legend-activity">●กิจกรรม ' + pa + '%</span>'
     + '<span class="legend-no">●ขาด ' + p1 + '%</span>'
     + '<span class="legend-warn">●ลา ' + p2 + '%</span>';
 }
@@ -3196,6 +3376,7 @@ function renderBar(months) {
       labels: labels,
       datasets: [
         { label: 'มา', data: last.map(function(m) { return m.present; }), backgroundColor: UI_CHART_PRESENT, borderRadius: 6, borderSkipped: false },
+        { label: 'กิจกรรม', data: last.map(function(m) { return m.activity || 0; }), backgroundColor: UI_CHART_ACTIVITY, borderRadius: 6, borderSkipped: false },
         { label: 'ขาด', data: last.map(function(m) { return m.absent; }), backgroundColor: UI_CHART_ABSENT, borderRadius: 6, borderSkipped: false },
         { label: 'ลา', data: last.map(function(m) { return m.leave; }), backgroundColor: UI_CHART_LEAVE, borderRadius: 6, borderSkipped: false }
       ]
@@ -3258,8 +3439,8 @@ function getExportData() {
 function exportCSV() {
   var ex = getExportData();
   if (!ex.data || !ex.data.length) return Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'กรุณาโหลดสถิติก่อน' });
-  var rows = [['#', 'รหัส', 'ชื่อ-นามสกุล', 'Level', 'มา', 'ขาด', 'ลา']];
-  ex.data.forEach(function(s, i) { rows.push([i + 1, s.id, s.name, s.level || 0, s.present, s.absent, s.leave]); });
+  var rows = [['#', 'รหัส', 'ชื่อ-นามสกุล', 'Level', 'มา', 'กิจกรรม', 'ขาด', 'ลา']];
+  ex.data.forEach(function(s, i) { rows.push([i + 1, s.id, s.name, s.level || 0, s.present, s.activity || 0, s.absent, s.leave]); });
   var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
   var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
   var url = URL.createObjectURL(blob);
@@ -3273,10 +3454,10 @@ function exportExcel() {
   var ex = getExportData();
   if (!ex.data || !ex.data.length) return Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'กรุณาโหลดสถิติก่อน' });
   var now = new Date().toLocaleDateString('th-TH');
-  var header = [['#', 'รหัส', 'ชื่อ-นามสกุล', 'Level', 'XP รวม', 'มา (ครั้ง)', 'ขาด (ครั้ง)', 'ลา (ครั้ง)']];
-  var body = ex.data.map(function(s, i) { return [i + 1, s.id, s.name, s.level || 0, s.totalPoints || 0, s.present, s.absent, s.leave]; });
+  var header = [['#', 'รหัส', 'ชื่อ-นามสกุล', 'Level', 'XP รวม', 'มา (ครั้ง)', 'กิจกรรม (ครั้ง)', 'ขาด (ครั้ง)', 'ลา (ครั้ง)']];
+  var body = ex.data.map(function(s, i) { return [i + 1, s.id, s.name, s.level || 0, s.totalPoints || 0, s.present, s.activity || 0, s.absent, s.leave]; });
   var ws = XLSX.utils.aoa_to_sheet([['รายงานการเข้าเรียน'], ['ชั้น: ' + ex.g + ' | เดือน: ' + ex.mt + ' | วันที่พิมพ์: ' + now], [[]]].concat(header, body));
-  ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 28 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+  ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 28 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 10 }];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'สถิติ');
   XLSX.writeFile(wb, 'attendance_' + ex.g + '_' + ex.mt + '.xlsx');
@@ -3289,9 +3470,9 @@ function exportPDF() {
   document.getElementById('printSubtitle').textContent = 'รายห้อง: ชั้น ' + ex.g + ' | เดือน: ' + ex.mt;
   document.getElementById('printDate').textContent = 'พิมพ์วันที่ ' + now;
   document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
-  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>Level</th><th>มา</th><th>ขาด</th><th>ลา</th></tr>';
+  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>Level</th><th>มา</th><th>กิจกรรม</th><th>ขาด</th><th>ลา</th></tr>';
   document.getElementById('printBody').innerHTML = ex.data.map(function(s, i) {
-    return '<tr><td>' + (i + 1) + '</td><td>' + s.id + '</td><td class="text-start">' + s.name + '</td><td>Lv.' + (s.level || 0) + '</td><td>' + s.present + '</td><td>' + s.absent + '</td><td>' + s.leave + '</td></tr>';
+    return '<tr><td>' + (i + 1) + '</td><td>' + s.id + '</td><td class="text-start">' + s.name + '</td><td>Lv.' + (s.level || 0) + '</td><td>' + s.present + '</td><td>' + (s.activity || 0) + '</td><td>' + s.absent + '</td><td>' + s.leave + '</td></tr>';
   }).join('');
   setTimeout(function() { window.print(); }, 300);
 }
@@ -3310,7 +3491,7 @@ async function preparePDF(type, id) {
       if (!logs.length) return Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล' });
       document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>วันที่</th><th>สถานะ</th><th>คะแนน</th></tr>';
       document.getElementById('printBody').innerHTML = logs.map(function(l, i) {
-        return '<tr><td>' + (i + 1) + '</td><td>' + l.date + '</td><td>' + l.status + '</td><td>' + (l.points > 0 ? '+' + l.points : '—') + '</td></tr>';
+        return '<tr><td>' + (i + 1) + '</td><td>' + l.date + '</td><td>' + l.status + '</td><td>' + (l.status === 'กิจกรรม' ? '0' : (l.points > 0 ? '+' + l.points : '0')) + '</td></tr>';
       }).join('');
       Swal.close();
       setTimeout(function() { window.print(); }, 400);
@@ -3534,6 +3715,220 @@ async function submitManual() {
   }
 }
 
+/* ══ Bulk Attendance Edit ════════════════════════════ */
+async function loadBulkStudents() {
+  var grade = document.getElementById('bulkGrade').value;
+  var list = document.getElementById('bulkStudentsList');
+  bulkStudents = [];
+  bulkSelectedStudentIds = {};
+  if (!grade) {
+    list.innerHTML = '<div class="bulk-empty">เลือกชั้นเพื่อโหลดรายชื่อ</div>';
+    renderBulkPreview();
+    return;
+  }
+  list.innerHTML = '<div class="bulk-empty"><span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดรายชื่อ</div>';
+  try {
+    bulkStudents = await getStudentsInGradeDb(grade);
+    renderBulkStudentList();
+  } catch (e) {
+    list.innerHTML = '<div class="bulk-empty bulk-error">โหลดรายชื่อไม่สำเร็จ</div>';
+  }
+}
+
+function getFilteredBulkStudents() {
+  var search = String(document.getElementById('bulkStudentSearch').value || '').trim().toLowerCase();
+  if (!search) return bulkStudents.slice();
+  return bulkStudents.filter(function(student) {
+    return String(student.id || '').toLowerCase().indexOf(search) > -1 ||
+      String(student.name || '').toLowerCase().indexOf(search) > -1;
+  });
+}
+
+function renderBulkStudentList() {
+  var list = document.getElementById('bulkStudentsList');
+  var students = getFilteredBulkStudents();
+  if (!bulkStudents.length) {
+    list.innerHTML = '<div class="bulk-empty">ไม่พบนักเรียนในชั้นนี้</div>';
+  } else if (!students.length) {
+    list.innerHTML = '<div class="bulk-empty">ไม่พบรายชื่อที่ค้นหา</div>';
+  } else {
+    list.innerHTML = students.map(function(student) {
+      var id = String(student.id);
+      return '<label class="bulk-student-option">'
+        + '<input type="checkbox" data-student-id="' + escHtml(id) + '"' + (bulkSelectedStudentIds[id] ? ' checked' : '') + ' onchange="toggleBulkStudent(this)">'
+        + '<span><strong>' + escHtml(student.name) + '</strong><small>' + escHtml(id) + '</small></span></label>';
+    }).join('');
+  }
+  updateBulkSelectedCount();
+}
+
+function toggleBulkStudent(input) {
+  var id = String(input.dataset.studentId || '');
+  if (input.checked) bulkSelectedStudentIds[id] = true;
+  else delete bulkSelectedStudentIds[id];
+  updateBulkSelectedCount();
+}
+
+function selectAllBulkStudents() {
+  getFilteredBulkStudents().forEach(function(student) {
+    bulkSelectedStudentIds[String(student.id)] = true;
+  });
+  renderBulkStudentList();
+}
+
+function clearBulkStudents() {
+  bulkSelectedStudentIds = {};
+  renderBulkStudentList();
+}
+
+function updateBulkSelectedCount() {
+  var count = Object.keys(bulkSelectedStudentIds).length;
+  document.getElementById('bulkSelectedCount').textContent = 'เลือก ' + count + ' คน';
+  renderBulkPreview();
+}
+
+function addBulkSingleDate() {
+  var input = document.getElementById('bulkSingleDate');
+  var date = input.value;
+  if (!date) return Swal.fire({ icon: 'warning', title: 'กรุณาเลือกวันที่', confirmButtonColor: UI_COLOR_PRIMARY });
+  if (bulkSingleDates.indexOf(date) === -1) bulkSingleDates.push(date);
+  bulkSingleDates.sort();
+  renderBulkDateSelection();
+}
+
+function removeBulkSingleDate(date) {
+  bulkSingleDates = bulkSingleDates.filter(function(item) { return item !== date; });
+  renderBulkDateSelection();
+}
+
+function addBulkDateRange() {
+  var start = document.getElementById('bulkRangeStart').value;
+  var end = document.getElementById('bulkRangeEnd').value;
+  if (!start || !end) return Swal.fire({ icon: 'warning', title: 'กรุณาเลือกวันเริ่มและวันสิ้นสุด', confirmButtonColor: UI_COLOR_PRIMARY });
+  if (start > end) return Swal.fire({ icon: 'warning', title: 'ช่วงวันที่ไม่ถูกต้อง', text: 'วันเริ่มต้องไม่อยู่หลังวันสิ้นสุด', confirmButtonColor: UI_COLOR_PRIMARY });
+  var key = start + '|' + end;
+  if (!bulkDateRanges.some(function(range) { return range.start + '|' + range.end === key; })) {
+    bulkDateRanges.push({ start: start, end: end });
+  }
+  bulkDateRanges.sort(function(a, b) { return a.start.localeCompare(b.start); });
+  renderBulkDateSelection();
+}
+
+function removeBulkDateRange(index) {
+  bulkDateRanges.splice(index, 1);
+  renderBulkDateSelection();
+}
+
+function datesInBulkRange(start, end, includeWeekends) {
+  var dates = [];
+  var cursor = new Date(start + 'T00:00:00Z');
+  var last = new Date(end + 'T00:00:00Z');
+  while (cursor <= last && dates.length <= 5000) {
+    var day = cursor.getUTCDay();
+    if (includeWeekends || (day !== 0 && day !== 6)) dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+function getBulkDates() {
+  var includeWeekends = document.getElementById('bulkIncludeWeekends').checked;
+  var selected = {};
+  bulkSingleDates.forEach(function(date) { selected[date] = true; });
+  bulkDateRanges.forEach(function(range) {
+    datesInBulkRange(range.start, range.end, includeWeekends).forEach(function(date) { selected[date] = true; });
+  });
+  return Object.keys(selected).sort();
+}
+
+function renderBulkDateSelection() {
+  document.getElementById('bulkSingleDates').innerHTML = bulkSingleDates.map(function(date) {
+    return '<span class="bulk-date-chip">' + escHtml(formatDate(toNoonIso(date)))
+      + '<button type="button" onclick="removeBulkSingleDate(\'' + date + '\')" aria-label="ลบวันที่"><i class="fa-solid fa-xmark"></i></button></span>';
+  }).join('');
+  document.getElementById('bulkRanges').innerHTML = bulkDateRanges.map(function(range, index) {
+    return '<div class="bulk-range-item"><span><i class="fa-regular fa-calendar me-2"></i>' + escHtml(formatDate(toNoonIso(range.start))) + ' - ' + escHtml(formatDate(toNoonIso(range.end))) + '</span>'
+      + '<button type="button" onclick="removeBulkDateRange(' + index + ')" aria-label="ลบช่วงวันที่"><i class="fa-solid fa-xmark"></i></button></div>';
+  }).join('');
+  renderBulkPreview();
+}
+
+function getBulkStatus() {
+  var selected = document.querySelector('input[name="bulkStatus"]:checked');
+  return selected ? selected.value : 'มา';
+}
+
+function syncBulkPointsState() {
+  var points = document.getElementById('bulkPointsMode');
+  points.disabled = getBulkStatus() !== 'มา';
+  renderBulkPreview();
+}
+
+function renderBulkPreview() {
+  var preview = document.getElementById('bulkPreview');
+  var button = document.getElementById('bulkApplyBtn');
+  if (!preview || !button) return;
+  var studentIds = Object.keys(bulkSelectedStudentIds);
+  var dates = getBulkDates();
+  var pairs = studentIds.length * dates.length;
+  var status = getBulkStatus();
+  button.disabled = !studentIds.length || !dates.length || pairs > 5000;
+  if (!studentIds.length || !dates.length) {
+    preview.className = 'bulk-preview';
+    preview.textContent = 'เลือกนักเรียนและวันที่เพื่อดูตัวอย่าง';
+    return;
+  }
+  preview.className = 'bulk-preview' + (pairs > 5000 ? ' bulk-preview-error' : '');
+  preview.innerHTML = '<strong>' + studentIds.length + ' คน × ' + dates.length + ' วัน = ' + pairs.toLocaleString('th-TH') + ' รายการ</strong>'
+    + '<span>สถานะ ' + escHtml(status) + (status === 'กิจกรรม' ? ' (นับว่ามา, 0 คะแนน)' : '') + '</span>'
+    + (pairs > 5000 ? '<span>เกินขีดจำกัด กรุณาลดจำนวนนักเรียนหรือวันที่</span>' : '');
+}
+
+async function applyBulkAttendance() {
+  var studentIds = Object.keys(bulkSelectedStudentIds).sort();
+  var dates = getBulkDates();
+  var pairs = studentIds.length * dates.length;
+  if (!studentIds.length || !dates.length) return;
+  if (pairs > 5000) return Swal.fire({ icon: 'warning', title: 'เกิน 5,000 รายการ', text: 'กรุณาลดจำนวนนักเรียนหรือวันที่', confirmButtonColor: UI_COLOR_WARNING });
+  var status = getBulkStatus();
+  var pointsMode = document.getElementById('bulkPointsMode').value;
+  var points = status === 'มา' && pointsMode !== 'preserve' ? Number(pointsMode) : null;
+  var selectedStudents = studentIds.map(function(id) {
+    return bulkStudents.find(function(student) { return String(student.id) === id; }) || { id: id, name: id };
+  });
+  var studentHtml = selectedStudents.map(function(student) { return '<li>' + escHtml(student.name) + ' <small>(' + escHtml(student.id) + ')</small></li>'; }).join('');
+  var dateHtml = dates.map(function(date) { return '<li>' + escHtml(formatThaiLongDate(toNoonIso(date))) + '</li>'; }).join('');
+  var answer = await Swal.fire({
+    icon: 'question',
+    title: 'ยืนยันแก้ไข ' + pairs.toLocaleString('th-TH') + ' รายการ?',
+    html: '<div class="bulk-confirm-summary">สถานะ <strong>' + escHtml(status) + '</strong>'
+      + (status === 'มา' ? ' | คะแนน: ' + escHtml(pointsMode === 'preserve' ? 'รักษาคะแนนเดิม' : points + ' คะแนน') : ' | 0 คะแนน') + '</div>'
+      + '<div class="bulk-confirm-columns"><div><strong>นักเรียน ' + studentIds.length + ' คน</strong><ol>' + studentHtml + '</ol></div>'
+      + '<div><strong>วันที่ ' + dates.length + ' วัน</strong><ol>' + dateHtml + '</ol></div></div>',
+    width: 760,
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกทั้งหมด',
+    cancelButtonText: 'กลับไปตรวจสอบ',
+    confirmButtonColor: UI_COLOR_PRIMARY,
+    focusConfirm: false
+  });
+  if (!answer.isConfirmed) return;
+  loading('กำลังบันทึก ' + pairs.toLocaleString('th-TH') + ' รายการ...');
+  try {
+    var result = await bulkSetAttendanceDb(studentIds, dates, status, points);
+    statsCache = null;
+    if (statsLoaded) await loadStats();
+    Swal.fire({
+      icon: 'success',
+      title: 'บันทึกข้อมูลแบบกลุ่มแล้ว',
+      html: '<div class="bulk-result">เพิ่มใหม่ <strong>' + (Number(result.inserted_count) || 0) + '</strong> รายการ<br>อัปเดต <strong>' + (Number(result.updated_count) || 0) + '</strong> รายการ<br>พบแถวซ้ำเดิม <strong>' + (Number(result.duplicate_count) || 0) + '</strong> แถว</div>',
+      confirmButtonColor: UI_COLOR_PRIMARY
+    });
+  } catch (e) {
+    onErr(e);
+  }
+}
+
 /* ══ History Edit ════════════════════════════════════ */
 async function loadHistEdit() {
   var histSel = document.getElementById('histStudent');
@@ -3577,6 +3972,7 @@ async function loadHistEdit() {
         + '<div class="edit-row-inner">'
         + '<select id="esel-' + dk + '" class="form-select form-select-sm edit-status-select" onchange="syncEditPointsState(\'' + dk + '\')">'
         + '<option value="มา"' + (l.status === 'มา' ? ' selected' : '') + '>มา</option>'
+        + '<option value="กิจกรรม"' + (l.status === 'กิจกรรม' ? ' selected' : '') + '>กิจกรรม</option>'
         + '<option value="ขาด"' + (l.status === 'ขาด' ? ' selected' : '') + '>ขาด</option>'
         + '<option value="ลา"' + (l.status === 'ลา' ? ' selected' : '') + '>ลา</option>'
         + '</select>'

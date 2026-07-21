@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="./apple-touch-icon.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="./style.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -213,6 +214,7 @@
               <div class="pin-digits" id="displayPIN">- - - -</div>
               <div class="pin-sub" style="color:#818cf8" id="pinGradeLabel"></div>
               <div class="pin-sub" style="color:#f87171" id="expiryLabel"></div>
+              <div class="pin-sub" id="sessionDateLabel"></div>
             </div>
           </div>
         </div>
@@ -221,10 +223,13 @@
             <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-door-closed me-2"></i>ปิดคาบเรียน</h6>
             <p class="text-muted" style="font-size:.84rem">
               กดเพื่อดูรายชื่อนักเรียนที่ยังไม่เช็คชื่อ<br>
-              เลือกสถานะ "ขาด" หรือ "ลา" ก่อนปิดคาบ
+              เลือกสถานะ "ขาด" "ลา" หรือ "กิจกรรม" ก่อนปิดคาบ
             </p>
-            <button class="btn btn-danger fw-bold w-100 mt-auto btn-danger-action" onclick="closeSession()">
+            <button id="closeSessionBtn" class="btn btn-danger fw-bold w-100 mt-auto btn-danger-action" onclick="closeSession()" disabled>
               <i class="fa-solid fa-xmark-circle me-2"></i>ปิดคาบและเลือกสถานะ
+            </button>
+            <button id="cancelSessionBtn" class="btn btn-outline-danger fw-bold w-100 mt-2" onclick="cancelSession()" disabled>
+              <i class="fa-solid fa-rotate-left me-2"></i>ยกเลิกการเปิดคาบ
             </button>
           </div>
         </div>
@@ -336,12 +341,12 @@
             <thead>
               <tr>
                 <th>รหัส</th><th>ชื่อ-นามสกุล</th><th>Level</th>
-                <th class="text-center">มา</th><th class="text-center">ขาด</th><th class="text-center">ลา</th>
+                <th class="text-center">มา</th><th class="text-center">กิจกรรม</th><th class="text-center">ขาด</th><th class="text-center">ลา</th>
                 <th class="text-center no-print">ประวัติ</th>
               </tr>
             </thead>
             <tbody id="statsTbody">
-              <tr><td colspan="7" class="text-center py-4" style="color:var(--muted)">คลิกแท็บ "สถิติ" เพื่อโหลด</td></tr>
+              <tr><td colspan="8" class="text-center py-4" style="color:var(--muted)">คลิกแท็บ "สถิติ" เพื่อโหลด</td></tr>
             </tbody>
           </table>
         </div>
@@ -392,6 +397,8 @@
             <div class="status-radio mb-4">
               <input type="radio" name="manStatus" id="ms1" value="มา" checked>
               <label for="ms1"><i class="fa-solid fa-check me-1"></i>มา</label>
+              <input type="radio" name="manStatus" id="ms4" value="กิจกรรม">
+              <label for="ms4"><i class="fa-solid fa-flag me-1"></i>กิจกรรม</label>
               <input type="radio" name="manStatus" id="ms2" value="ขาด">
               <label for="ms2"><i class="fa-solid fa-xmark me-1"></i>ขาด</label>
               <input type="radio" name="manStatus" id="ms3" value="ลา">
@@ -426,6 +433,87 @@
               <div class="text-center py-4" style="color:var(--muted);font-size:.83rem">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>
             </div>
           </div>
+        </div>
+        <div class="col-12">
+          <section class="man-form bulk-editor" aria-labelledby="bulkEditorTitle">
+            <div class="bulk-editor-head">
+              <div>
+                <h6 id="bulkEditorTitle" class="fw-bold mb-1"><i class="fa-solid fa-users-gear me-2"></i>แก้ไขหลายคน / หลายวัน</h6>
+                <p class="mb-0">เลือกนักเรียน วันที่ และสถานะ แล้วตรวจตัวอย่างก่อนบันทึก</p>
+              </div>
+              <span class="bulk-limit">สูงสุด 5,000 รายการ</span>
+            </div>
+
+            <div class="bulk-grid">
+              <div class="bulk-step">
+                <div class="bulk-step-title"><span>1</span> เลือกนักเรียน</div>
+                <label class="form-label" for="bulkGrade">ชั้น / ห้อง</label>
+                <select id="bulkGrade" class="form-select mb-2" onchange="loadBulkStudents()">
+                  <option value="">-- เลือกชั้น --</option>
+                </select>
+                <div class="input-group input-group-sm mb-2">
+                  <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+                  <input id="bulkStudentSearch" class="form-control" type="search" placeholder="ค้นหารหัสหรือชื่อ" oninput="renderBulkStudentList()">
+                </div>
+                <div class="bulk-tools">
+                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllBulkStudents()">เลือกทั้งหมด</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearBulkStudents()">ล้าง</button>
+                  <span id="bulkSelectedCount">เลือก 0 คน</span>
+                </div>
+                <div id="bulkStudentsList" class="bulk-student-list" aria-live="polite">
+                  <div class="bulk-empty">เลือกชั้นเพื่อโหลดรายชื่อ</div>
+                </div>
+              </div>
+
+              <div class="bulk-step">
+                <div class="bulk-step-title"><span>2</span> เลือกวันที่</div>
+                <label class="form-label" for="bulkSingleDate">เพิ่มวันที่เดี่ยว</label>
+                <div class="input-group mb-2">
+                  <input type="date" id="bulkSingleDate" class="form-control">
+                  <button class="btn btn-outline-primary" type="button" onclick="addBulkSingleDate()"><i class="fa-solid fa-plus"></i><span class="visually-hidden">เพิ่มวันที่</span></button>
+                </div>
+                <div id="bulkSingleDates" class="bulk-date-chips"></div>
+                <label class="form-label mt-3">เพิ่มช่วงวันที่</label>
+                <div class="bulk-range-row">
+                  <input type="date" id="bulkRangeStart" class="form-control" aria-label="วันเริ่มต้น">
+                  <span>ถึง</span>
+                  <input type="date" id="bulkRangeEnd" class="form-control" aria-label="วันสิ้นสุด">
+                  <button class="btn btn-outline-primary" type="button" onclick="addBulkDateRange()"><i class="fa-solid fa-plus"></i><span class="visually-hidden">เพิ่มช่วงวันที่</span></button>
+                </div>
+                <label class="bulk-weekend-toggle mt-3">
+                  <input id="bulkIncludeWeekends" type="checkbox" onchange="renderBulkDateSelection()">
+                  <span>รวมวันเสาร์และวันอาทิตย์</span>
+                </label>
+                <div id="bulkRanges" class="bulk-ranges"></div>
+              </div>
+
+              <div class="bulk-step">
+                <div class="bulk-step-title"><span>3</span> กำหนดผล</div>
+                <label class="form-label">สถานะ</label>
+                <div class="status-radio status-radio-four mb-3">
+                  <input type="radio" name="bulkStatus" id="bs1" value="มา" checked onchange="syncBulkPointsState()">
+                  <label for="bs1">มา</label>
+                  <input type="radio" name="bulkStatus" id="bs4" value="กิจกรรม" onchange="syncBulkPointsState()">
+                  <label for="bs4">กิจกรรม</label>
+                  <input type="radio" name="bulkStatus" id="bs2" value="ขาด" onchange="syncBulkPointsState()">
+                  <label for="bs2">ขาด</label>
+                  <input type="radio" name="bulkStatus" id="bs3" value="ลา" onchange="syncBulkPointsState()">
+                  <label for="bs3">ลา</label>
+                </div>
+                <label class="form-label" for="bulkPointsMode">คะแนนของสถานะมา</label>
+                <select id="bulkPointsMode" class="form-select mb-3" onchange="renderBulkPreview()">
+                  <option value="preserve">เก็บคะแนนเดิม / รายการใหม่ 0</option>
+                  <option value="0">กำหนดทุกคนเป็น 0 คะแนน</option>
+                  <option value="3">กำหนดทุกคนเป็น 3 คะแนน</option>
+                  <option value="5">กำหนดทุกคนเป็น 5 คะแนน</option>
+                </select>
+                <div id="bulkPreview" class="bulk-preview" aria-live="polite">เลือกนักเรียนและวันที่เพื่อดูตัวอย่าง</div>
+                <button id="bulkApplyBtn" class="btn btn-primary-action fw-bold w-100 mt-3" type="button" onclick="applyBulkAttendance()" disabled>
+                  <i class="fa-solid fa-floppy-disk me-2"></i>ตรวจสอบและบันทึก
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
