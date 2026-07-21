@@ -9,7 +9,6 @@
   <link rel="icon" type="image/png" sizes="192x192" href="./apple-touch-icon.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@500;600&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="./style.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -21,31 +20,51 @@
 </head>
 <body>
 <!-- ════════ LOGIN ════════ -->
-<div id="loginSection" class="login-wrap">
+<main id="loginSection" class="login-wrap">
+  <div class="login-stage">
   <div class="login-card">
     <div id="loginLogoWrap" class="login-logo-emoji">🏫</div>
-    <h4 id="loginAppName">ระบบเช็คชื่อนักเรียน</h4>
-    <p id="loginSchoolName">กำลังโหลด...</p>
+    <h1 id="loginAppName">ระบบเช็คชื่อนักเรียน</h1>
+    <p id="loginSchoolName" aria-live="polite">กำลังโหลด...</p>
     <input type="text" id="username" class="form-control mb-3" placeholder="รหัสประจำตัวนักเรียน"
-           aria-label="รหัสผู้ใช้"
-           autocomplete="username" onkeydown="if(event.key==='Enter')login()">
+           autocomplete="username" aria-label="รหัสประจำตัวนักเรียน" onkeydown="if(event.key==='Enter')login()">
     <input type="password" id="password" class="form-control mb-4" placeholder="รหัสผ่าน (รหัสประจำตัวนักเรียน)"
-           aria-label="รหัสผ่าน"
-           autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+           autocomplete="current-password" aria-label="รหัสผ่าน" onkeydown="if(event.key==='Enter')login()">
     <button class="btn-login" onclick="login()">
       <i class="fa-solid fa-right-to-bracket me-2"></i>เข้าสู่ระบบ
     </button>
+    <button type="button" class="btn-guest-login" onclick="startGuestLogin()">
+      <span class="guest-icon"><i class="fa-solid fa-flask"></i></span>
+      <span>
+        <strong>ทดลองใช้แบบ Guest</strong>
+        <small>ข้อมูลจำลอง ลบอัตโนมัติใน 10 นาที</small>
+      </span>
+    </button>
+    <div class="login-reset-actions" aria-label="ตัวช่วยรหัสผ่าน">
+      <button type="button" class="login-reset-link" onclick="openPasswordResetRequestModal()">
+        <i class="fa-solid fa-key"></i> ลืมรหัสผ่าน / ขอรหัสรีเซ็ต
+      </button>
+      <button type="button" class="login-reset-link muted" onclick="openPasswordResetConfirmModal()">
+        <i class="fa-solid fa-shield-halved"></i> มีรหัส 6 หลักแล้ว
+      </button>
+    </div>
   </div>
-</div>
+  </div>
+</main>
 
 <!-- ════════ STUDENT ════════ -->
-<div id="studentSection" class="hidden" data-tier="0">
-  <div class="container student-shell">
+<main id="studentSection" class="hidden" data-tier="0">
+  <div class="container" style="max-width:460px;padding:16px 12px">
     <div class="d-flex justify-content-end mb-2">
       <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()" aria-label="รีเฟรชข้อมูลนักเรียน">
-        <i class="fa-solid fa-rotate-right" id="refreshIcon"></i>
+        <i class="fa-solid fa-rotate-right" id="refreshIcon" aria-hidden="true"></i>
         <span id="refreshLabel">รีเฟรช</span>
       </button>
+    </div>
+
+    <div class="guest-session-banner hidden" id="guestSessionBanner" role="status" aria-live="polite">
+      <span><i class="fa-solid fa-user-clock"></i> Guest demo</span>
+      <strong id="guestCountdown">10:00</strong>
     </div>
 
     <!-- Profile + Level Card -->
@@ -55,10 +74,10 @@
           <img id="studentPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='32' fill='%234f46e5'%3E👤%3C/text%3E%3C/svg%3E"
                class="profile-photo" onclick="openPhotoUpload()" alt="รูปโปรไฟล์นักเรียน">
           <button class="photo-edit-btn" onclick="openPhotoUpload()" aria-label="เปลี่ยนรูปโปรไฟล์">
-            <i class="fa-solid fa-camera icon-xs"></i>
+            <i class="fa-solid fa-camera" style="font-size:.65rem"></i>
           </button>
         </div>
-        <input type="file" id="photoInput" class="hidden" accept="image/*" onchange="handlePhotoChange(event)" aria-label="อัปโหลดรูปโปรไฟล์">
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoChange(event)" aria-label="อัปโหลดรูปโปรไฟล์">
         <div class="ring-wrap mb-2">
           <div class="level-ring" id="levelRing">
             <div class="level-ring-inner">
@@ -67,14 +86,24 @@
             </div>
           </div>
         </div>
-        <div class="fw-bold student-name" id="sNameDisp"></div>
-        <small id="sGradeDisp" class="student-grade"></small>
+        <div class="fw-bold" id="sNameDisp" style="font-size:1.05rem"></div>
+        <small id="sGradeDisp" style="opacity:.7"></small>
       </div>
+      <section class="pet-hero" id="petHero" aria-live="polite">
+        <div class="pet-empty-state">
+          <div class="pet-empty-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <div>
+            <strong>ยังไม่มีสัตว์เลี้ยง</strong>
+            <span>เลือกฟรีได้ 3 ครั้งแรก</span>
+          </div>
+          <button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกตัวแรก</button>
+        </div>
+      </section>
       <div class="px-2 mt-2">
-        <div class="d-flex justify-content-between xp-meta">
+        <div class="d-flex justify-content-between" style="font-size:.69rem;opacity:.65;margin-bottom:3px">
           <span id="xpLabel">0 / 5 XP</span><span id="ptLabel">แต้มรวม 0</span>
         </div>
-        <div class="xp-bg"><div class="xp-fill" id="xpFill"></div></div>
+        <div class="xp-bg"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
       </div>
       <div class="trophy-row" id="trophies">
         <span class="trophy" data-t="0" title="Starter">🎖️</span>
@@ -89,14 +118,14 @@
     <!-- Check-in Card -->
     <div class="s-card mb-3">
       <div class="text-center mb-2">
-        <h6 class="fw-bold mb-0"><i class="fa-solid fa-key me-2 icon-warning"></i>ระบุรหัส PIN 4 หลัก</h6>
+        <h6 class="fw-bold mb-0"><i class="fa-solid fa-key me-2" style="color:#f59e0b"></i>ระบุรหัส PIN 4 หลัก</h6>
       </div>
       <input type="text" class="pin-input mb-3" id="pinCode"
-             aria-label="รหัส PIN 4 หลัก"
              inputmode="numeric" maxlength="4" placeholder="• • • •"
              oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-             onkeydown="if(event.key==='Enter')checkIn()" autocomplete="off">
-      <button class="btn w-100 py-2 fw-bold btn-checkin" id="checkInBtn"
+             onkeydown="if(event.key==='Enter')checkIn()" autocomplete="off" aria-label="กรอก PIN 4 หลัก">
+      <button class="btn w-100 py-2 fw-bold" id="checkInBtn"
+              style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:14px;font-size:1rem"
               onclick="checkIn()">
         <i class="fa-solid fa-circle-check me-2"></i>เช็คชื่อเข้าเรียน
       </button>
@@ -111,34 +140,38 @@
       <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="showStudentHistory()">
         <i class="fa-solid fa-clock-rotate-left me-1"></i>ประวัติของฉัน
       </button>
-      <button class="btn btn-sm rounded-pill px-3 btn-soft-danger" onclick="logout()">
+      <button class="btn btn-sm rounded-pill px-3" style="background:rgba(239,68,68,.1);color:#ef4444" onclick="logout()">
         <i class="fa-solid fa-right-from-bracket me-1"></i>ออกจากระบบ
       </button>
     </div>
   </div>
-</div>
+</main>
 
 <!-- ════════ TEACHER ════════ -->
-<div id="teacherSection" class="hidden">
+<main id="teacherSection" class="hidden">
   <div class="t-hdr">
     <div>
       <h4>
-        <span id="tHdrLogo" class="t-logo">🏫</span>
+        <span id="tHdrLogo" style="font-size:1.4rem">🏫</span>
         ครู <span id="tNameDisp"></span>
       </h4>
       <small id="tHdrSchool">กุงแก้ววิทยาคาร</small>
     </div>
-    <button class="btn btn-sm btn-white-ghost" aria-label="ออกจากระบบ"
-            onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-radius:10px"
+            aria-label="ออกจากระบบ" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
   </div>
 
-  <div class="container-fluid px-3 py-3 teacher-shell">
+  <div class="container-fluid px-3 py-3" style="max-width:980px;margin:auto">
     <div class="t-nav">
       <button class="tn active" onclick="switchTab('pin',this)"><i class="fa-solid fa-key me-1"></i>คาบ</button>
       <button class="tn" onclick="switchTab('stats',this)"><i class="fa-solid fa-chart-pie me-1"></i>สถิติ</button>
       <button class="tn" onclick="switchTab('manual',this)"><i class="fa-solid fa-pen-to-square me-1"></i>แก้ไข</button>
       <button class="tn" onclick="switchTab('shop',this)"><i class="fa-solid fa-store me-1"></i>ร้านค้า</button>
       <button class="tn" onclick="switchTab('reward-report',this)"><i class="fa-solid fa-clipboard-list me-1"></i>รายงานแลกของ</button>
+      <button class="tn" onclick="switchTab('reset',this)">
+        <i class="fa-solid fa-unlock-keyhole me-1"></i>รีเซ็ตรหัส
+        <span class="tn-badge hidden" id="resetNavCount">0</span>
+      </button>
       <button class="tn" onclick="switchTab('settings',this)"><i class="fa-solid fa-gear me-1"></i>ตั้งค่า</button>
     </div>
 
@@ -172,20 +205,21 @@
                 <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
               </optgroup>
             </select>
-            <button class="btn w-100 mb-3 fw-bold btn-primary-action" onclick="generatePIN()">
+            <button class="btn w-100 mb-3 fw-bold"
+                    style="background:var(--pri);color:#fff;border-radius:12px" onclick="generatePIN()">
               <i class="fa-solid fa-shuffle me-2"></i>สุ่มรหัส PIN (40 นาที)
             </button>
             <div class="pin-box">
               <div class="pin-digits" id="displayPIN">- - - -</div>
-              <div class="pin-sub text-pri" id="pinGradeLabel"></div>
-              <div class="pin-sub text-danger" id="expiryLabel"></div>
+              <div class="pin-sub" style="color:#818cf8" id="pinGradeLabel"></div>
+              <div class="pin-sub" style="color:#f87171" id="expiryLabel"></div>
             </div>
           </div>
         </div>
         <div class="col-md-6">
-          <div class="card p-4 h-100 danger-outline-card">
+          <div class="card p-4 h-100" style="border:1px solid #fee2e2">
             <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-door-closed me-2"></i>ปิดคาบเรียน</h6>
-            <p class="text-muted helper-copy">
+            <p class="text-muted" style="font-size:.84rem">
               กดเพื่อดูรายชื่อนักเรียนที่ยังไม่เช็คชื่อ<br>
               เลือกสถานะ "ขาด" หรือ "ลา" ก่อนปิดคาบ
             </p>
@@ -195,6 +229,34 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ── TAB: PASSWORD RESET ── -->
+    <div class="t-pane" id="tab-reset">
+      <section class="reset-panel" id="resetPanel" aria-labelledby="resetPanelTitle">
+        <div class="reset-panel-head">
+          <div>
+            <div class="reset-panel-kicker">Password reset</div>
+            <h6 id="resetPanelTitle"><i class="fa-solid fa-unlock-keyhole me-2"></i>คำขอรีเซ็ตรหัสผ่านนักเรียน</h6>
+            <p>แจ้งรหัส 6 หลักให้นักเรียน ใช้ได้ 15 นาทีและลบอัตโนมัติเมื่อเปลี่ยนสำเร็จ</p>
+          </div>
+          <div class="reset-panel-actions">
+            <span class="reset-count-badge" id="resetRequestCount">0</span>
+            <button type="button" class="reset-refresh-btn" onclick="loadPasswordResetRequests()" aria-label="รีเฟรชคำขอรีเซ็ตรหัสผ่าน">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="reset-request-list" id="resetRequestList" aria-live="polite">
+          <div class="reset-empty">
+            <i class="fa-regular fa-circle-check"></i>
+            <div>
+              <strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong>
+              <span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- ── TAB: STATS ── -->
@@ -242,7 +304,7 @@
               <button class="btn-exp exp-xls" onclick="exportExcel()"><i class="fa-solid fa-file-excel me-1"></i>Excel</button>
               <button class="btn-exp exp-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
             </div>
-            <button class="btn btn-sm btn-outline-secondary fw-bold btn-primary-action-outline" onclick="promptIndividualPDF()">
+            <button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:10px" onclick="promptIndividualPDF()">
               <i class="fa-solid fa-user me-1"></i>พิมพ์รายบุคคล
             </button>
           </div>
@@ -253,21 +315,21 @@
         <div class="col-md-4">
           <div class="chart-wrap h-100">
             <h6>สัดส่วนเข้าเรียน</h6>
-            <div class="chart-box"><canvas id="chartDonut"></canvas></div>
-            <div id="donutLeg" class="d-flex justify-content-center gap-3 mt-2 legend-row"></div>
+            <div style="height:160px;position:relative"><canvas id="chartDonut" role="img" aria-label="กราฟสัดส่วนการเข้าเรียน"></canvas></div>
+            <div id="donutLeg" class="d-flex justify-content-center gap-3 mt-2" style="font-size:.71rem"></div>
           </div>
         </div>
         <div class="col-md-8">
           <div class="chart-wrap h-100">
             <h6>แนวโน้มรายเดือน (6 เดือนล่าสุด)</h6>
-            <div class="chart-box"><canvas id="chartBar"></canvas></div>
+            <div style="height:160px;position:relative"><canvas id="chartBar" role="img" aria-label="กราฟแนวโน้มรายเดือน"></canvas></div>
           </div>
         </div>
       </div>
       <div class="card p-3">
         <div id="statsSpinner" class="text-center py-4 hidden">
-          <div class="spinner-border text-primary spinner-compact"></div>
-          <div class="mt-2 loading-note">กำลังโหลด...</div>
+          <div class="spinner-border text-primary" style="width:1.5rem;height:1.5rem"></div>
+          <div class="mt-2" style="font-size:.78rem;color:var(--muted)">กำลังโหลด...</div>
         </div>
         <div class="table-responsive">
           <table class="s-tbl" id="statsTable">
@@ -279,7 +341,7 @@
               </tr>
             </thead>
             <tbody id="statsTbody">
-              <tr><td colspan="7" class="text-center py-4 text-muted">คลิกแท็บ "สถิติ" เพื่อโหลด</td></tr>
+              <tr><td colspan="7" class="text-center py-4" style="color:var(--muted)">คลิกแท็บ "สถิติ" เพื่อโหลด</td></tr>
             </tbody>
           </table>
         </div>
@@ -291,7 +353,7 @@
       <div class="row g-3">
         <div class="col-md-6">
           <div class="man-form">
-            <h6 class="fw-bold mb-4 section-title-primary">
+            <h6 class="fw-bold mb-4" style="color:var(--pri)">
               <i class="fa-solid fa-hand-pointer me-2"></i>เช็คชื่อ / แก้ไข ด้วยมือ
             </h6>
             <button class="btn btn-sm fw-bold w-100 mb-3 session-success-note"
@@ -335,14 +397,15 @@
               <input type="radio" name="manStatus" id="ms3" value="ลา">
               <label for="ms3"><i class="fa-solid fa-house me-1"></i>ลา</label>
             </div>
-            <button class="btn w-100 fw-bold py-2 btn-primary-action" onclick="submitManual()">
+            <button class="btn w-100 fw-bold py-2"
+                    style="background:var(--pri);color:#fff;border-radius:12px" onclick="submitManual()">
               <i class="fa-solid fa-floppy-disk me-2"></i>บันทึก / อัปเดต
             </button>
           </div>
         </div>
         <div class="col-md-6">
           <div class="man-form">
-            <h6 class="fw-bold mb-3 section-title-primary">
+            <h6 class="fw-bold mb-3" style="color:var(--pri)">
               <i class="fa-solid fa-clock-rotate-left me-2"></i>ดูประวัติ & แก้ไข
             </h6>
             <label class="form-label">ระดับชั้น</label>
@@ -359,8 +422,8 @@
                       onclick="loadHistEdit()">ดู</button>
             </div>
             <div id="histStudentBanner" class="mb-2 hidden"></div>
-            <div id="histEditList" class="hist-scroll">
-              <div class="text-center py-4 text-muted small">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>
+            <div id="histEditList" style="max-height:360px;overflow-y:auto">
+              <div class="text-center py-4" style="color:var(--muted);font-size:.83rem">เลือกชั้นและนักเรียนเพื่อดูประวัติ</div>
             </div>
           </div>
         </div>
@@ -372,13 +435,11 @@
       <div class="tshop-wrap">
         <div class="tshop-hdr">
           <h5><i class="fa-solid fa-store me-2"></i>จัดการ Magic Shop</h5>
-          <div class="d-flex gap-2 flex-wrap justify-content-end">
-            <button class="btn btn-sm fw-bold btn-header-ghost"
-                    onclick="openGrantItemModal()">
+          <div class="tshop-hdr-actions">
+            <button class="tshop-action-btn tshop-action-gift" onclick="openGrantItemModal()">
               <i class="fa-solid fa-gift me-1"></i>มอบไอเทมฟรี
             </button>
-            <button class="btn btn-sm fw-bold btn-header-ghost"
-                    onclick="openAddItemModal()">
+            <button class="tshop-action-btn tshop-action-add" onclick="openAddItemModal()">
               <i class="fa-solid fa-plus me-1"></i>เพิ่มสินค้า
             </button>
           </div>
@@ -399,7 +460,7 @@
           <div id="tshop-items-panel">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <small class="text-muted">รายการสินค้าทั้งหมด</small>
-              <button class="btn btn-sm btn-outline-primary fw-bold btn-compact"
+              <button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:8px;font-size:.76rem"
                       onclick="loadTeacherShopItems()">
                 <i class="fa-solid fa-rotate-right me-1"></i>รีเฟรช
               </button>
@@ -419,7 +480,7 @@
             </div>
             <div class="d-flex justify-content-between align-items-center mb-3">
               <small class="text-muted" id="orderCountLabel">กำลังโหลด...</small>
-              <button class="btn btn-sm btn-outline-primary fw-bold btn-compact"
+              <button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:8px;font-size:.76rem"
                       onclick="loadTeacherOrders()">
                 <i class="fa-solid fa-rotate-right me-1"></i>รีเฟรช
               </button>
@@ -435,7 +496,7 @@
               <div>
                 <label class="form-label mb-0">ระดับชั้น</label>
               </div>
-              <select id="walletGrade" class="form-select form-select-sm form-select-auto"
+              <select id="walletGrade" class="form-select form-select-sm" style="width:auto"
                       onchange="loadWalletSummary()">
                 <optgroup label="มัธยมศึกษาปีที่ 1">
                   <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
@@ -528,7 +589,7 @@
     <!-- ── TAB: SETTINGS ── -->
     <div class="t-pane" id="tab-settings">
       <div class="settings-section">
-        <h6 class="fw-bold mb-4 section-title-primary">
+        <h6 class="fw-bold mb-4" style="color:var(--pri)">
           <i class="fa-solid fa-sliders me-2"></i>ตั้งค่าระบบ
         </h6>
         <div class="row g-3">
@@ -539,12 +600,10 @@
             <input type="text" id="setSchoolName" class="form-control mb-3" placeholder="กุงแก้ววิทยาคาร">
             <label class="form-label">สีหลัก (Accent Color)</label>
             <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="color-preview" id="colorPreview" role="button" tabindex="0" aria-label="เลือกสีหลัก"
-                   onclick="document.getElementById('setColor').click()"
-                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('setColor').click()}"></div>
+              <div class="color-preview" id="colorPreview" onclick="document.getElementById('setColor').click()"></div>
               <input type="color" id="setColor" oninput="updateColorPreview(this.value)">
-              <span id="colorHex" class="color-hex">#4f46e5</span>
-              <button class="btn btn-sm btn-outline-secondary btn-compact"
+              <span id="colorHex" style="font-size:.85rem;color:var(--muted)">#4f46e5</span>
+              <button class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.78rem"
                       onclick="resetColor()">รีเซ็ต</button>
             </div>
           </div>
@@ -552,18 +611,18 @@
             <label class="form-label">โลโก้แอป (ไฟล์รูป, แนะนำ 100×100px)</label>
             <div class="d-flex align-items-center gap-3 mb-3">
               <img id="logoPreview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Crect width='60' height='60' rx='12' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' font-size='28' fill='%234f46e5'%3E🏫%3C/text%3E%3C/svg%3E"
-                   class="logo-preview" alt="ตัวอย่างโลโก้แอป">
+                   style="width:60px;height:60px;border-radius:12px;border:2px solid #e2e8f0;object-fit:cover">
               <div>
-                <input type="file" id="logoInput" class="hidden" accept="image/*" onchange="handleLogoChange(event)">
-                <button class="btn btn-sm btn-outline-primary fw-bold btn-block-compact"
+                <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoChange(event)">
+                <button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:10px;font-size:.8rem"
                         onclick="document.getElementById('logoInput').click()">
                   <i class="fa-solid fa-upload me-1"></i>อัปโหลดโลโก้
                 </button>
-                <button class="btn btn-sm btn-outline-danger ms-1 fw-bold btn-item-compact"
+                <button class="btn btn-sm btn-outline-danger ms-1 fw-bold" style="border-radius:10px;font-size:.8rem"
                         onclick="clearLogo()">ลบ</button>
               </div>
             </div>
-            <div class="alert alert-note alert-note-lg">
+            <div class="alert" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;font-size:.8rem;color:#065f46">
               <i class="fa-solid fa-circle-info me-1"></i>
               การตั้งค่าจะแสดงในหน้า Login และ Header ของครู<br>
               โลโก้จะถูกบีบอัดอัตโนมัติเพื่อประหยัดพื้นที่
@@ -571,10 +630,11 @@
           </div>
         </div>
         <div class="d-flex gap-2 mt-3">
-          <button class="btn fw-bold px-4 btn-primary-action" onclick="saveSettings()">
+          <button class="btn fw-bold px-4"
+                  style="background:var(--pri);color:#fff;border-radius:12px" onclick="saveSettings()">
             <i class="fa-solid fa-floppy-disk me-2"></i>บันทึกการตั้งค่า
           </button>
-          <button class="btn btn-outline-secondary fw-bold btn-primary-action-outline"
+          <button class="btn btn-outline-secondary fw-bold" style="border-radius:12px"
                   onclick="loadSettings()">
             <i class="fa-solid fa-rotate-left me-1"></i>โหลดใหม่
           </button>
@@ -583,7 +643,7 @@
     </div>
 
   </div>
-</div><!-- /teacherSection -->
+</main><!-- /teacherSection -->
 
 <!-- ════════ PRINT AREA ════════ -->
 <div id="printArea" class="hidden p-4">
@@ -593,7 +653,7 @@
     <h5 id="printSubtitle" class="text-muted"></h5>
     <p id="printDate" class="small text-muted"></p>
   </div>
-  <table class="table table-bordered border-dark text-center print-table">
+  <table class="table table-bordered border-dark text-center" style="font-size:.88rem">
     <thead id="printHead" class="table-light fw-bold"></thead>
     <tbody id="printBody"></tbody>
   </table>
@@ -613,7 +673,7 @@
     <div class="modal-content modal-panel">
       <div class="modal-header modal-head-success">
         <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus me-2"></i>เพิ่มนักเรียนใหม่</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิดหน้าต่างเพิ่มนักเรียน"></button>
       </div>
       <div class="modal-body p-4">
         <label class="form-label">รหัสประจำตัวนักเรียน</label>
@@ -661,20 +721,23 @@
 
 <!-- ════════ STUDENT MAGIC SHOP OVERLAY ════════ -->
 <div class="shop-overlay" id="shopOverlay" onclick="handleShopOverlayClick(event)">
-  <div class="shop-modal" id="shopModal" role="dialog" aria-modal="true" aria-label="Magic Shop">
+  <div class="shop-modal" id="shopModal">
     <div class="shop-header">
-      <h5><span class="shop-title-icon">🛒</span> Magic Shop</h5>
-      <button class="shop-close" onclick="closeShop()" aria-label="ปิดร้านค้า"><i class="fa-solid fa-xmark"></i></button>
+      <h5><span style="font-size:1.3rem">🛒</span> Magic Shop</h5>
+      <button class="shop-close" onclick="closeShop()" aria-label="ปิดร้านค้า"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </div>
     <div class="wallet-wrap">
       <div class="wallet-badge">
         <div class="wallet-icon">🪙</div>
-        <div class="wallet-info">
+        <div class="wallet-info" style="flex:1">
           <div class="wi-label">MathCoins พร้อมใช้งาน</div>
-          <div class="wi-val" id="shopCoinsDisplay">—</div>
-          <div class="wi-sub" id="shopLifetimeDisplay">Lifetime EXP: —</div>
+          <div class="wi-val" id="shopCoinsDisplay" aria-live="polite">—</div>
+          <div class="wi-sub" id="shopLifetimeDisplay" aria-live="polite">Lifetime EXP: —</div>
         </div>
-        <button class="wallet-refresh-btn" onclick="refreshWallet()" aria-label="รีเฟรชเหรียญ">
+        <button onclick="refreshWallet()"
+          style="border:none;background:none;color:#818cf8;font-size:.85rem;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background .2s"
+          onmouseover="this.style.background='rgba(129,140,248,.15)'"
+          onmouseout="this.style.background='none'">
           <i class="fa-solid fa-rotate-right"></i>
         </button>
       </div>
@@ -694,7 +757,7 @@
           <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
         </div>
       </div>
-      <div id="historyTabContent" class="hidden">
+      <div id="historyTabContent" style="display:none">
         <div id="redemptionList">
           <div class="shop-empty"><div class="shop-empty-icon">📋</div><p>กำลังโหลดประวัติ...</p></div>
         </div>
@@ -704,12 +767,44 @@
 </div>
 
 <!-- ════════ TEACHER: ADD/EDIT ITEM MODAL ════════ -->
+<!-- STUDENT PET SELECTOR OVERLAY -->
+<div class="shop-overlay pet-overlay" id="petOverlay" onclick="handlePetOverlayClick(event)">
+  <div class="shop-modal pet-modal" id="petModal" role="dialog" aria-modal="true" aria-labelledby="petModalTitle">
+    <div class="shop-header pet-header">
+      <div>
+        <h5 id="petModalTitle"><i class="fa-solid fa-paw me-2"></i>Pet Companion</h5>
+        <p class="pet-modal-sub">เลือกคู่หูประจำตัว วิวัฒนาการตาม Level อัตโนมัติ</p>
+      </div>
+      <button class="shop-close" onclick="closePetSelector()" aria-label="ปิดหน้าต่างเลือกสัตว์เลี้ยง"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+    <div class="wallet-wrap pet-wallet-wrap">
+      <div class="wallet-badge pet-wallet-badge">
+        <div class="wallet-icon"><i class="fa-solid fa-coins"></i></div>
+        <div class="wallet-info" style="flex:1">
+          <div class="wi-label">MathCoins และสิทธิ์เลือกฟรี</div>
+          <div class="wi-val" id="petCoinsDisplay" aria-live="polite">—</div>
+          <div class="wi-sub" id="petFreeDisplay" aria-live="polite">กำลังโหลด...</div>
+        </div>
+        <button class="pet-wallet-refresh" onclick="refreshPetWallet()" aria-label="รีเฟรชเหรียญ">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="shop-scroll pet-scroll">
+      <div class="pet-grid" id="petGrid">
+        <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
+        <div class="shop-skeleton"></div><div class="shop-skeleton"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm-480">
-    <div class="modal-content modal-panel">
-      <div class="modal-header modal-head-primary">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+    <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.15)">
+      <div class="modal-header" style="border-radius:20px 20px 0 0;background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;border:none">
         <h5 class="modal-title fw-bold" id="itemModalTitle">เพิ่มสินค้าใหม่</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิดหน้าต่างสินค้า"></button>
       </div>
       <div class="item-form">
         <input type="hidden" id="editItemId">
@@ -717,15 +812,15 @@
         <div class="d-flex gap-3 align-items-center mb-3">
           <div class="item-preview-img" id="itemPreviewWrap">
             <span id="itemPreviewEmoji">🎁</span>
-            <img id="itemPreviewImg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="ตัวอย่างรูปสินค้า" class="item-preview-image hidden">
+            <img id="itemPreviewImg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="ตัวอย่างรูปสินค้า" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px">
           </div>
           <div>
-            <input type="file" id="itemImageInput" class="hidden" accept="image/*" onchange="handleItemImageChange(event)" aria-label="อัปโหลดรูปสินค้า">
-            <button class="btn btn-sm btn-outline-primary fw-bold mb-1 btn-block-compact"
+            <input type="file" id="itemImageInput" accept="image/*" style="display:none" onchange="handleItemImageChange(event)" aria-label="อัปโหลดรูปสินค้า">
+            <button class="btn btn-sm btn-outline-primary fw-bold mb-1" style="border-radius:10px;font-size:.8rem;display:block"
                     onclick="document.getElementById('itemImageInput').click()">
               <i class="fa-solid fa-image me-1"></i>เลือกรูปสินค้า
             </button>
-            <button class="btn btn-sm btn-outline-secondary fw-bold btn-item-compact"
+            <button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:10px;font-size:.78rem"
                     onclick="clearItemImage()">ลบรูป</button>
           </div>
         </div>
@@ -748,10 +843,11 @@
         </div>
 
         <div class="d-flex gap-2">
-          <button class="btn fw-bold flex-fill py-2 btn-primary-action" onclick="saveItemModal()">
+          <button class="btn fw-bold flex-fill py-2"
+                  style="background:var(--pri);color:#fff;border-radius:12px" onclick="saveItemModal()">
             <i class="fa-solid fa-floppy-disk me-2"></i>บันทึก
           </button>
-          <button class="btn btn-outline-secondary fw-bold px-4 btn-primary-action-outline"
+          <button class="btn btn-outline-secondary fw-bold px-4" style="border-radius:12px"
                   data-bs-dismiss="modal">ยกเลิก</button>
         </div>
       </div>

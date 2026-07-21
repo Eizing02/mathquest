@@ -35,9 +35,23 @@ var tShopOrders = null;
 var tOrderFilter = 'all';
 var itemImageUrl = '';
 var rewardReportCache = null;
+var PASSWORD_RESET_TTL_MINUTES = 15;
+var passwordResetRequests = [];
+var passwordResetCountdownTimer = null;
+var passwordResetReloadTimer = null;
 
 // Student Shop State
 var shopItems = null, shopWallet = null, shopTabCurrent = 'shop';
+var PET_MANIFEST_URL = './assets/pets/manifest.json';
+var PET_FREE_SELECT_LIMIT = 3;
+var PET_PAID_CHANGE_COST = 25;
+var PET_RENAME_LIMIT = 3;
+var petCatalog = null, petCatalogPromise = null, studentPet = null;
+var petGridObserver = null;
+var GUEST_SESSION_KEY = 'checkrean_guest_session_v1';
+var GUEST_TTL_MS = 10 * 60 * 1000;
+var guestSessionTimer = null;
+var guestExpiryHandled = false;
 
 var TH_MO_S = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 var TH_MO_L = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -253,6 +267,362 @@ function mapShopItem(row) {
   };
 }
 
+function clampPetCount(value, max) {
+  var n = Math.floor(Number(value) || 0);
+  return Math.max(0, Math.min(max, n));
+}
+
+async function loadPetCatalog() {
+  if (petCatalog) return petCatalog;
+  if (petCatalogPromise) return petCatalogPromise;
+  petCatalogPromise = fetch(PET_MANIFEST_URL, { cache: 'no-store' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('โหลดรายการสัตว์เลี้ยงไม่สำเร็จ');
+      return res.json();
+    })
+    .then(function(data) {
+      petCatalog = data || {};
+      petCatalog.pets = Array.isArray(petCatalog.pets) ? petCatalog.pets : [];
+      petCatalog.petMap = {};
+      petCatalog.pets.forEach(function(pet) {
+        petCatalog.petMap[pet.id] = pet;
+      });
+      PET_FREE_SELECT_LIMIT = Number(petCatalog.freeSelectLimit) || PET_FREE_SELECT_LIMIT;
+      PET_PAID_CHANGE_COST = Number(petCatalog.paidChangeCost) || PET_PAID_CHANGE_COST;
+      PET_RENAME_LIMIT = Number(petCatalog.renameLimitPerPet) || PET_RENAME_LIMIT;
+      return petCatalog;
+    })
+    .finally(function() {
+      petCatalogPromise = null;
+    });
+  return petCatalogPromise;
+}
+
+function findPetById(petId) {
+  if (!petCatalog || !petCatalog.petMap) return null;
+  return petCatalog.petMap[String(petId || '')] || null;
+}
+
+function getPetStageForLevel(level) {
+  var lv = Math.max(0, Math.floor(Number(level) || 0));
+  var evo = petCatalog && Array.isArray(petCatalog.evolution) ? petCatalog.evolution : [
+    { stage: 1, minLevel: 0, maxLevel: 15, row: 0, label: 'Stage 1' },
+    { stage: 2, minLevel: 16, maxLevel: 30, row: 1, label: 'Stage 2' },
+    { stage: 3, minLevel: 31, maxLevel: null, row: 2, label: 'Stage 3' }
+  ];
+  for (var i = 0; i < evo.length; i++) {
+    var item = evo[i];
+    var max = item.maxLevel == null ? Infinity : Number(item.maxLevel);
+    if (lv >= Number(item.minLevel || 0) && lv <= max) return item;
+  }
+  return evo[evo.length - 1];
+}
+
+function getCurrentStudentLevel() {
+  var lv = document.getElementById('lvNum');
+  return lv ? (parseInt(lv.textContent, 10) || 0) : 0;
+}
+
+function setPetSprite(el, pet, stage) {
+  if (!el || !pet) return;
+  var row = Math.max(0, Math.min(2, Number(stage && stage.row) || 0));
+  el.style.backgroundImage = 'url("' + pet.sheet + '")';
+  el.style.setProperty('--pet-row', row === 0 ? '0%' : (row === 1 ? '50%' : '100%'));
+}
+
+function hydratePetGridSprites(stage) {
+  var grid = document.getElementById('petGrid');
+  if (!grid) return;
+  if (petGridObserver) {
+    petGridObserver.disconnect();
+    petGridObserver = null;
+  }
+  var sprites = Array.prototype.slice.call(grid.querySelectorAll('[data-pet-sprite]'));
+  function loadSprite(el) {
+    if (!el || el.dataset.loaded === '1') return;
+    setPetSprite(el, findPetById(el.getAttribute('data-pet-sprite')), stage);
+    el.dataset.loaded = '1';
+  }
+  if (!('IntersectionObserver' in window)) {
+    sprites.forEach(loadSprite);
+    return;
+  }
+  petGridObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      loadSprite(entry.target);
+      petGridObserver.unobserve(entry.target);
+    });
+  }, {
+    root: document.querySelector('#petModal .pet-scroll'),
+    rootMargin: '160px 0px'
+  });
+  sprites.forEach(function(el) { petGridObserver.observe(el); });
+}
+
+function sanitizePetName(name, fallback) {
+  var clean = String(name || '').replace(/\s+/g, ' ').trim();
+  if (!clean) clean = String(fallback || 'Buddy').trim();
+  return clean.slice(0, 18);
+}
+
+/* Guest Demo Mode */
+function isGuestMode() {
+  return !!(CU && CU.isGuest);
+}
+
+function isGuestStudentId(studentId) {
+  return String(studentId || '').indexOf('GUEST-') === 0;
+}
+
+function guestRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function guestPick(list) {
+  return list[guestRandomInt(0, list.length - 1)];
+}
+
+function readGuestSessionRaw() {
+  try {
+    var raw = sessionStorage.getItem(GUEST_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeGuestSession(session) {
+  try {
+    sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(session));
+  } catch (e) {}
+}
+
+function clearGuestSession() {
+  try {
+    sessionStorage.removeItem(GUEST_SESSION_KEY);
+  } catch (e) {}
+}
+
+function getActiveGuestSession() {
+  var session = readGuestSessionRaw();
+  if (!session || !session.user || !session.expiresAt) return null;
+  if (Date.now() >= Number(session.expiresAt)) {
+    clearGuestSession();
+    return null;
+  }
+  return session;
+}
+
+function saveActiveGuestSession(session) {
+  if (!session) return;
+  session.updatedAt = Date.now();
+  writeGuestSession(session);
+}
+
+function formatGuestTimeLeft(ms) {
+  var total = Math.ceil(Math.max(0, ms) / 1000);
+  var m = Math.floor(total / 60);
+  var s = total % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function showGuestExpiredAlert() {
+  if (guestExpiryHandled) return;
+  guestExpiryHandled = true;
+  clearGuestSession();
+  if (guestSessionTimer) clearInterval(guestSessionTimer);
+  guestSessionTimer = null;
+  Swal.fire({
+    icon: 'info',
+    title: 'หมดเวลาทดลองใช้งาน',
+    text: 'โหมด Guest ใช้งานได้ครั้งละ 10 นาที ข้อมูลทดลองทั้งหมดถูกลบแล้ว',
+    confirmButtonColor: '#4f46e5'
+  }).then(function() {
+    location.reload();
+  });
+}
+
+function updateGuestSessionBanner() {
+  var banner = document.getElementById('guestSessionBanner');
+  var countdown = document.getElementById('guestCountdown');
+  if (!banner || !countdown) return;
+  if (!isGuestMode()) {
+    banner.classList.add('hidden');
+    return;
+  }
+  var session = getActiveGuestSession();
+  if (!session) {
+    banner.classList.add('hidden');
+    showGuestExpiredAlert();
+    return;
+  }
+  banner.classList.remove('hidden');
+  countdown.textContent = formatGuestTimeLeft(Math.max(0, Number(session.expiresAt) - Date.now()));
+}
+
+function startGuestSessionClock() {
+  if (guestSessionTimer) clearInterval(guestSessionTimer);
+  guestExpiryHandled = false;
+  updateGuestSessionBanner();
+  guestSessionTimer = setInterval(updateGuestSessionBanner, 1000);
+}
+
+function stopGuestSessionClock() {
+  if (guestSessionTimer) clearInterval(guestSessionTimer);
+  guestSessionTimer = null;
+  var banner = document.getElementById('guestSessionBanner');
+  if (banner) banner.classList.add('hidden');
+}
+
+function getGuestShopItems() {
+  return [
+    { rowIndex: 1, itemId: 'GUEST_STICKER', itemName: 'Sticker Pack', cost: 25, description: 'Demo reward for testing shop orders', image: '', imageUrl: '', active: true },
+    { rowIndex: 2, itemId: 'GUEST_PENCIL', itemName: 'Magic Pencil', cost: 40, description: 'A sample classroom reward item', image: '', imageUrl: '', active: true },
+    { rowIndex: 3, itemId: 'GUEST_BADGE', itemName: 'Lucky Badge', cost: 60, description: 'Preview how expensive rewards behave', image: '', imageUrl: '', active: true },
+    { rowIndex: 4, itemId: 'GUEST_PASS', itemName: 'Homework Pass', cost: 90, description: 'Demo item with a higher coin cost', image: '', imageUrl: '', active: true }
+  ];
+}
+
+function createGuestAttendanceLogs(now, totalPoints) {
+  var present = '\u0e21\u0e32';
+  var absent = '\u0e02\u0e32\u0e14';
+  var leave = '\u0e25\u0e32';
+  var logs = [];
+  var remaining = totalPoints;
+  for (var i = 1; i <= 24; i++) {
+    if (Math.random() < 0.28) continue;
+    var d = new Date(now.getTime() - i * 86400000);
+    d.setHours(8 + guestRandomInt(0, 3), guestRandomInt(0, 50), 0, 0);
+    var statusRoll = Math.random();
+    var status = statusRoll < 0.76 ? present : (statusRoll < 0.9 ? absent : leave);
+    var pts = 0;
+    if (status === present && remaining > 0) {
+      pts = Math.min(remaining, guestPick([1, 3, 5]));
+      remaining -= pts;
+    }
+    logs.push({ id: 'GLOG_' + i, timestamp: d.toISOString(), status: status, points: pts });
+  }
+  while (remaining > 0) {
+    var extra = new Date(now.getTime() - guestRandomInt(25, 50) * 86400000);
+    var add = Math.min(remaining, 5);
+    logs.push({ id: 'GLOG_EXTRA_' + remaining, timestamp: extra.toISOString(), status: present, points: add });
+    remaining -= add;
+  }
+  return logs.sort(function(a, b) {
+    return safeDate(b.timestamp) - safeDate(a.timestamp);
+  });
+}
+
+function createGuestSession() {
+  var now = new Date();
+  var grades = GRADE_LIST.filter(function(g) { return String(g).indexOf('/') > -1; });
+  var level = guestRandomInt(1, 40);
+  var pointsInLevel = guestRandomInt(0, 4);
+  var totalPoints = level * 5 + pointsInLevel;
+  var petList = petCatalog && petCatalog.pets && petCatalog.pets.length ? petCatalog.pets : [];
+  var pet = petList.length ? guestPick(petList) : { id: 'leafy', defaultName: 'Leafy' };
+  var coins = guestRandomInt(80, 220);
+  var spent = Math.max(0, totalPoints - coins);
+  var user = {
+    status: 'success',
+    role: 'STUDENT',
+    id: 'GUEST-' + Date.now().toString(36).toUpperCase(),
+    name: 'Test 01',
+    grade: guestPick(grades.length ? grades : GRADE_LIST),
+    isGuest: true,
+    isFirstLogin: false
+  };
+  return {
+    version: 1,
+    createdAt: now.getTime(),
+    updatedAt: now.getTime(),
+    expiresAt: now.getTime() + GUEST_TTL_MS,
+    user: user,
+    profile: {
+      id: user.id,
+      name: user.name,
+      grade: user.grade,
+      photo: null,
+      photo_url: null,
+      level: level,
+      totalPoints: totalPoints,
+      pointsInLevel: pointsInLevel,
+      checkCount: 0
+    },
+    wallet: {
+      lifetimeExp: totalPoints,
+      totalSpent: spent,
+      mathCoins: coins
+    },
+    pet: {
+      student_id: user.id,
+      pet_id: pet.id,
+      pet_name: pet.defaultName || 'Buddy',
+      free_select_used: 1,
+      rename_used: 0,
+      selected_at: now.toISOString(),
+      updated_at: now.toISOString()
+    },
+    attendanceLogs: createGuestAttendanceLogs(now, totalPoints),
+    redemptions: [
+      { timestamp: new Date(now.getTime() - 3 * 86400000).toISOString(), item_name: 'Sticker Pack', points_used: 0, status: 'approved' },
+      { timestamp: new Date(now.getTime() - 6 * 86400000).toISOString(), item_name: 'Magic Pencil', points_used: 40, status: 'pending' }
+    ],
+    shopItems: getGuestShopItems()
+  };
+}
+
+function refreshGuestProfileFromPoints(session) {
+  var total = Number(session.profile.totalPoints) || 0;
+  session.profile.level = Math.floor(total / 5);
+  session.profile.pointsInLevel = total % 5;
+  session.profile.checkCount = (session.attendanceLogs || []).filter(function(log) {
+    return log.status === '\u0e21\u0e32';
+  }).length;
+  session.wallet.lifetimeExp = total;
+}
+
+async function enterStudentApp(res) {
+  document.getElementById('studentSection').classList.remove('hidden');
+  document.getElementById('sNameDisp').textContent = res.name;
+  document.getElementById('sGradeDisp').textContent = '\u0e0a\u0e31\u0e49\u0e19 ' + res.grade;
+  if (res.isGuest) startGuestSessionClock();
+  else stopGuestSessionClock();
+  if (res.isFirstLogin) await forceChangePassword(res.id);
+  await loadStudentProfile();
+  shopWallet = await getWalletBalanceDb(CU.id);
+  updateShopCoinsBadge(shopWallet.mathCoins);
+  await loadStudentPet();
+}
+
+async function startGuestLogin() {
+  loading('กำลังเตรียมโหมดทดลอง...');
+  try {
+    await loadPetCatalog();
+    var session = createGuestSession();
+    session.profile.checkCount = session.attendanceLogs.filter(function(log) {
+      return log.status === '\u0e21\u0e32';
+    }).length;
+    writeGuestSession(session);
+    CU = session.user;
+    document.getElementById('loginSection').classList.add('hidden');
+    Swal.close();
+    await enterStudentApp(CU);
+  } catch (e) {
+    onErr(e);
+  }
+}
+
+async function restoreGuestSessionIfActive() {
+  var session = getActiveGuestSession();
+  if (!session) return false;
+  CU = session.user;
+  document.getElementById('loginSection').classList.add('hidden');
+  await enterStudentApp(CU);
+  return true;
+}
+
 /* ══ Storage Helpers ═════════════════════════════════ */
 function compressImageFile(file, maxW, maxH, quality) {
   return new Promise(function(resolve, reject) {
@@ -455,7 +825,441 @@ async function forceChangePassword(studentId) {
   }
 }
 
+/* Password Reset Requests */
+function generatePasswordResetCode() {
+  if (window.crypto && window.crypto.getRandomValues) {
+    var values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return String(100000 + (values[0] % 900000));
+  }
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function normalizeResetCode(code) {
+  return String(code || '').replace(/\D/g, '').slice(0, 6);
+}
+
+function formatResetRemaining(expiresAt) {
+  var expires = safeDate(expiresAt);
+  if (!expires) return 'ไม่ทราบเวลา';
+  var ms = expires.getTime() - Date.now();
+  if (ms <= 0) return 'หมดอายุแล้ว';
+  var totalSec = Math.ceil(ms / 1000);
+  var min = Math.floor(totalSec / 60);
+  var sec = totalSec % 60;
+  return min + ':' + String(sec).padStart(2, '0') + ' นาที';
+}
+
+function resetRemainingMinutes(expiresAt) {
+  var expires = safeDate(expiresAt);
+  if (!expires) return 0;
+  return Math.max(0, Math.ceil((expires.getTime() - Date.now()) / 60000));
+}
+
+async function cleanupExpiredPasswordResetRequestsDb(client) {
+  var db = client || getSupabase();
+  var now = (await getServerNowDb(db)).toISOString();
+  await runQuery(db.from('password_reset_requests')
+    .delete()
+    .eq('status', 'pending')
+    .lte('expires_at', now)
+    .select('id'));
+  return now;
+}
+
+async function getActivePasswordResetRequestDb(studentId, client) {
+  var db = client || getSupabase();
+  var now = (await getServerNowDb(db)).toISOString();
+  return runQuery(db.from('password_reset_requests')
+    .select('id,student_id,student_name,grade,reset_code,status,created_at,expires_at')
+    .eq('student_id', String(studentId || '').trim())
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle());
+}
+
+async function createPasswordResetRequestDb(studentId) {
+  var client = getSupabase();
+  var sid = String(studentId || '').trim();
+  if (!sid) throw new Error('กรุณากรอกรหัสประจำตัวนักเรียน');
+
+  await cleanupExpiredPasswordResetRequestsDb(client);
+
+  var student = await runQuery(client.from('students')
+    .select('id,name,grade,role')
+    .eq('id', sid)
+    .maybeSingle());
+  if (!student || student.role === 'TEACHER') {
+    return { status: 'fail', message: 'ไม่พบรหัสนักเรียนนี้ในระบบ' };
+  }
+
+  var existing = await getActivePasswordResetRequestDb(sid, client);
+  if (existing) {
+    return {
+      status: 'existing',
+      studentId: existing.student_id,
+      studentName: existing.student_name,
+      grade: existing.grade,
+      expiresAt: existing.expires_at
+    };
+  }
+
+  var now = await getServerNowDb(client);
+  var expiresAt = new Date(now.getTime() + PASSWORD_RESET_TTL_MINUTES * 60000).toISOString();
+  var payload = {
+    student_id: student.id,
+    student_name: student.name || '',
+    grade: student.grade || '',
+    reset_code: generatePasswordResetCode(),
+    status: 'pending',
+    expires_at: expiresAt
+  };
+
+  try {
+    var created = await runQuery(client.from('password_reset_requests')
+      .insert(payload)
+      .select('id,student_id,student_name,grade,created_at,expires_at,status')
+      .single());
+    return {
+      status: 'success',
+      studentId: created.student_id,
+      studentName: created.student_name,
+      grade: created.grade,
+      expiresAt: created.expires_at
+    };
+  } catch (e) {
+    if (e && e.code === '23505') {
+      var active = await getActivePasswordResetRequestDb(sid, client);
+      if (active) {
+        return {
+          status: 'existing',
+          studentId: active.student_id,
+          studentName: active.student_name,
+          grade: active.grade,
+          expiresAt: active.expires_at
+        };
+      }
+    }
+    throw e;
+  }
+}
+
+async function verifyPasswordResetCodeDb(studentId, code, newPassword) {
+  var client = getSupabase();
+  var sid = String(studentId || '').trim();
+  var resetCode = normalizeResetCode(code);
+  var password = String(newPassword || '').trim();
+  if (!sid) return { status: 'fail', message: 'กรุณากรอกรหัสประจำตัวนักเรียน' };
+  if (resetCode.length !== 6) return { status: 'fail', message: 'กรุณากรอกรหัสรีเซ็ต 6 หลัก' };
+  if (password.length < 6) return { status: 'fail', message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' };
+  if (password === sid) return { status: 'fail', message: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสประจำตัวนักเรียน' };
+
+  await cleanupExpiredPasswordResetRequestsDb(client);
+  var now = (await getServerNowDb(client)).toISOString();
+  var req = await runQuery(client.from('password_reset_requests')
+    .select('id,student_id,student_name,grade,reset_code,expires_at,status')
+    .eq('student_id', sid)
+    .eq('reset_code', resetCode)
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .maybeSingle());
+  if (!req) {
+    return { status: 'fail', message: 'รหัสรีเซ็ตไม่ถูกต้อง หรือหมดอายุแล้ว' };
+  }
+
+  await runQuery(client.from('students')
+    .update({ password: password, is_first_login: false })
+    .eq('id', sid)
+    .select('id'));
+  await runQuery(client.from('password_reset_requests')
+    .delete()
+    .eq('id', req.id)
+    .select('id'));
+
+  return {
+    status: 'success',
+    studentId: req.student_id,
+    studentName: req.student_name
+  };
+}
+
+async function getPasswordResetRequestsDb() {
+  var client = getSupabase();
+  await cleanupExpiredPasswordResetRequestsDb(client);
+  var rows = await runQuery(client.from('password_reset_requests')
+    .select('id,student_id,student_name,grade,reset_code,status,created_at,expires_at')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false }));
+  return rows || [];
+}
+
+async function deletePasswordResetRequestDb(requestId) {
+  var client = getSupabase();
+  await runQuery(client.from('password_reset_requests')
+    .delete()
+    .eq('id', requestId)
+    .select('id'));
+  return { status: 'success' };
+}
+
+function openPasswordResetCodeFromRequestModal() {
+  var idEl = document.getElementById('resetReqStudentId');
+  var sid = idEl ? idEl.value : '';
+  Swal.close();
+  setTimeout(function() { openPasswordResetConfirmModal(sid); }, 80);
+}
+
+async function openPasswordResetRequestModal() {
+  var currentId = document.getElementById('username') ? document.getElementById('username').value.trim() : '';
+  var result = await Swal.fire({
+    title: 'ขอเปลี่ยนรหัสผ่าน',
+    html: '<div class="reset-modal-copy">กรอกรหัสนักเรียนเพื่อส่งคำขอให้ครู ระบบจะสร้างรหัสรีเซ็ต 6 หลักที่ใช้ได้ 15 นาที</div>'
+      + '<input id="resetReqStudentId" class="swal2-input reset-swal-input" inputmode="numeric" autocomplete="username" placeholder="เช่น 02125" value="' + escHtml(currentId) + '">'
+      + '<button type="button" class="swal-inline-link" onclick="openPasswordResetCodeFromRequestModal()">มีรหัส 6 หลักแล้ว</button>',
+    confirmButtonText: 'ส่งคำขอ',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    showLoaderOnConfirm: true,
+    focusConfirm: false,
+    confirmButtonColor: '#1d4ed8',
+    didOpen: function() {
+      var idEl = document.getElementById('resetReqStudentId');
+      if (idEl) {
+        idEl.focus();
+        idEl.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') Swal.clickConfirm();
+        });
+      }
+    },
+    preConfirm: async function() {
+      var sid = (document.getElementById('resetReqStudentId').value || '').trim();
+      if (!sid) {
+        Swal.showValidationMessage('กรุณากรอกรหัสประจำตัวนักเรียน');
+        return false;
+      }
+      try {
+        var res = await createPasswordResetRequestDb(sid);
+        if (res.status === 'fail') {
+          Swal.showValidationMessage(res.message || 'ไม่สามารถส่งคำขอได้');
+          return false;
+        }
+        return res;
+      } catch (e) {
+        Swal.showValidationMessage(e.message || 'ส่งคำขอไม่สำเร็จ');
+        return false;
+      }
+    },
+    allowOutsideClick: function() { return !Swal.isLoading(); }
+  });
+
+  if (!result.isConfirmed || !result.value) return;
+  var res = result.value;
+  var remaining = resetRemainingMinutes(res.expiresAt);
+  var title = res.status === 'existing' ? 'มีคำขออยู่แล้ว' : 'ส่งคำขอแล้ว';
+  var text = 'แจ้งครูให้ดูคำขอของ ' + res.studentName + ' (' + res.grade + ') เหลือเวลาอีกประมาณ ' + remaining + ' นาที';
+  var next = await Swal.fire({
+    icon: res.status === 'existing' ? 'info' : 'success',
+    title: title,
+    text: text,
+    confirmButtonText: 'กรอกรหัส 6 หลัก',
+    cancelButtonText: 'ปิด',
+    showCancelButton: true,
+    confirmButtonColor: '#1d4ed8'
+  });
+  if (next.isConfirmed) openPasswordResetConfirmModal(res.studentId);
+}
+
+async function openPasswordResetConfirmModal(prefillStudentId) {
+  var currentId = prefillStudentId || (document.getElementById('username') ? document.getElementById('username').value.trim() : '');
+  var result = await Swal.fire({
+    title: 'ตั้งรหัสผ่านใหม่',
+    html: '<div class="reset-modal-copy">กรอกรหัสนักเรียน รหัสรีเซ็ต 6 หลักจากครู และรหัสผ่านใหม่</div>'
+      + '<input id="resetStudentId" class="swal2-input reset-swal-input" inputmode="numeric" autocomplete="username" placeholder="รหัสนักเรียน" value="' + escHtml(currentId) + '">'
+      + '<input id="resetCode" class="swal2-input reset-swal-input reset-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="รหัสรีเซ็ต 6 หลัก">'
+      + '<input id="resetNewPassword" type="password" class="swal2-input reset-swal-input" autocomplete="new-password" placeholder="รหัสผ่านใหม่ อย่างน้อย 6 ตัวอักษร">'
+      + '<input id="resetNewPassword2" type="password" class="swal2-input reset-swal-input" autocomplete="new-password" placeholder="ยืนยันรหัสผ่านใหม่">',
+    confirmButtonText: 'เปลี่ยนรหัสผ่าน',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    showLoaderOnConfirm: true,
+    focusConfirm: false,
+    confirmButtonColor: '#1d4ed8',
+    didOpen: function() {
+      var codeEl = document.getElementById('resetCode');
+      var pass2 = document.getElementById('resetNewPassword2');
+      if (codeEl) {
+        codeEl.addEventListener('input', function() { codeEl.value = normalizeResetCode(codeEl.value); });
+      }
+      if (pass2) {
+        pass2.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') Swal.clickConfirm();
+        });
+      }
+    },
+    preConfirm: async function() {
+      var sid = (document.getElementById('resetStudentId').value || '').trim();
+      var code = normalizeResetCode(document.getElementById('resetCode').value);
+      var p1 = (document.getElementById('resetNewPassword').value || '').trim();
+      var p2 = (document.getElementById('resetNewPassword2').value || '').trim();
+      if (!sid) {
+        Swal.showValidationMessage('กรุณากรอกรหัสประจำตัวนักเรียน');
+        return false;
+      }
+      if (code.length !== 6) {
+        Swal.showValidationMessage('กรุณากรอกรหัสรีเซ็ต 6 หลัก');
+        return false;
+      }
+      if (p1.length < 6) {
+        Swal.showValidationMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+        return false;
+      }
+      if (p1 !== p2) {
+        Swal.showValidationMessage('รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+        return false;
+      }
+      try {
+        var res = await verifyPasswordResetCodeDb(sid, code, p1);
+        if (res.status !== 'success') {
+          Swal.showValidationMessage(res.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+          return false;
+        }
+        return res;
+      } catch (e) {
+        Swal.showValidationMessage(e.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+        return false;
+      }
+    },
+    allowOutsideClick: function() { return !Swal.isLoading(); }
+  });
+
+  if (!result.isConfirmed || !result.value) return;
+  if (document.getElementById('username')) document.getElementById('username').value = result.value.studentId || '';
+  if (document.getElementById('password')) document.getElementById('password').value = '';
+  await Swal.fire({
+    icon: 'success',
+    title: 'เปลี่ยนรหัสผ่านสำเร็จ',
+    text: 'เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย',
+    confirmButtonColor: '#047857'
+  });
+}
+
+function renderPasswordResetRequests(rows) {
+  var wrap = document.getElementById('resetRequestList');
+  var countEl = document.getElementById('resetRequestCount');
+  var navCountEl = document.getElementById('resetNavCount');
+  if (!wrap) return;
+  passwordResetRequests = rows || [];
+  var resetCount = passwordResetRequests.length;
+  if (countEl) countEl.textContent = String(resetCount);
+  if (navCountEl) {
+    navCountEl.textContent = String(resetCount);
+    navCountEl.classList.toggle('hidden', resetCount === 0);
+  }
+  if (!passwordResetRequests.length) {
+    wrap.innerHTML = '<div class="reset-empty"><i class="fa-regular fa-circle-check"></i><div><strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong><span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span></div></div>';
+    return;
+  }
+
+  wrap.innerHTML = passwordResetRequests.map(function(row) {
+    var id = Number(row.id);
+    return '<article class="reset-request-card" data-reset-id="' + id + '">'
+      + '<div class="reset-request-main">'
+      + '<div class="reset-student-name">' + escHtml(row.student_name || '-') + '</div>'
+      + '<div class="reset-student-meta"><span>' + escHtml(row.student_id || '-') + '</span><span>' + escHtml(row.grade || '-') + '</span><span>ขอเมื่อ ' + escHtml(formatDateTime(row.created_at)) + '</span></div>'
+      + '</div>'
+      + '<div class="reset-code-wrap">'
+      + '<span class="reset-code-label">รหัสรีเซ็ต</span>'
+      + '<strong class="reset-code-value">' + escHtml(row.reset_code || '') + '</strong>'
+      + '</div>'
+      + '<div class="reset-time-wrap">'
+      + '<span class="reset-code-label">เหลือเวลา</span>'
+      + '<strong class="reset-countdown" data-reset-expires="' + escHtml(row.expires_at || '') + '">' + escHtml(formatResetRemaining(row.expires_at)) + '</strong>'
+      + '</div>'
+      + '<button class="reset-delete-btn" onclick="deletePasswordResetRequest(' + id + ')" aria-label="ลบคำขอของ ' + escHtml(row.student_name || row.student_id || '') + '"><i class="fa-solid fa-trash"></i></button>'
+      + '</article>';
+  }).join('');
+  updatePasswordResetCountdowns();
+}
+
+function updatePasswordResetCountdowns() {
+  var shouldReload = false;
+  document.querySelectorAll('[data-reset-expires]').forEach(function(el) {
+    var expires = safeDate(el.getAttribute('data-reset-expires'));
+    if (!expires) return;
+    var ms = expires.getTime() - Date.now();
+    el.textContent = formatResetRemaining(expires);
+    el.classList.toggle('is-urgent', ms > 0 && ms <= 3 * 60000);
+    el.classList.toggle('is-expired', ms <= 0);
+    if (ms <= 0) shouldReload = true;
+  });
+  if (shouldReload) {
+    setTimeout(function() { loadPasswordResetRequests(); }, 600);
+  }
+}
+
+async function loadPasswordResetRequests() {
+  var wrap = document.getElementById('resetRequestList');
+  if (!wrap) return;
+  try {
+    var rows = await getPasswordResetRequestsDb();
+    renderPasswordResetRequests(rows);
+  } catch (e) {
+    wrap.innerHTML = '<div class="reset-empty reset-empty-error"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>โหลดคำขอรีเซ็ตไม่ได้</strong><span>' + escHtml(e.message || 'กรุณาตรวจสอบว่าอัปเดตฐานข้อมูลแล้ว') + '</span></div></div>';
+  }
+}
+
+function startPasswordResetDashboard() {
+  stopPasswordResetDashboard();
+  loadPasswordResetRequests();
+  passwordResetCountdownTimer = setInterval(updatePasswordResetCountdowns, 1000);
+  passwordResetReloadTimer = setInterval(loadPasswordResetRequests, 30000);
+}
+
+function stopPasswordResetDashboard() {
+  if (passwordResetCountdownTimer) clearInterval(passwordResetCountdownTimer);
+  if (passwordResetReloadTimer) clearInterval(passwordResetReloadTimer);
+  passwordResetCountdownTimer = null;
+  passwordResetReloadTimer = null;
+}
+
+async function deletePasswordResetRequest(requestId) {
+  var row = passwordResetRequests.find(function(item) { return Number(item.id) === Number(requestId); });
+  var name = row ? (row.student_name || row.student_id) : 'รายการนี้';
+  var ok = await Swal.fire({
+    icon: 'warning',
+    title: 'ลบคำขอรีเซ็ต?',
+    text: 'คำขอของ ' + name + ' จะถูกลบออกจากหน้าครูทันที',
+    confirmButtonText: 'ลบคำขอ',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    confirmButtonColor: '#b91c1c'
+  });
+  if (!ok.isConfirmed) return;
+  try {
+    await deletePasswordResetRequestDb(requestId);
+    await loadPasswordResetRequests();
+    Swal.fire({ icon: 'success', title: 'ลบคำขอแล้ว', timer: 1300, showConfirmButton: false });
+  } catch (e) {
+    onErr(e);
+  }
+}
+
 async function getStudentPointsAndLevelDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { totalPoints: 0, level: 0, pointsInLevel: 0, checkCount: 0 };
+    }
+    return {
+      totalPoints: session.profile.totalPoints || 0,
+      level: session.profile.level || 0,
+      pointsInLevel: session.profile.pointsInLevel || 0,
+      checkCount: session.profile.checkCount || 0
+    };
+  }
   var client = getSupabase();
   var logs = await runQuery(client.from('attendance_logs')
     .select('status,points')
@@ -476,6 +1280,10 @@ async function getStudentPointsAndLevelDb(studentId) {
 }
 
 async function getStudentProfileDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    return session ? Object.assign({}, session.profile) : null;
+  }
   var client = getSupabase();
   var cid = String(studentId).trim();
   var row = await runQuery(client.from('students')
@@ -498,6 +1306,14 @@ async function getStudentProfileDb(studentId) {
 }
 
 async function saveProfilePictureDb(studentId, photoUrl) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) return { status: 'fail' };
+    session.profile.photo = photoUrl || '';
+    session.profile.photo_url = photoUrl || '';
+    saveActiveGuestSession(session);
+    return { status: 'success' };
+  }
   var client = getSupabase();
   await runQuery(client.from('students')
     .update({ photo_url: photoUrl || '' })
@@ -557,6 +1373,24 @@ async function addNewStudentDb(studentId, studentName, grade) {
 }
 
 async function getStudentHistoryDb(studentId, targetMonth) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return [];
+    }
+    return (session.attendanceLogs || []).filter(function(r) {
+      return matchesMonth(r.timestamp, targetMonth || 'all');
+    }).map(function(r) {
+      return {
+        id: r.id,
+        date: formatDate(r.timestamp),
+        dateKey: dateKeyBangkok(r.timestamp),
+        status: String(r.status || '').trim(),
+        points: Number(r.points) || 0
+      };
+    });
+  }
   var client = getSupabase();
   var rows = await runQuery(client.from('attendance_logs')
     .select('id,timestamp,status,points')
@@ -693,6 +1527,33 @@ async function generateNewPINDb(targetGrade) {
 }
 
 async function submitCheckInDb(studentId, pinCode) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { result: 'error', msg: 'หมดเวลาทดลองใช้งานแล้ว' };
+    }
+    var today = dateKeyBangkok(new Date());
+    var logs = session.attendanceLogs || [];
+    for (var gi = 0; gi < logs.length; gi++) {
+      if (dateKeyBangkok(logs[gi].timestamp) === today) {
+        return { result: 'duplicate', msg: 'เช็คชื่อวันนี้ในโหมดทดลองแล้ว' };
+      }
+    }
+    var pts = guestPick([3, 5]);
+    logs.unshift({
+      id: 'GLOG_TODAY_' + Date.now(),
+      timestamp: new Date().toISOString(),
+      status: '\u0e21\u0e32',
+      points: pts
+    });
+    session.attendanceLogs = logs;
+    session.profile.totalPoints = (Number(session.profile.totalPoints) || 0) + pts;
+    session.wallet.mathCoins = (Number(session.wallet.mathCoins) || 0) + pts;
+    refreshGuestProfileFromPoints(session);
+    saveActiveGuestSession(session);
+    return { result: 'success', points: pts, grade: session.user.grade };
+  }
   var client = getSupabase();
   var cid = String(studentId).trim();
   var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start']);
@@ -858,7 +1719,211 @@ async function editAttendanceRecordDb(studentId, dateStr, status, points) {
   return manualCheckInDb(studentId, dateStr, status, points);
 }
 
+async function getStudentPetDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    return session ? Object.assign({}, session.pet) : null;
+  }
+  var client = getSupabase();
+  var cid = String(studentId || '').trim();
+  if (!cid) return null;
+  return await runQuery(client.from('student_pets')
+    .select('*')
+    .eq('student_id', cid)
+    .maybeSingle());
+}
+
+async function logStudentPetEventDb(payload) {
+  await runQuery(getSupabase().from('student_pet_events').insert([payload]));
+}
+
+async function selectStudentPetDb(studentId, petId, petName) {
+  await loadPetCatalog();
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    var guestPetMeta = findPetById(petId);
+    if (!session || !guestPetMeta) {
+      if (!session) showGuestExpiredAlert();
+      return { status: 'fail', msg: 'ไม่พบข้อมูลสัตว์เลี้ยง' };
+    }
+    var currentGuestPet = session.pet;
+    if (currentGuestPet && currentGuestPet.pet_id === guestPetMeta.id) {
+      return { status: 'same', msg: 'ใช้งานสัตว์เลี้ยงตัวนี้อยู่แล้ว', pet: currentGuestPet };
+    }
+    var guestFreeUsed = currentGuestPet ? clampPetCount(currentGuestPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+    var guestUseFree = guestFreeUsed < PET_FREE_SELECT_LIMIT;
+    var guestCost = guestUseFree ? 0 : PET_PAID_CHANGE_COST;
+    if (guestCost > 0 && session.wallet.mathCoins < guestCost) {
+      return { status: 'fail', msg: 'เหรียญไม่พอ ต้องใช้ ' + guestCost + ' เหรียญ' };
+    }
+    if (guestCost > 0) {
+      session.wallet.mathCoins -= guestCost;
+      session.wallet.totalSpent = (Number(session.wallet.totalSpent) || 0) + guestCost;
+    }
+    var guestNow = new Date().toISOString();
+    var savedGuestPet = {
+      student_id: studentId,
+      pet_id: guestPetMeta.id,
+      pet_name: sanitizePetName(petName, guestPetMeta.defaultName),
+      free_select_used: guestUseFree ? guestFreeUsed + 1 : guestFreeUsed,
+      rename_used: 0,
+      selected_at: guestNow,
+      updated_at: guestNow
+    };
+    session.pet = savedGuestPet;
+    saveActiveGuestSession(session);
+    return {
+      status: 'success',
+      pet: Object.assign({}, savedGuestPet),
+      petMeta: guestPetMeta,
+      cost: guestCost,
+      freeSelectUsed: savedGuestPet.free_select_used,
+      remainingFree: Math.max(0, PET_FREE_SELECT_LIMIT - savedGuestPet.free_select_used),
+      mathCoins: session.wallet.mathCoins
+    };
+  }
+  var client = getSupabase();
+  var cid = String(studentId || '').trim();
+  var pet = findPetById(petId);
+  if (!cid || !pet) return { status: 'fail', msg: 'ไม่พบข้อมูลสัตว์เลี้ยง' };
+
+  var current = await getStudentPetDb(cid);
+  if (current && current.pet_id === pet.id) {
+    return { status: 'same', msg: 'ใช้งานสัตว์เลี้ยงตัวนี้อยู่แล้ว', pet: current };
+  }
+
+  var freeUsed = current ? clampPetCount(current.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var useFree = freeUsed < PET_FREE_SELECT_LIMIT;
+  var cost = useFree ? 0 : PET_PAID_CHANGE_COST;
+  if (cost > 0) {
+    var wallet = await getWalletBalanceDb(cid);
+    if (wallet.mathCoins < cost) {
+      return {
+        status: 'fail',
+        msg: 'เหรียญไม่พอ ต้องใช้ ' + cost + ' เหรียญ แต่มี ' + wallet.mathCoins + ' เหรียญ'
+      };
+    }
+  }
+
+  var cleanName = sanitizePetName(petName, pet.defaultName);
+  var nowIso = new Date().toISOString();
+  var nextFreeUsed = useFree ? freeUsed + 1 : freeUsed;
+  var previousPetId = current ? String(current.pet_id || '') : '';
+  var previousName = current ? String(current.pet_name || '') : '';
+  var payload = {
+    student_id: cid,
+    pet_id: pet.id,
+    pet_name: cleanName,
+    free_select_used: nextFreeUsed,
+    rename_used: 0,
+    selected_at: nowIso,
+    updated_at: nowIso
+  };
+
+  var rows = await runQuery(client.from('student_pets')
+    .upsert(payload, { onConflict: 'student_id' })
+    .select('*'));
+  var saved = rows && rows[0] ? rows[0] : payload;
+  await logStudentPetEventDb({
+    student_id: cid,
+    event_type: cost > 0 ? 'paid_change' : 'select',
+    from_pet_id: previousPetId,
+    to_pet_id: pet.id,
+    previous_name: previousName,
+    new_name: cleanName,
+    points_used: cost
+  });
+
+  return {
+    status: 'success',
+    pet: saved,
+    petMeta: pet,
+    cost: cost,
+    freeSelectUsed: nextFreeUsed,
+    remainingFree: Math.max(0, PET_FREE_SELECT_LIMIT - nextFreeUsed),
+    mathCoins: (await getWalletBalanceDb(cid)).mathCoins
+  };
+}
+
+async function renameStudentPetDb(studentId, petName) {
+  await loadPetCatalog();
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session || !session.pet) {
+      if (!session) showGuestExpiredAlert();
+      return { status: 'fail', msg: 'ยังไม่มีสัตว์เลี้ยงให้เปลี่ยนชื่อ' };
+    }
+    var renameUsedGuest = clampPetCount(session.pet.rename_used, PET_RENAME_LIMIT);
+    if (renameUsedGuest >= PET_RENAME_LIMIT) {
+      return { status: 'fail', msg: 'เปลี่ยนชื่อครบ ' + PET_RENAME_LIMIT + ' ครั้งแล้ว' };
+    }
+    var guestPet = findPetById(session.pet.pet_id);
+    var cleanGuestName = sanitizePetName(petName, guestPet ? guestPet.defaultName : session.pet.pet_name);
+    if (cleanGuestName === String(session.pet.pet_name || '')) {
+      return { status: 'same', msg: 'ชื่อเดิมอยู่แล้ว', pet: session.pet };
+    }
+    session.pet.pet_name = cleanGuestName;
+    session.pet.rename_used = renameUsedGuest + 1;
+    session.pet.updated_at = new Date().toISOString();
+    saveActiveGuestSession(session);
+    return {
+      status: 'success',
+      pet: Object.assign({}, session.pet),
+      renameUsed: session.pet.rename_used,
+      remainingRename: Math.max(0, PET_RENAME_LIMIT - session.pet.rename_used)
+    };
+  }
+  var client = getSupabase();
+  var cid = String(studentId || '').trim();
+  var current = await getStudentPetDb(cid);
+  if (!current) return { status: 'fail', msg: 'ยังไม่มีสัตว์เลี้ยงให้เปลี่ยนชื่อ' };
+
+  var pet = findPetById(current.pet_id);
+  var renameUsed = clampPetCount(current.rename_used, PET_RENAME_LIMIT);
+  if (renameUsed >= PET_RENAME_LIMIT) {
+    return { status: 'fail', msg: 'เปลี่ยนชื่อครบ ' + PET_RENAME_LIMIT + ' ครั้งสำหรับสัตว์เลี้ยงตัวนี้แล้ว' };
+  }
+
+  var cleanName = sanitizePetName(petName, pet ? pet.defaultName : current.pet_name);
+  if (cleanName === String(current.pet_name || '')) {
+    return { status: 'same', msg: 'ชื่อเดิมอยู่แล้ว', pet: current };
+  }
+
+  var rows = await runQuery(client.from('student_pets')
+    .update({
+      pet_name: cleanName,
+      rename_used: renameUsed + 1,
+      updated_at: new Date().toISOString()
+    })
+    .eq('student_id', cid)
+    .select('*'));
+  var saved = rows && rows[0] ? rows[0] : current;
+  await logStudentPetEventDb({
+    student_id: cid,
+    event_type: 'rename',
+    from_pet_id: current.pet_id || '',
+    to_pet_id: current.pet_id || '',
+    previous_name: current.pet_name || '',
+    new_name: cleanName,
+    points_used: 0
+  });
+  return {
+    status: 'success',
+    pet: saved,
+    renameUsed: renameUsed + 1,
+    remainingRename: Math.max(0, PET_RENAME_LIMIT - renameUsed - 1)
+  };
+}
+
 async function getWalletBalanceDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { lifetimeExp: 0, totalSpent: 0, mathCoins: 0 };
+    }
+    return Object.assign({}, session.wallet);
+  }
   var client = getSupabase();
   var cid = String(studentId).trim();
   var logData = await runQuery(client.from('attendance_logs')
@@ -867,6 +1932,14 @@ async function getWalletBalanceDb(studentId) {
   var redData = await runQuery(client.from('redemption_logs')
     .select('points_used,status')
     .eq('student_id', cid));
+  var petData = [];
+  try {
+    petData = await runQuery(client.from('student_pet_events')
+      .select('points_used')
+      .eq('student_id', cid));
+  } catch (e) {
+    petData = [];
+  }
   var lifetimeExp = 0;
   (logData || []).forEach(function(log) {
     if (String(log.status).trim() === 'มา') lifetimeExp += Number(log.points) || 0;
@@ -876,6 +1949,9 @@ async function getWalletBalanceDb(studentId) {
     var st = String(r.status || 'pending').toLowerCase();
     if (st !== 'rejected') totalSpent += Number(r.points_used) || 0;
   });
+  (petData || []).forEach(function(p) {
+    totalSpent += Number(p.points_used) || 0;
+  });
   return {
     lifetimeExp: lifetimeExp,
     totalSpent: totalSpent,
@@ -884,6 +1960,16 @@ async function getWalletBalanceDb(studentId) {
 }
 
 async function getShopItemsDb() {
+  if (isGuestMode() || isGuestStudentId(CU && CU.id)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return [];
+    }
+    return (session.shopItems || getGuestShopItems()).map(function(item) {
+      return Object.assign({}, item);
+    });
+  }
   var client = getSupabase();
   var rows = await runQuery(client.from('shop_items')
     .select('*')
@@ -969,6 +2055,44 @@ async function toggleShopItemActiveDb(itemId) {
 async function buyItemDb(studentId, itemId, itemName, cost) {
   var cid = String(studentId).trim();
   var iid = String(itemId).trim();
+  if (isGuestStudentId(cid)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return { status: 'fail', msg: 'หมดเวลาทดลองใช้งานแล้ว' };
+    }
+    var guestItems = session.shopItems || getGuestShopItems();
+    var guestItem = guestItems.find(function(item) { return String(item.itemId) === iid; });
+    if (!guestItem || guestItem.active === false) {
+      return { status: 'fail', msg: 'ไม่พบสินค้าในโหมดทดลอง' };
+    }
+    var guestPrice = Number(guestItem.cost) || Number(cost) || 0;
+    if (session.wallet.mathCoins < guestPrice) {
+      return {
+        status: 'fail',
+        msg: 'เหรียญไม่เพียงพอ (มี ' + session.wallet.mathCoins + ' / ต้องการ ' + guestPrice + ')',
+        mathCoins: session.wallet.mathCoins
+      };
+    }
+    session.wallet.mathCoins -= guestPrice;
+    session.wallet.totalSpent = (Number(session.wallet.totalSpent) || 0) + guestPrice;
+    session.redemptions = session.redemptions || [];
+    session.redemptions.unshift({
+      timestamp: new Date().toISOString(),
+      item_name: guestItem.itemName || itemName || '',
+      points_used: guestPrice,
+      status: 'pending'
+    });
+    saveActiveGuestSession(session);
+    return {
+      status: 'success',
+      msg: 'ซื้อ "' + (guestItem.itemName || itemName || '') + '" สำเร็จในโหมดทดลอง',
+      mathCoins: session.wallet.mathCoins,
+      lifetimeExp: session.wallet.lifetimeExp,
+      pointsUsed: guestPrice,
+      itemName: guestItem.itemName || itemName || ''
+    };
+  }
   var wallet = await getWalletBalanceDb(cid);
   var client = getSupabase();
   var item = await runQuery(client.from('shop_items')
@@ -1049,6 +2173,21 @@ async function grantFreeItemDb(studentIds, itemId, qty) {
 }
 
 async function getRedemptionHistoryDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    if (!session) {
+      showGuestExpiredAlert();
+      return [];
+    }
+    return (session.redemptions || []).map(function(r) {
+      return {
+        date: formatDateTime(r.timestamp),
+        itemName: String(r.item_name || '').trim(),
+        cost: Number(r.points_used) || 0,
+        status: String(r.status || 'pending').trim()
+      };
+    });
+  }
   var client = getSupabase();
   var rows = await runQuery(client.from('redemption_logs')
     .select('timestamp,item_name,points_used,status')
@@ -1260,12 +2399,15 @@ window.addEventListener('load', async function() {
   if (manGrade && histGrade) histGrade.innerHTML = manGrade.innerHTML;
   if (!isSupabaseConfigured()) {
     showConfigAlert();
+    await restoreGuestSessionIfActive();
     return;
   }
   try {
     applyAppSettings(await getAppSettingsDb());
   } catch (e) {
     console.warn(e);
+  } finally {
+    await restoreGuestSessionIfActive();
   }
 });
 
@@ -1314,17 +2456,9 @@ async function login() {
         await loadCurrentSession();
         await loadSettings();
         await loadTeacherShopItems();
+        startPasswordResetDashboard();
       } else {
-        document.getElementById('studentSection').classList.remove('hidden');
-        document.getElementById('sNameDisp').textContent = res.name;
-        document.getElementById('sGradeDisp').textContent = 'ชั้น ' + res.grade;
-        /* ── First-login: บังคับเปลี่ยนรหัสผ่านก่อนใช้งาน ── */
-        if (res.isFirstLogin) {
-          await forceChangePassword(res.id);
-        }
-        await loadStudentProfile();
-        shopWallet = await getWalletBalanceDb(CU.id);
-        updateShopCoinsBadge(shopWallet.mathCoins);
+        await enterStudentApp(res);
       }
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message, confirmButtonColor: UI_COLOR_PRIMARY });
@@ -1355,27 +2489,345 @@ async function loadStudentGami() {
 function updateGamiUI(d) {
   var pts = d.totalPoints || 0, lv = d.level || 0, pip = d.pointsInLevel || 0;
   var tier = Math.min(Math.floor(lv / 10), 4);
-  document.getElementById('studentSection').setAttribute('data-tier', String(tier));
-  document.getElementById('lvNum').textContent = lv;
-  var pct = Math.max(0, Math.min(100, Math.round((pip / 5) * 100)));
-  document.getElementById('levelRing').style.setProperty('--pct', pct + '%');
-  document.getElementById('xpFill').style.transform = 'scaleX(' + (pct / 100) + ')';
-  document.getElementById('xpLabel').textContent = pip + ' / 5 XP';
-  document.getElementById('ptLabel').textContent = 'แต้มรวม ' + pts;
-  document.querySelectorAll('.trophy').forEach(function(el) {
+  var pct = Math.round((pip / 5) * 100);
+
+  var section = document.getElementById('studentSection');
+  if (section && section.getAttribute('data-tier') !== String(tier)) {
+    section.setAttribute('data-tier', String(tier));
+  }
+
+  var lvNum = document.getElementById('lvNum');
+  if (lvNum && lvNum.textContent !== String(lv)) lvNum.textContent = lv;
+
+  var ring = document.getElementById('levelRing');
+  if (ring && ring.style.getPropertyValue('--pct') !== pct + '%') {
+    ring.style.setProperty('--pct', pct + '%');
+  }
+
+  var xpFill = document.getElementById('xpFill');
+  if (xpFill) xpFill.style.transform = 'scaleX(' + (pct / 100) + ')';
+
+  var xpLabel = document.getElementById('xpLabel');
+  var xpText = pip + ' / 5 XP';
+  if (xpLabel && xpLabel.textContent !== xpText) xpLabel.textContent = xpText;
+
+  var ptLabel = document.getElementById('ptLabel');
+  var ptText = 'แต้มรวม ' + pts;
+  if (ptLabel && ptLabel.textContent !== ptText) ptLabel.textContent = ptText;
+
+  var trophies = updateGamiUI._trophies || (updateGamiUI._trophies = Array.prototype.slice.call(document.querySelectorAll('.trophy')));
+  trophies.forEach(function(el) {
     el.classList.toggle('earned', lv >= parseInt(el.dataset.t || '0', 10));
   });
+
   var lc = document.getElementById('levelCard');
-  lc.classList.toggle('level-card-flat', tier >= 1);
+  if (lc) lc.style.cssText = tier >= 1 ? 'background:transparent;box-shadow:none' : '';
+}
+
+function renderStudentPet(row, level, previousLevel) {
+  var hero = document.getElementById('petHero');
+  if (!hero) return;
+  var lv = level == null ? getCurrentStudentLevel() : level;
+  if (!petCatalog || !row) {
+    var freeText = row ? 'กำลังโหลดสัตว์เลี้ยง...' : 'เลือกฟรีได้ 3 ครั้งแรก';
+    hero.innerHTML = '<div class="pet-empty-state">'
+      + '<div class="pet-empty-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>'
+      + '<div><strong>ยังไม่มีสัตว์เลี้ยง</strong><span>' + freeText + '</span></div>'
+      + '<button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกตัวแรก</button>'
+      + '</div>';
+    return;
+  }
+  var pet = findPetById(row.pet_id);
+  if (!pet) {
+    hero.innerHTML = '<div class="pet-empty-state">'
+      + '<div class="pet-empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>'
+      + '<div><strong>โหลดสัตว์เลี้ยงไม่ได้</strong><span>ลองรีเฟรชหรือเลือกใหม่อีกครั้ง</span></div>'
+      + '<button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกใหม่</button>'
+      + '</div>';
+    return;
+  }
+  var stage = getPetStageForLevel(lv);
+  var freeUsed = clampPetCount(row.free_select_used, PET_FREE_SELECT_LIMIT);
+  var renameUsed = clampPetCount(row.rename_used, PET_RENAME_LIMIT);
+  hero.innerHTML = '<div class="pet-live-card">'
+    + '<div class="pet-stage-badge">EVO ' + stage.stage + '</div>'
+    + '<div class="pet-sprite-wrap"><div class="pet-shadow"></div><div class="pet-sprite-motion"><div class="pet-sprite pet-sprite-live" id="studentPetSprite"></div></div></div>'
+    + '<div class="pet-info">'
+    + '<strong>' + escHtml(row.pet_name || pet.defaultName) + '</strong>'
+    + '<span>' + escHtml(pet.defaultName) + ' · ' + escHtml(stage.label || ('Stage ' + stage.stage)) + '</span>'
+    + '</div>'
+    + '<div class="pet-actions">'
+    + '<button type="button" class="pet-ghost-btn" onclick="openPetSelector()">เปลี่ยนตัว</button>'
+    + '<button type="button" class="pet-ghost-btn" onclick="openRenamePetModal()">เปลี่ยนชื่อ ' + (PET_RENAME_LIMIT - renameUsed) + '</button>'
+    + '</div>'
+    + '<div class="pet-usage-note">ใช้ฟรี ' + freeUsed + '/' + PET_FREE_SELECT_LIMIT + ' · เปลี่ยนชื่อ ' + renameUsed + '/' + PET_RENAME_LIMIT + '</div>'
+    + '</div>';
+  setPetSprite(document.getElementById('studentPetSprite'), pet, stage);
+  if (previousLevel != null) {
+    var oldStage = getPetStageForLevel(previousLevel).stage;
+    if (stage.stage > oldStage) {
+      hero.classList.remove('pet-evolve');
+      void hero.offsetWidth;
+      hero.classList.add('pet-evolve');
+      setTimeout(function() { hero.classList.remove('pet-evolve'); }, 900);
+    }
+  }
+}
+
+function renderPetLoadError(msg) {
+  var hero = document.getElementById('petHero');
+  if (!hero) return;
+  hero.innerHTML = '<div class="pet-empty-state">'
+    + '<div class="pet-empty-icon"><i class="fa-solid fa-circle-info"></i></div>'
+    + '<div><strong>ยังไม่พร้อมใช้งาน</strong><span>' + escHtml(msg || 'กรุณารัน pet_system_setup.sql ก่อน') + '</span></div>'
+    + '</div>';
+}
+
+async function loadStudentPet(previousLevel) {
+  try {
+    await loadPetCatalog();
+    studentPet = await getStudentPetDb(CU.id);
+    renderStudentPet(studentPet, getCurrentStudentLevel(), previousLevel);
+    if (document.getElementById('petOverlay') && document.getElementById('petOverlay').classList.contains('open')) {
+      renderPetWallet();
+      renderPetGrid();
+    }
+  } catch (e) {
+    renderPetLoadError(e && e.message ? e.message : '');
+  }
+}
+
+function openPetSelector() {
+  var overlay = document.getElementById('petOverlay');
+  if (!overlay) return;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadPetSelectorData();
+}
+
+function closePetSelector() {
+  var overlay = document.getElementById('petOverlay');
+  if (overlay) overlay.classList.remove('open');
+  if (petGridObserver) {
+    petGridObserver.disconnect();
+    petGridObserver = null;
+  }
+  if (!document.getElementById('shopOverlay') || !document.getElementById('shopOverlay').classList.contains('open')) {
+    document.body.style.overflow = '';
+  }
+}
+
+function handlePetOverlayClick(e) {
+  if (e.target === document.getElementById('petOverlay')) closePetSelector();
+}
+
+async function loadPetSelectorData() {
+  var grid = document.getElementById('petGrid');
+  if (grid) grid.innerHTML = '<div class="shop-skeleton"></div>'.repeat(4);
+  try {
+    await loadPetCatalog();
+    shopWallet = await getWalletBalanceDb(CU.id);
+    studentPet = await getStudentPetDb(CU.id);
+    updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
+    renderPetGrid();
+  } catch (e) {
+    if (grid) grid.innerHTML = '<div class="shop-empty" style="grid-column:1/-1"><div class="shop-empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><p>โหลดระบบสัตว์เลี้ยงไม่สำเร็จ</p></div>';
+  }
+}
+
+async function refreshPetWallet() {
+  try {
+    shopWallet = await getWalletBalanceDb(CU.id);
+    studentPet = await getStudentPetDb(CU.id);
+    updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
+    renderPetGrid();
+  } catch (e) {}
+}
+
+function renderPetWallet() {
+  var coinsEl = document.getElementById('petCoinsDisplay');
+  var freeEl = document.getElementById('petFreeDisplay');
+  if (!coinsEl || !freeEl) return;
+  var coins = shopWallet ? shopWallet.mathCoins : 0;
+  var used = studentPet ? clampPetCount(studentPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var remaining = Math.max(0, PET_FREE_SELECT_LIMIT - used);
+  coinsEl.textContent = coins + ' 🪙';
+  freeEl.textContent = remaining > 0
+    ? 'เลือกฟรีเหลือ ' + remaining + ' ครั้ง · ครั้งแรกนับเป็น 1'
+    : 'ใช้ฟรีครบแล้ว เปลี่ยนใหม่ใช้ ' + PET_PAID_CHANGE_COST + ' เหรียญ';
+}
+
+function renderPetGrid() {
+  var grid = document.getElementById('petGrid');
+  if (!grid || !petCatalog) return;
+  var pets = petCatalog.pets || [];
+  var coins = shopWallet ? shopWallet.mathCoins : 0;
+  var freeUsed = studentPet ? clampPetCount(studentPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var hasFree = freeUsed < PET_FREE_SELECT_LIMIT;
+  var previewStage = getPetStageForLevel(0);
+  if (!pets.length) {
+    grid.innerHTML = '<div class="shop-empty" style="grid-column:1/-1"><div class="shop-empty-icon"><i class="fa-solid fa-paw"></i></div><p>ยังไม่มีรายการสัตว์เลี้ยง</p></div>';
+    return;
+  }
+  grid.innerHTML = pets.map(function(pet) {
+    var isCurrent = studentPet && studentPet.pet_id === pet.id;
+    var cost = hasFree || !studentPet ? 0 : PET_PAID_CHANGE_COST;
+    var canChoose = isCurrent || cost === 0 || coins >= cost;
+    var actionText = isCurrent ? 'ใช้อยู่' : (cost === 0 ? 'เลือกฟรี' : cost + ' เหรียญ');
+    var metaText = isCurrent ? 'คู่หูปัจจุบัน' : (cost === 0 ? 'ใช้ฟรีเหลือ ' + Math.max(0, PET_FREE_SELECT_LIMIT - freeUsed) : 'เปลี่ยนด้วย MathCoins');
+    return '<article class="pet-card' + (isCurrent ? ' is-current' : '') + (!canChoose ? ' is-locked' : '') + '">'
+      + '<div class="pet-card-preview"><div class="pet-sprite-motion pet-sprite-motion-card"><div class="pet-sprite pet-sprite-card" data-pet-sprite="' + escHtml(pet.id) + '"></div></div></div>'
+      + '<div class="pet-card-name">' + escHtml(pet.defaultName) + '</div>'
+      + '<div class="pet-card-meta">' + metaText + '</div>'
+      + '<button type="button" class="pet-card-btn' + (!canChoose ? ' cant-afford' : '') + '" data-pet-id="' + escHtml(pet.id) + '" ' + (!canChoose || isCurrent ? 'disabled' : '') + '>' + actionText + '</button>'
+      + '</article>';
+  }).join('');
+  hydratePetGridSprites(previewStage);
+  Array.prototype.forEach.call(grid.querySelectorAll('[data-pet-id]'), function(btn) {
+    btn.addEventListener('click', function() {
+      choosePetFromCard(btn.getAttribute('data-pet-id'));
+    });
+  });
+}
+
+async function choosePetFromCard(petId) {
+  await loadPetCatalog();
+  var pet = findPetById(petId);
+  if (!pet) return;
+  var freeUsed = studentPet ? clampPetCount(studentPet.free_select_used, PET_FREE_SELECT_LIMIT) : 0;
+  var cost = (studentPet && freeUsed >= PET_FREE_SELECT_LIMIT) ? PET_PAID_CHANGE_COST : 0;
+  var coins = shopWallet ? shopWallet.mathCoins : 0;
+  var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
+  if (cost > 0 && coins < cost) {
+    return Swal.fire(Object.assign({
+      icon: 'warning',
+      title: 'เหรียญไม่พอ',
+      text: 'ต้องใช้ ' + cost + ' เหรียญ แต่ตอนนี้มี ' + coins + ' เหรียญ',
+      confirmButtonColor: '#4f46e5'
+    }, SWAL_ABOVE));
+  }
+  var result = await Swal.fire(Object.assign({
+    title: cost > 0 ? 'เปลี่ยนสัตว์เลี้ยง' : 'เลือกสัตว์เลี้ยง',
+    html: '<div class="pet-swal-summary"><strong>' + escHtml(pet.defaultName) + '</strong><span>' + (cost > 0 ? 'ใช้ ' + cost + ' เหรียญจาก MathCoins' : 'ใช้สิทธิ์เลือกฟรี') + '</span></div>',
+    input: 'text',
+    inputValue: pet.defaultName,
+    inputLabel: 'ตั้งชื่อสัตว์เลี้ยง',
+    inputAttributes: { maxlength: 18, autocapitalize: 'off', autocomplete: 'off' },
+    showCancelButton: true,
+    confirmButtonText: cost > 0 ? 'ยืนยันเปลี่ยน' : 'เลือกคู่หู',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: cost > 0 ? '#7c3aed' : '#10b981',
+    inputValidator: function(value) {
+      if (!String(value || '').trim()) return 'กรุณาตั้งชื่อก่อน';
+      return null;
+    }
+  }, SWAL_ABOVE));
+  if (!result.isConfirmed) return;
+  loading('กำลังบันทึกสัตว์เลี้ยง...');
+  try {
+    var saved = await selectStudentPetDb(CU.id, pet.id, result.value);
+    Swal.close();
+    if (saved.status !== 'success') {
+      return Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: saved.msg || '', confirmButtonColor: '#ef4444' }, SWAL_ABOVE));
+    }
+    studentPet = saved.pet;
+    shopWallet = await getWalletBalanceDb(CU.id);
+    updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
+    renderPetGrid();
+    renderStudentPet(studentPet, getCurrentStudentLevel());
+    closePetSelector();
+    fireShopConfetti();
+    Swal.fire(Object.assign({
+      icon: 'success',
+      title: cost > 0 ? 'เปลี่ยนคู่หูแล้ว' : 'ได้คู่หูใหม่แล้ว',
+      text: (studentPet.pet_name || pet.defaultName) + ' พร้อมอยู่ข้าง ๆ แล้ว',
+      timer: 1800,
+      timerProgressBar: true,
+      confirmButtonColor: '#10b981'
+    }, SWAL_ABOVE));
+  } catch (e) {
+    onErr(e);
+  }
+}
+
+async function openRenamePetModal() {
+  if (!studentPet) return openPetSelector();
+  await loadPetCatalog();
+  var pet = findPetById(studentPet.pet_id);
+  var renameUsed = clampPetCount(studentPet.rename_used, PET_RENAME_LIMIT);
+  var remaining = Math.max(0, PET_RENAME_LIMIT - renameUsed);
+  var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
+  if (remaining <= 0) {
+    return Swal.fire(Object.assign({
+      icon: 'info',
+      title: 'เปลี่ยนชื่อครบแล้ว',
+      text: 'สัตว์เลี้ยงตัวนี้เปลี่ยนชื่อได้ ' + PET_RENAME_LIMIT + ' ครั้ง',
+      confirmButtonColor: '#4f46e5'
+    }, SWAL_ABOVE));
+  }
+  var result = await Swal.fire(Object.assign({
+    title: 'เปลี่ยนชื่อสัตว์เลี้ยง',
+    html: '<div class="pet-swal-summary"><strong>' + escHtml(studentPet.pet_name || (pet && pet.defaultName) || 'Buddy') + '</strong><span>เหลือสิทธิ์เปลี่ยนชื่อ ' + remaining + ' ครั้ง</span></div>',
+    input: 'text',
+    inputValue: studentPet.pet_name || (pet && pet.defaultName) || 'Buddy',
+    inputLabel: 'ชื่อใหม่',
+    inputAttributes: { maxlength: 18, autocapitalize: 'off', autocomplete: 'off' },
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกชื่อ',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#4f46e5',
+    inputValidator: function(value) {
+      if (!String(value || '').trim()) return 'กรุณากรอกชื่อใหม่';
+      return null;
+    }
+  }, SWAL_ABOVE));
+  if (!result.isConfirmed) return;
+  loading('กำลังบันทึกชื่อ...');
+  try {
+    var saved = await renameStudentPetDb(CU.id, result.value);
+    Swal.close();
+    if (saved.status !== 'success') {
+      return Swal.fire(Object.assign({ icon: 'error', title: 'ไม่สำเร็จ', text: saved.msg || '', confirmButtonColor: '#ef4444' }, SWAL_ABOVE));
+    }
+    studentPet = saved.pet;
+    renderStudentPet(studentPet, getCurrentStudentLevel());
+    renderPetWallet();
+    renderPetGrid();
+    Swal.fire(Object.assign({
+      icon: 'success',
+      title: 'เปลี่ยนชื่อแล้ว',
+      text: studentPet.pet_name,
+      timer: 1500,
+      timerProgressBar: true,
+      confirmButtonColor: '#10b981'
+    }, SWAL_ABOVE));
+  } catch (e) {
+    onErr(e);
+  }
 }
 
 function openPhotoUpload() {
+  if (isGuestMode()) {
+    return Swal.fire({
+      icon: 'info',
+      title: 'โหมดทดลอง',
+      text: 'รูปโปรไฟล์ในโหมด Guest จะแสดงได้เฉพาะในแท็บนี้และไม่ถูกบันทึกลงฐานข้อมูล',
+      confirmButtonColor: '#4f46e5'
+    });
+  }
   document.getElementById('photoInput').click();
 }
 
 async function handlePhotoChange(event) {
   var file = event.target.files[0];
   if (!file) return;
+  if (isGuestMode()) {
+    event.target.value = '';
+    return;
+  }
   if (file.size > 5 * 1024 * 1024) {
     event.target.value = '';
     return Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'กรุณาเลือกรูปที่เล็กกว่า 5MB' });
@@ -1427,6 +2879,9 @@ async function checkIn() {
             rng.classList.add('lv-up-anim');
             setTimeout(function() { rng.classList.remove('lv-up-anim'); }, 600);
           }
+          renderStudentPet(studentPet, d.level, old);
+          shopWallet = await getWalletBalanceDb(CU.id);
+          updateShopCoinsBadge(shopWallet.mathCoins);
         } catch (e) {}
       }, 900);
     } else {
@@ -1446,19 +2901,19 @@ async function submitCheckIn() {
   return checkIn();
 }
 
-function attendancePillClass(status) {
-  return status === 'มา' ? 'p-g' : (status === 'ขาด' ? 'p-r' : 'p-y');
-}
-
 function refreshStudentData() {
   if (refreshCooldown) return;
+  if (isGuestMode() && !getActiveGuestSession()) return showGuestExpiredAlert();
   refreshCooldown = true;
   var btn = document.getElementById('refreshBtn');
   var icon = document.getElementById('refreshIcon');
   var lbl = document.getElementById('refreshLabel');
   icon.className = 'fa-solid fa-rotate-right fa-spin';
   btn.disabled = true;
-  loadStudentProfile();
+  loadStudentProfile().then(function() {
+    return loadStudentPet();
+  });
+  refreshWallet();
   var secs = 30;
   lbl.textContent = 'รอ ' + secs + 's';
   var t = setInterval(function() {
@@ -1509,6 +2964,7 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'stats') loadStats();
+  if (name === 'reset') loadPasswordResetRequests();
   if (name === 'shop') loadTeacherShopItems();
   if (name === 'reward-report') loadRewardReport();
 }
@@ -2257,11 +3713,15 @@ async function saveSettings() {
 
 /* ══ Logout ══════════════════════════════════════════ */
 function logout() {
+  if (isGuestMode()) clearGuestSession();
+  stopGuestSessionClock();
   CU = {};
   statsCache = null;
   statsLoaded = false;
   shopItems = null;
   shopWallet = null;
+  studentPet = null;
+  stopPasswordResetDashboard();
   location.reload();
 }
 
@@ -3044,6 +4504,7 @@ async function refreshWallet() {
     shopWallet = await getWalletBalanceDb(CU.id);
     updateWalletUI(shopWallet, null);
     updateShopCoinsBadge(shopWallet.mathCoins);
+    renderPetWallet();
   } catch (e) {}
 }
 
@@ -3051,9 +4512,16 @@ function updateWalletUI(w, prevCoins) {
   var el = document.getElementById('shopCoinsDisplay');
   el.textContent = w.mathCoins + ' 🪙';
   if (prevCoins !== null && prevCoins !== w.mathCoins) {
-    el.classList.remove('coin-flash');
-    void el.offsetWidth;
-    el.classList.add('coin-flash');
+    if (el.animate) {
+      el.animate([
+        { transform: 'scale(1)', textShadow: '0 0 0 rgba(251,191,36,0)' },
+        { transform: 'scale(1.18)', textShadow: '0 0 14px rgba(251,191,36,.75)' },
+        { transform: 'scale(1)', textShadow: '0 0 0 rgba(251,191,36,0)' }
+      ], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    } else {
+      el.classList.remove('coin-flash');
+      requestAnimationFrame(function() { el.classList.add('coin-flash'); });
+    }
   }
   document.getElementById('shopLifetimeDisplay').textContent =
     'Lifetime EXP: ' + w.lifetimeExp + ' | ใช้ไปแล้ว: ' + w.totalSpent;
