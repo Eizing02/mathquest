@@ -2496,7 +2496,10 @@ window.addEventListener('load', async function() {
   var bulkGrade = document.getElementById('bulkGrade');
   if (manGrade && bulkGrade) bulkGrade.innerHTML = manGrade.innerHTML;
   var bulkDate = document.getElementById('bulkSingleDate');
-  if (bulkDate) bulkDate.value = dateKeyBangkok(new Date());
+  if (bulkDate) {
+    bulkDate.value = dateKeyBangkok(new Date());
+    addBulkSingleDate();
+  }
   initAccessibleTabs();
   initOverlayKeyboardControls();
   if (!isSupabaseConfigured()) {
@@ -3950,7 +3953,9 @@ function renderBulkPreview() {
   button.disabled = !studentIds.length || !dates.length || pairs > 5000;
   if (!studentIds.length || !dates.length) {
     preview.className = 'bulk-preview';
-    preview.textContent = 'เลือกนักเรียนและวันที่เพื่อดูตัวอย่าง';
+    if (!studentIds.length && !dates.length) preview.textContent = 'ยังไม่ได้เลือกนักเรียนและวันที่';
+    else if (!studentIds.length) preview.textContent = 'ยังไม่ได้เลือกนักเรียน';
+    else preview.textContent = 'ยังไม่ได้เพิ่มวันที่';
     return;
   }
   preview.className = 'bulk-preview' + (pairs > 5000 ? ' bulk-preview-error' : '');

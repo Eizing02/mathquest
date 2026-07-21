@@ -477,7 +477,7 @@
                 <div class="bulk-step-title"><span>2</span> เลือกวันที่</div>
                 <label class="form-label" for="bulkSingleDate">เพิ่มวันที่เดี่ยว</label>
                 <div class="input-group mb-2">
-                  <input type="date" id="bulkSingleDate" class="form-control">
+                  <input type="date" id="bulkSingleDate" class="form-control" onchange="addBulkSingleDate()">
                   <button class="btn btn-outline-primary" type="button" onclick="addBulkSingleDate()"><i class="fa-solid fa-plus"></i><span class="visually-hidden">เพิ่มวันที่</span></button>
                 </div>
                 <div id="bulkSingleDates" class="bulk-date-chips"></div>
