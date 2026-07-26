@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" rel="stylesheet">
   <link href="./style.css" rel="stylesheet">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -20,6 +21,7 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 </head>
 <body>
 <!-- ════════ LOGIN ════════ -->
@@ -81,13 +83,18 @@
     <div class="s-card mb-3" id="levelCard">
       <div class="text-center">
         <div class="photo-overlay mb-2">
-          <img id="studentPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='32' fill='%234f46e5'%3E👤%3C/text%3E%3C/svg%3E"
-               class="profile-photo" onclick="openPhotoUpload()" alt="รูปโปรไฟล์นักเรียน">
-          <button class="photo-edit-btn" onclick="openPhotoUpload()" aria-label="เปลี่ยนรูปโปรไฟล์">
+          <button type="button" class="profile-photo-trigger" id="profilePhotoTrigger"
+                  onclick="openProfilePreview()" aria-label="ดูรูปโปรไฟล์ขนาดใหญ่" aria-haspopup="dialog">
+            <img id="studentPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='32' fill='%234f46e5'%3E👤%3C/text%3E%3C/svg%3E"
+                 class="profile-photo" alt="">
+          </button>
+          <button type="button" class="photo-edit-btn" id="photoEditButton"
+                  onclick="openPhotoUpload()" aria-label="เปลี่ยนรูปโปรไฟล์">
             <i class="fa-solid fa-camera"></i>
           </button>
         </div>
-        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoChange(event)" aria-label="อัปโหลดรูปโปรไฟล์">
+        <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+               style="display:none" onchange="handlePhotoChange(event)" aria-label="อัปโหลดรูปโปรไฟล์">
         <div class="ring-wrap mb-2">
           <div class="level-ring" id="levelRing">
             <div class="level-ring-inner">
@@ -951,6 +958,127 @@
     </div>
   </div>
 </div>
+
+<!-- ════════ STUDENT PROFILE PHOTO CROP ════════ -->
+<div class="modal fade profile-crop-modal" id="profileCropModal" tabindex="-1"
+     data-bs-backdrop="static" data-bs-keyboard="true"
+     aria-labelledby="profileCropTitle" aria-describedby="profileCropStatus" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down profile-crop-dialog">
+    <div class="modal-content profile-crop-panel">
+      <div class="modal-header profile-crop-header">
+        <div>
+          <h2 class="modal-title" id="profileCropTitle">จัดตำแหน่งรูปโปรไฟล์</h2>
+          <p>ขยับและซูมให้ใบหน้าอยู่ภายในวงกลม</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="ยกเลิกการจัดตำแหน่งรูป"></button>
+      </div>
+      <div class="modal-body profile-crop-body">
+        <div class="profile-crop-workspace" id="profileCropWorkspace" tabindex="0"
+             aria-label="พื้นที่จัดตำแหน่งรูป ใช้ปุ่มลูกศรเพื่อขยับรูป">
+          <img id="profileCropImage" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+               alt="รูปที่เลือกสำหรับจัดตำแหน่ง" draggable="false">
+          <div class="profile-crop-state is-loading" id="profileCropState" role="status">
+            <span class="profile-preview-spinner" aria-hidden="true"></span>
+            <span id="profileCropStateText">กำลังเตรียมรูป...</span>
+          </div>
+        </div>
+
+        <div class="profile-crop-tools">
+          <div class="profile-crop-action-row" role="group" aria-label="หมุนและรีเซ็ตรูป">
+            <button type="button" class="profile-crop-icon-btn" id="profileCropRotateLeft"
+                    onclick="rotateProfileCrop(-90)" aria-label="หมุนรูปไปทางซ้าย 90 องศา" title="หมุนซ้าย">
+              <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="profile-crop-reset-btn" id="profileCropReset"
+                    onclick="resetProfileCrop()" aria-label="รีเซ็ตตำแหน่งรูป">
+              <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+              <span>รีเซ็ต</span>
+            </button>
+            <button type="button" class="profile-crop-icon-btn" id="profileCropRotateRight"
+                    onclick="rotateProfileCrop(90)" aria-label="หมุนรูปไปทางขวา 90 องศา" title="หมุนขวา">
+              <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div class="profile-crop-zoom-row">
+            <button type="button" class="profile-crop-icon-btn" id="profileCropZoomOut"
+                    onclick="changeProfileCropZoom(-10)" aria-label="ซูมรูปออก" title="ซูมออก">
+              <i class="fa-solid fa-minus" aria-hidden="true"></i>
+            </button>
+            <label class="visually-hidden" for="profileCropZoom">ระดับการซูมรูป</label>
+            <input type="range" id="profileCropZoom" min="100" max="400" step="1" value="100"
+                   oninput="setProfileCropZoom(this.value)" aria-valuetext="ซูม 100 เปอร์เซ็นต์">
+            <output id="profileCropZoomValue" for="profileCropZoom">100%</output>
+            <button type="button" class="profile-crop-icon-btn" id="profileCropZoomIn"
+                    onclick="changeProfileCropZoom(10)" aria-label="ซูมรูปเข้า" title="ซูมเข้า">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <p class="profile-crop-warning hidden" id="profileCropWarning" role="status">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            พื้นที่ที่เลือกมีความละเอียดต่ำ รูปอาจไม่คมชัด
+          </p>
+        </div>
+        <p class="visually-hidden" id="profileCropStatus" aria-live="polite">
+          พร้อมจัดตำแหน่งรูป
+        </p>
+      </div>
+      <div class="modal-footer profile-crop-footer">
+        <button type="button" class="btn profile-crop-cancel-btn" data-bs-dismiss="modal">
+          ยกเลิก
+        </button>
+        <button type="button" class="btn profile-crop-apply-btn" id="profileCropApply"
+                onclick="confirmProfileCrop()">
+          <i class="fa-solid fa-check" aria-hidden="true"></i>
+          <span>ใช้รูปนี้</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ STUDENT PROFILE PHOTO PREVIEW ════════ -->
+<div class="modal fade profile-preview-modal" id="profilePreviewModal" tabindex="-1"
+     aria-labelledby="profilePreviewTitle" aria-describedby="profilePreviewStatus" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered profile-preview-dialog">
+    <div class="modal-content profile-preview-panel">
+      <div class="modal-header profile-preview-header">
+        <h2 class="modal-title" id="profilePreviewTitle">รูปโปรไฟล์</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิดภาพตัวอย่าง"></button>
+      </div>
+      <div class="modal-body profile-preview-body">
+        <div class="profile-preview-viewport is-loading" id="profilePreviewViewport">
+          <div class="profile-preview-stage" id="profilePreviewStage">
+            <img id="profilePreviewImage" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="" draggable="false">
+          </div>
+          <div class="profile-preview-state" id="profilePreviewState" role="status">
+            <span class="profile-preview-spinner" aria-hidden="true"></span>
+            <span id="profilePreviewStateText">กำลังโหลดรูป...</span>
+          </div>
+        </div>
+        <div class="profile-preview-toolbar" role="group" aria-label="ควบคุมการซูมรูป">
+          <button type="button" class="profile-preview-control" id="profileZoomOut"
+                  onclick="changeProfilePreviewZoom(-0.25)" aria-label="ซูมออก" title="ซูมออก">
+            <i class="fa-solid fa-minus" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="profile-preview-reset" id="profileZoomReset"
+                  onclick="resetProfilePreviewZoom()" aria-label="รีเซ็ตการซูม">
+            <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+            <span id="profileZoomValue">100%</span>
+          </button>
+          <button type="button" class="profile-preview-control" id="profileZoomIn"
+                  onclick="changeProfilePreviewZoom(0.25)" aria-label="ซูมเข้า" title="ซูมเข้า">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          </button>
+        </div>
+        <p class="visually-hidden" id="profilePreviewStatus" aria-live="polite">แสดงรูปที่ขนาด 100 เปอร์เซ็นต์</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="shopOrderToastRegion" class="shop-order-toast-region" aria-live="polite" aria-relevant="additions" aria-label="การแจ้งเตือนออเดอร์ใหม่"></div>
 <div id="shopOrderStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <script defer src="./app.js"></script>

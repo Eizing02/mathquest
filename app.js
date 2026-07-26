@@ -73,6 +73,31 @@ var guestSessionTimer = null;
 var guestExpiryHandled = false;
 var shopReturnFocus = null;
 var petReturnFocus = null;
+var PROFILE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+var PROFILE_IMAGE_TARGET_BYTES = 250 * 1024;
+var PROFILE_IMAGE_SOFT_MAX_BYTES = 400 * 1024;
+var PROFILE_IMAGE_MAX_EDGE = 768;
+var PROFILE_IMAGE_MIN_EDGE = 640;
+var PROFILE_ORPHAN_GRACE_MS = 15 * 60 * 1000;
+var profilePlaceholderSrc = '';
+var currentProfilePhotoUrl = '';
+var profilePhotoLoadFailed = false;
+var profileUploadInFlight = false;
+var profilePreviewInstance = null;
+var profilePreviewReturnFocus = null;
+var profilePreviewScale = 1;
+var profilePreviewBaseWidth = 0;
+var profilePreviewBaseHeight = 0;
+var profilePreviewDrag = null;
+var profileCropInstance = null;
+var profileCropModalInstance = null;
+var profileCropObjectUrl = '';
+var profileCropResolve = null;
+var profileCropBaseRatio = 1;
+var profileCropRotation = 0;
+var profileCropReady = false;
+var profileCropProcessing = false;
+var PROFILE_CROP_LOW_RES_EDGE = 320;
 
 var TH_MO_S = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 var TH_MO_L = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -661,52 +686,353 @@ async function restoreGuestSessionIfActive() {
 }
 
 /* ══ Storage Helpers ═════════════════════════════════ */
-function compressImageFile(file, maxW, maxH, quality) {
+function waitMs(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
+
+function canvasToBlob(canvas, outputType, quality) {
   return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var img = new Image();
-      img.onload = function() {
-        var w = img.width, h = img.height;
-        var ratio = Math.min(maxW / w, maxH / h, 1);
-        var canvas = document.createElement('canvas');
-        canvas.width = Math.round(w * ratio);
-        canvas.height = Math.round(h * ratio);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(function(blob) {
-          if (!blob) {
-            reject(new Error('ไม่สามารถบีบอัดรูปภาพได้'));
-            return;
-          }
-          resolve(blob);
-        }, 'image/jpeg', quality || 0.75);
-      };
-      img.onerror = function() { reject(new Error('ไม่สามารถอ่านรูปภาพได้')); };
-      img.src = e.target.result;
-    };
-    reader.onerror = function() { reject(new Error('ไม่สามารถอ่านไฟล์ได้')); };
-    reader.readAsDataURL(file);
+    canvas.toBlob(function(blob) {
+      if (!blob) {
+        reject(new Error('ไม่สามารถบีบอัดรูปภาพได้'));
+        return;
+      }
+      resolve(blob);
+    }, outputType, quality);
   });
 }
 
-async function uploadCompressedImage(file, options) {
+function canEncodeCanvasType(outputType) {
+  if (outputType !== 'image/webp') return true;
+  try {
+    var canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL(outputType).indexOf('data:' + outputType) === 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function decodeImageFile(file) {
+  if (window.createImageBitmap) {
+    try {
+      var orientedBitmap;
+      try {
+        orientedBitmap = await window.createImageBitmap(file, { imageOrientation: 'from-image' });
+      } catch (orientationError) {
+        orientedBitmap = await window.createImageBitmap(file);
+      }
+      return {
+        source: orientedBitmap,
+        width: orientedBitmap.width,
+        height: orientedBitmap.height,
+        cleanup: function() {
+          if (orientedBitmap && orientedBitmap.close) orientedBitmap.close();
+        }
+      };
+    } catch (bitmapError) {
+      console.warn('createImageBitmap fallback:', bitmapError);
+    }
+  }
+
+  return new Promise(function(resolve, reject) {
+    var objectUrl = URL.createObjectURL(file);
+    var image = new Image();
+    image.onload = function() {
+      resolve({
+        source: image,
+        width: image.naturalWidth || image.width,
+        height: image.naturalHeight || image.height,
+        cleanup: function() { URL.revokeObjectURL(objectUrl); }
+      });
+    };
+    image.onerror = function() {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('ไม่สามารถอ่านรูปภาพนี้ได้'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function drawImageCanvas(source, width, height) {
+  var canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
+  var context = canvas.getContext('2d');
+  if (!context) throw new Error('เบราว์เซอร์ไม่รองรับการประมวลผลรูปภาพ');
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+function resizeImageHighQuality(source, sourceWidth, sourceHeight, targetWidth, targetHeight) {
+  var currentSource = source;
+  var currentWidth = sourceWidth;
+  var currentHeight = sourceHeight;
+
+  while (currentWidth > targetWidth * 2 && currentHeight > targetHeight * 2) {
+    currentWidth = Math.max(targetWidth, Math.round(currentWidth / 2));
+    currentHeight = Math.max(targetHeight, Math.round(currentHeight / 2));
+    currentSource = drawImageCanvas(currentSource, currentWidth, currentHeight);
+  }
+
+  if (currentWidth !== targetWidth || currentHeight !== targetHeight || currentSource === source) {
+    currentSource = drawImageCanvas(currentSource, targetWidth, targetHeight);
+  }
+  return currentSource;
+}
+
+function flattenCanvasForJpeg(canvas) {
+  var flattened = document.createElement('canvas');
+  flattened.width = canvas.width;
+  flattened.height = canvas.height;
+  var context = flattened.getContext('2d');
+  if (!context) throw new Error('เบราว์เซอร์ไม่รองรับการประมวลผลรูปภาพ');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, flattened.width, flattened.height);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(canvas, 0, 0);
+  return flattened;
+}
+
+function profileQualitySteps(initialQuality, minimumQuality) {
+  var candidates = [initialQuality, 0.90, 0.88, minimumQuality];
+  var unique = [];
+  candidates.forEach(function(value) {
+    var rounded = Math.round(value * 100) / 100;
+    if (rounded <= initialQuality && rounded >= minimumQuality && unique.indexOf(rounded) === -1) {
+      unique.push(rounded);
+    }
+  });
+  return unique.sort(function(a, b) { return b - a; });
+}
+
+async function compressImageCanvas(sourceCanvas, quality, outputType, options) {
+  var opt = options || {};
+  var canvas = sourceCanvas;
+  var requestedType = outputType || 'image/jpeg';
+  var mimeType = canEncodeCanvasType(requestedType) ? requestedType : 'image/jpeg';
+  if (mimeType === 'image/jpeg') canvas = flattenCanvasForJpeg(canvas);
+
+  var initialQuality = quality == null ? 0.75 : quality;
+  var minimumQuality = opt.minQuality == null ? initialQuality : opt.minQuality;
+  var targetBytes = Number(opt.targetBytes) || 0;
+  var softMaxBytes = Number(opt.softMaxBytes) || 0;
+  var minimumLongEdge = Math.min(
+    Number(opt.minLongEdge) || Math.max(canvas.width, canvas.height),
+    Math.max(canvas.width, canvas.height)
+  );
+  var qualities = targetBytes
+    ? profileQualitySteps(initialQuality, minimumQuality)
+    : [initialQuality];
+  var best = null;
+
+  async function encodeQualitySteps(qualitySteps) {
+    for (var i = 0; i < qualitySteps.length; i++) {
+      var encoded = await canvasToBlob(canvas, mimeType, qualitySteps[i]);
+      var result = {
+        blob: encoded,
+        quality: qualitySteps[i],
+        width: canvas.width,
+        height: canvas.height
+      };
+      if (!best || encoded.size < best.blob.size) best = result;
+      if (!targetBytes || encoded.size <= targetBytes) return result;
+    }
+    return null;
+  }
+
+  var selected = await encodeQualitySteps(qualities);
+  while (!selected && targetBytes && Math.max(canvas.width, canvas.height) > minimumLongEdge) {
+    var currentLongEdge = Math.max(canvas.width, canvas.height);
+    var nextLongEdge = Math.max(minimumLongEdge, Math.round(currentLongEdge * 0.9));
+    var resizeRatio = nextLongEdge / currentLongEdge;
+    canvas = drawImageCanvas(
+      canvas,
+      Math.max(1, Math.round(canvas.width * resizeRatio)),
+      Math.max(1, Math.round(canvas.height * resizeRatio))
+    );
+    selected = await encodeQualitySteps(profileQualitySteps(Math.min(initialQuality, 0.90), minimumQuality));
+  }
+
+  selected = selected || best;
+  if (!selected) throw new Error('ไม่สามารถบีบอัดรูปภาพได้');
+  if (softMaxBytes && selected.blob.size > softMaxBytes) {
+    console.warn('Compressed image exceeds the soft size target:', selected.blob.size);
+  }
+
+  return {
+    blob: selected.blob,
+    width: selected.width,
+    height: selected.height,
+    quality: selected.quality,
+    contentType: selected.blob.type || mimeType,
+    bytes: selected.blob.size
+  };
+}
+
+async function compressImageFile(file, maxW, maxH, quality, outputType, options) {
+  var decoded = await decodeImageFile(file);
+  try {
+    if (!decoded.width || !decoded.height) throw new Error('รูปภาพไม่มีขนาดที่ถูกต้อง');
+    var ratio = Math.min(maxW / decoded.width, maxH / decoded.height, 1);
+    var targetWidth = Math.max(1, Math.round(decoded.width * ratio));
+    var targetHeight = Math.max(1, Math.round(decoded.height * ratio));
+    var canvas = resizeImageHighQuality(
+      decoded.source,
+      decoded.width,
+      decoded.height,
+      targetWidth,
+      targetHeight
+    );
+    return compressImageCanvas(canvas, quality, outputType, options);
+  } finally {
+    decoded.cleanup();
+  }
+}
+
+function randomStorageSuffix() {
+  if (window.crypto && window.crypto.getRandomValues) {
+    var values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0].toString(36);
+  }
+  return Math.random().toString(36).slice(2, 10);
+}
+
+async function uploadPreparedImage(compressed, originalName, options) {
   var opt = options || {};
   var folder = opt.folder || 'uploads';
-  var maxWidth = opt.maxWidth || 200;
-  var maxHeight = opt.maxHeight || 200;
-  var quality = opt.quality || 0.75;
+  var outputType = opt.outputType || 'image/jpeg';
   var client = getSupabase();
-  var blob = await compressImageFile(file, maxWidth, maxHeight, quality);
-  var baseName = sanitizeFilename(file.name || 'image.jpg').replace(/\.[^.]+$/, '') || 'image';
-  var path = folder + '/' + Date.now() + '-' + baseName + '.jpg';
-  await runQuery(client.storage.from(STORAGE_BUCKET).upload(path, blob, {
-    contentType: 'image/jpeg',
-    upsert: true
+  var contentType = compressed.contentType || outputType;
+  var extension = contentType === 'image/webp' ? 'webp' :
+    contentType === 'image/png' ? 'png' : 'jpg';
+  var sourceName = sanitizeFilename(originalName || 'image.jpg').replace(/\.[^.]+$/, '') || 'image';
+  var baseName = opt.filePrefix ? sanitizeFilename(opt.filePrefix) : sourceName;
+  var path = folder + '/' + Date.now() + '-' + randomStorageSuffix() + '-' + baseName + '.' + extension;
+  await runQuery(client.storage.from(STORAGE_BUCKET).upload(path, compressed.blob, {
+    contentType: contentType,
+    cacheControl: String(opt.cacheControl == null ? 3600 : opt.cacheControl),
+    upsert: opt.upsert == null ? true : !!opt.upsert
   }));
   var pub = client.storage.from(STORAGE_BUCKET).getPublicUrl(path);
   return {
     path: path,
-    publicUrl: pub.data.publicUrl
+    publicUrl: pub.data.publicUrl,
+    width: compressed.width,
+    height: compressed.height,
+    quality: compressed.quality,
+    contentType: contentType,
+    bytes: compressed.bytes
+  };
+}
+
+async function uploadCompressedImage(file, options) {
+  var opt = options || {};
+  var maxWidth = opt.maxWidth || 200;
+  var maxHeight = opt.maxHeight || 200;
+  var quality = opt.quality == null ? 0.75 : opt.quality;
+  var outputType = opt.outputType || 'image/jpeg';
+  var compressed = await compressImageFile(file, maxWidth, maxHeight, quality, outputType, {
+    targetBytes: opt.targetBytes,
+    softMaxBytes: opt.softMaxBytes,
+    minQuality: opt.minQuality,
+    minLongEdge: opt.minLongEdge
+  });
+  return uploadPreparedImage(compressed, file.name, opt);
+}
+
+function safeStudentStorageId(studentId) {
+  var value = String(studentId == null ? '' : studentId).trim();
+  return /^[A-Za-z0-9_-]+$/.test(value) ? value : '';
+}
+
+function getStudentStoragePrefix(studentId) {
+  var safeId = safeStudentStorageId(studentId);
+  return safeId ? 'students/' + safeId + '/' : '';
+}
+
+function getStoragePathFromPublicUrl(publicUrl, studentId) {
+  if (!publicUrl) return '';
+  var prefix = getStudentStoragePrefix(studentId);
+  if (!prefix) return '';
+  try {
+    var parsed = new URL(publicUrl);
+    var storageOrigin = new URL(SUPABASE_URL).origin;
+    var marker = '/storage/v1/object/public/' + STORAGE_BUCKET + '/';
+    if (parsed.origin !== storageOrigin || parsed.pathname.indexOf(marker) !== 0) return '';
+    var path = decodeURIComponent(parsed.pathname.slice(marker.length));
+    if (path.indexOf('..') !== -1 || path.indexOf('\0') !== -1) return '';
+    return path.indexOf(prefix) === 0 ? path : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+async function removeStoragePathsWithRetry(paths, attempts) {
+  var uniquePaths = [];
+  (paths || []).forEach(function(path) {
+    if (path && uniquePaths.indexOf(path) === -1) uniquePaths.push(path);
+  });
+  if (!uniquePaths.length) return { ok: true, removed: [] };
+
+  var lastError = null;
+  var maxAttempts = Math.max(1, Number(attempts) || 1);
+  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await runQuery(getSupabase().storage.from(STORAGE_BUCKET).remove(uniquePaths));
+      return { ok: true, removed: uniquePaths };
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) await waitMs(300 * Math.pow(3, attempt - 1));
+    }
+  }
+  return { ok: false, removed: [], error: lastError, paths: uniquePaths };
+}
+
+async function cleanupStudentProfileStorage(studentId, keepPath, previousPublicUrl) {
+  var prefix = getStudentStoragePrefix(studentId);
+  if (!prefix || !keepPath || keepPath.indexOf(prefix) !== 0) {
+    return { ok: false, error: new Error('เส้นทางรูปโปรไฟล์ไม่ถูกต้อง') };
+  }
+
+  var previousPath = getStoragePathFromPublicUrl(previousPublicUrl, studentId);
+  var exactResult = previousPath && previousPath !== keepPath
+    ? await removeStoragePathsWithRetry([previousPath], 3)
+    : { ok: true, removed: [] };
+  var stalePaths = [];
+  var listError = null;
+
+  try {
+    var files = await runQuery(getSupabase().storage.from(STORAGE_BUCKET).list(
+      prefix.slice(0, -1),
+      { limit: 100, offset: 0, sortBy: { column: 'created_at', order: 'asc' } }
+    ));
+    var keepName = keepPath.slice(prefix.length);
+    var staleBefore = Date.now() - PROFILE_ORPHAN_GRACE_MS;
+    (files || []).forEach(function(file) {
+      var mimeType = file && file.metadata ? String(file.metadata.mimetype || '') : '';
+      var createdAt = file && file.created_at ? new Date(file.created_at).getTime() : NaN;
+      if (!file || !file.name || file.name === keepName) return;
+      if (mimeType.indexOf('image/') !== 0 || isNaN(createdAt) || createdAt > staleBefore) return;
+      var candidate = prefix + file.name;
+      if (candidate !== previousPath) stalePaths.push(candidate);
+    });
+  } catch (error) {
+    listError = error;
+  }
+
+  var staleResult = stalePaths.length
+    ? await removeStoragePathsWithRetry(stalePaths, 3)
+    : { ok: true, removed: [] };
+  return {
+    ok: exactResult.ok && staleResult.ok && !listError,
+    removed: exactResult.removed.concat(staleResult.removed),
+    error: exactResult.error || staleResult.error || listError || null
   };
 }
 
@@ -1342,21 +1668,40 @@ async function getStudentProfileDb(studentId) {
   };
 }
 
-async function saveProfilePictureDb(studentId, photoUrl) {
+async function getProfilePictureUrlDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var session = getActiveGuestSession();
+    return session && session.profile ? (session.profile.photo_url || null) : null;
+  }
+  var client = getSupabase();
+  var row = await runQuery(client.from('students')
+    .select('photo_url')
+    .eq('id', String(studentId).trim())
+    .maybeSingle());
+  return row ? row.photo_url : null;
+}
+
+async function replaceProfilePictureDb(studentId, expectedPhotoUrl, photoUrl) {
   if (isGuestStudentId(studentId)) {
     var session = getActiveGuestSession();
     if (!session) return { status: 'fail' };
     session.profile.photo = photoUrl || '';
     session.profile.photo_url = photoUrl || '';
     saveActiveGuestSession(session);
-    return { status: 'success' };
+    return { status: 'success', photoUrl: photoUrl || '' };
   }
+
   var client = getSupabase();
-  await runQuery(client.from('students')
+  var query = client.from('students')
     .update({ photo_url: photoUrl || '' })
-    .eq('id', String(studentId).trim())
-    .select('id'));
-  return { status: 'success' };
+    .eq('id', String(studentId).trim());
+  query = expectedPhotoUrl == null
+    ? query.is('photo_url', null)
+    : query.eq('photo_url', expectedPhotoUrl);
+  var row = await runQuery(query.select('id,photo_url').maybeSingle());
+  return row
+    ? { status: 'success', photoUrl: row.photo_url || '' }
+    : { status: 'conflict', photoUrl: await getProfilePictureUrlDb(studentId) };
 }
 
 async function getStudentsInGradeDb(grade) {
@@ -2537,6 +2882,8 @@ async function getGradeWalletSummaryDb(grade) {
 
 /* ══ App Init ════════════════════════════════════════ */
 window.addEventListener('load', async function() {
+  var studentPhoto = document.getElementById('studentPhoto');
+  if (studentPhoto) profilePlaceholderSrc = studentPhoto.getAttribute('src') || BLANK_IMAGE_SRC;
   var el = document.getElementById('manDate');
   if (el) el.value = dateKeyBangkok(new Date());
   var manGrade = document.getElementById('manGrade');
@@ -2551,6 +2898,8 @@ window.addEventListener('load', async function() {
   }
   initAccessibleTabs();
   initOverlayKeyboardControls();
+  initProfileCrop();
+  initProfilePreview();
   if (!isSupabaseConfigured()) {
     showConfigAlert();
     await restoreGuestSessionIfActive();
@@ -2676,11 +3025,31 @@ async function login() {
 }
 
 /* ══ Student Profile + Gamification ═════════════════ */
+function setStudentProfilePhoto(photoUrl) {
+  var image = document.getElementById('studentPhoto');
+  if (!image) return;
+  if (!profilePlaceholderSrc) profilePlaceholderSrc = image.getAttribute('src') || BLANK_IMAGE_SRC;
+  currentProfilePhotoUrl = photoUrl || '';
+  profilePhotoLoadFailed = false;
+  image.classList.remove('is-fallback');
+  image.onerror = handleStudentPhotoError;
+  image.src = currentProfilePhotoUrl || profilePlaceholderSrc;
+}
+
+function handleStudentPhotoError() {
+  var image = document.getElementById('studentPhoto');
+  if (!image) return;
+  profilePhotoLoadFailed = true;
+  image.onerror = null;
+  image.classList.add('is-fallback');
+  image.src = profilePlaceholderSrc || BLANK_IMAGE_SRC;
+}
+
 async function loadStudentProfile() {
   try {
     var d = await getStudentProfileDb(CU.id);
     if (!d) return;
-    if (d.photo) document.getElementById('studentPhoto').src = d.photo;
+    setStudentProfilePhoto(d.photo || '');
     updateGamiUI({ totalPoints: d.totalPoints, level: d.level, pointsInLevel: d.pointsInLevel });
   } catch (e) {
     await loadStudentGami();
@@ -3028,6 +3397,554 @@ async function openRenamePetModal() {
   }
 }
 
+function setProfilePreviewState(state, message) {
+  var viewport = document.getElementById('profilePreviewViewport');
+  var stateText = document.getElementById('profilePreviewStateText');
+  if (!viewport) return;
+  viewport.classList.toggle('is-loading', state === 'loading');
+  viewport.classList.toggle('has-error', state === 'error');
+  if (stateText && message) stateText.textContent = message;
+}
+
+function updateProfilePreviewControls(isReady) {
+  var zoomOut = document.getElementById('profileZoomOut');
+  var zoomIn = document.getElementById('profileZoomIn');
+  var zoomReset = document.getElementById('profileZoomReset');
+  var zoomValue = document.getElementById('profileZoomValue');
+  var status = document.getElementById('profilePreviewStatus');
+  var percent = Math.round(profilePreviewScale * 100);
+  if (zoomOut) zoomOut.disabled = !isReady || profilePreviewScale <= 1;
+  if (zoomIn) zoomIn.disabled = !isReady || profilePreviewScale >= 3;
+  if (zoomReset) zoomReset.disabled = !isReady || profilePreviewScale === 1;
+  if (zoomValue) zoomValue.textContent = percent + '%';
+  if (status) status.textContent = isReady
+    ? 'แสดงรูปที่ขนาด ' + percent + ' เปอร์เซ็นต์'
+    : 'ไม่สามารถควบคุมการซูมรูปได้';
+}
+
+function measureProfilePreviewImage() {
+  var viewport = document.getElementById('profilePreviewViewport');
+  var image = document.getElementById('profilePreviewImage');
+  if (!viewport || !image || !image.naturalWidth || !viewport.clientWidth) return false;
+  var maxWidth = Math.max(1, viewport.clientWidth - 24);
+  var maxHeight = Math.max(1, viewport.clientHeight - 24);
+  var maxUpscale = image.dataset.placeholder === 'true' ? 3 : 1;
+  var fitRatio = Math.min(
+    maxWidth / image.naturalWidth,
+    maxHeight / image.naturalHeight,
+    maxUpscale
+  );
+  profilePreviewBaseWidth = Math.max(1, Math.round(image.naturalWidth * fitRatio));
+  profilePreviewBaseHeight = Math.max(1, Math.round(image.naturalHeight * fitRatio));
+  return true;
+}
+
+function applyProfilePreviewZoom(keepCenter) {
+  var viewport = document.getElementById('profilePreviewViewport');
+  var stage = document.getElementById('profilePreviewStage');
+  var image = document.getElementById('profilePreviewImage');
+  if (!viewport || !stage || !image || !profilePreviewBaseWidth || !profilePreviewBaseHeight) {
+    updateProfilePreviewControls(false);
+    return;
+  }
+
+  var centerX = viewport.scrollWidth
+    ? (viewport.scrollLeft + viewport.clientWidth / 2) / viewport.scrollWidth
+    : 0.5;
+  var centerY = viewport.scrollHeight
+    ? (viewport.scrollTop + viewport.clientHeight / 2) / viewport.scrollHeight
+    : 0.5;
+  var imageWidth = Math.round(profilePreviewBaseWidth * profilePreviewScale);
+  var imageHeight = Math.round(profilePreviewBaseHeight * profilePreviewScale);
+  image.style.width = imageWidth + 'px';
+  image.style.height = imageHeight + 'px';
+  stage.style.width = Math.max(viewport.clientWidth, imageWidth + 24) + 'px';
+  stage.style.height = Math.max(viewport.clientHeight, imageHeight + 24) + 'px';
+  viewport.classList.toggle('is-zoomed', profilePreviewScale > 1);
+  updateProfilePreviewControls(true);
+
+  requestAnimationFrame(function() {
+    if (keepCenter) {
+      viewport.scrollLeft = centerX * viewport.scrollWidth - viewport.clientWidth / 2;
+      viewport.scrollTop = centerY * viewport.scrollHeight - viewport.clientHeight / 2;
+    } else {
+      viewport.scrollLeft = Math.max(0, (viewport.scrollWidth - viewport.clientWidth) / 2);
+      viewport.scrollTop = Math.max(0, (viewport.scrollHeight - viewport.clientHeight) / 2);
+    }
+  });
+}
+
+function setProfilePreviewZoom(nextScale, keepCenter) {
+  var clamped = Math.min(3, Math.max(1, Math.round(nextScale * 100) / 100));
+  if (clamped === profilePreviewScale && keepCenter) return;
+  profilePreviewScale = clamped;
+  applyProfilePreviewZoom(keepCenter !== false);
+}
+
+function changeProfilePreviewZoom(delta) {
+  setProfilePreviewZoom(profilePreviewScale + Number(delta || 0), true);
+}
+
+function resetProfilePreviewZoom() {
+  setProfilePreviewZoom(1, false);
+}
+
+function handleProfilePreviewImageLoad() {
+  var image = document.getElementById('profilePreviewImage');
+  if (!image || !image.naturalWidth) return;
+  image.hidden = false;
+  setProfilePreviewState('ready');
+  profilePreviewScale = 1;
+  if (measureProfilePreviewImage()) applyProfilePreviewZoom(false);
+  var status = document.getElementById('profilePreviewStatus');
+  if (status && image.dataset.placeholder === 'true') {
+    status.textContent = 'กำลังแสดงรูปโปรไฟล์เริ่มต้น';
+  }
+}
+
+function handleProfilePreviewImageError() {
+  var image = document.getElementById('profilePreviewImage');
+  if (image) image.hidden = true;
+  profilePreviewBaseWidth = 0;
+  profilePreviewBaseHeight = 0;
+  setProfilePreviewState('error', 'ไม่สามารถโหลดรูปโปรไฟล์ได้');
+  updateProfilePreviewControls(false);
+}
+
+function initProfilePreview() {
+  var modal = document.getElementById('profilePreviewModal');
+  var viewport = document.getElementById('profilePreviewViewport');
+  var image = document.getElementById('profilePreviewImage');
+  if (!modal || !viewport || !image || modal.dataset.initialized === 'true') return;
+  modal.dataset.initialized = 'true';
+
+  image.addEventListener('load', handleProfilePreviewImageLoad);
+  image.addEventListener('error', handleProfilePreviewImageError);
+  modal.addEventListener('shown.bs.modal', function() {
+    if (image.complete && image.naturalWidth) handleProfilePreviewImageLoad();
+  });
+  modal.addEventListener('hidden.bs.modal', function() {
+    image.src = BLANK_IMAGE_SRC;
+    image.style.width = '';
+    image.style.height = '';
+    profilePreviewBaseWidth = 0;
+    profilePreviewBaseHeight = 0;
+    profilePreviewScale = 1;
+    profilePreviewDrag = null;
+    viewport.classList.remove('is-zoomed', 'is-dragging');
+    if (profilePreviewReturnFocus && typeof profilePreviewReturnFocus.focus === 'function') {
+      profilePreviewReturnFocus.focus();
+    }
+    profilePreviewReturnFocus = null;
+  });
+
+  viewport.addEventListener('wheel', function(event) {
+    if (!modal.classList.contains('show')) return;
+    event.preventDefault();
+    changeProfilePreviewZoom(event.deltaY < 0 ? 0.25 : -0.25);
+  }, { passive: false });
+  viewport.addEventListener('dblclick', function() {
+    setProfilePreviewZoom(profilePreviewScale === 1 ? 2 : 1, false);
+  });
+  viewport.addEventListener('pointerdown', function(event) {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || profilePreviewScale <= 1) return;
+    profilePreviewDrag = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      left: viewport.scrollLeft,
+      top: viewport.scrollTop
+    };
+    viewport.classList.add('is-dragging');
+    viewport.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  viewport.addEventListener('pointermove', function(event) {
+    if (!profilePreviewDrag || profilePreviewDrag.pointerId !== event.pointerId) return;
+    viewport.scrollLeft = profilePreviewDrag.left - (event.clientX - profilePreviewDrag.x);
+    viewport.scrollTop = profilePreviewDrag.top - (event.clientY - profilePreviewDrag.y);
+  });
+  function stopProfilePreviewDrag(event) {
+    if (!profilePreviewDrag || profilePreviewDrag.pointerId !== event.pointerId) return;
+    if (viewport.hasPointerCapture && viewport.hasPointerCapture(event.pointerId)) {
+      viewport.releasePointerCapture(event.pointerId);
+    }
+    profilePreviewDrag = null;
+    viewport.classList.remove('is-dragging');
+  }
+  viewport.addEventListener('pointerup', stopProfilePreviewDrag);
+  viewport.addEventListener('pointercancel', stopProfilePreviewDrag);
+
+  window.addEventListener('resize', function() {
+    if (!modal.classList.contains('show') || !image.naturalWidth) return;
+    if (measureProfilePreviewImage()) applyProfilePreviewZoom(false);
+  });
+}
+
+function openProfilePreview() {
+  var modal = document.getElementById('profilePreviewModal');
+  var image = document.getElementById('profilePreviewImage');
+  var title = document.getElementById('profilePreviewTitle');
+  var dashboardPhoto = document.getElementById('studentPhoto');
+  if (!modal || !image || !dashboardPhoto) return;
+  initProfilePreview();
+
+  var nameElement = document.getElementById('sNameDisp');
+  var studentName = (nameElement && nameElement.textContent) || CU.name || 'นักเรียน';
+  var source = currentProfilePhotoUrl && !profilePhotoLoadFailed
+    ? currentProfilePhotoUrl
+    : (dashboardPhoto.currentSrc || dashboardPhoto.src || profilePlaceholderSrc);
+  profilePreviewReturnFocus = document.activeElement || document.getElementById('profilePhotoTrigger');
+  profilePreviewScale = 1;
+  profilePreviewBaseWidth = 0;
+  profilePreviewBaseHeight = 0;
+  image.hidden = false;
+  image.dataset.placeholder = currentProfilePhotoUrl && !profilePhotoLoadFailed ? 'false' : 'true';
+  image.alt = 'รูปโปรไฟล์ของ ' + studentName;
+  if (title) title.textContent = 'รูปโปรไฟล์ของ ' + studentName;
+  setProfilePreviewState('loading', 'กำลังโหลดรูป...');
+  updateProfilePreviewControls(false);
+  image.src = source;
+  profilePreviewInstance = bootstrap.Modal.getOrCreateInstance(modal);
+  profilePreviewInstance.show();
+}
+
+function setProfileCropState(state, message) {
+  var stateElement = document.getElementById('profileCropState');
+  var stateText = document.getElementById('profileCropStateText');
+  if (!stateElement) return;
+  stateElement.classList.toggle('is-loading', state === 'loading');
+  stateElement.classList.toggle('has-error', state === 'error');
+  if (stateText && message) stateText.textContent = message;
+}
+
+function setProfileCropControlsDisabled(disabled, lockDismiss) {
+  [
+    'profileCropRotateLeft',
+    'profileCropRotateRight',
+    'profileCropReset',
+    'profileCropZoomOut',
+    'profileCropZoomIn',
+    'profileCropZoom',
+    'profileCropApply'
+  ].forEach(function(id) {
+    var element = document.getElementById(id);
+    if (element) element.disabled = disabled;
+  });
+  var modal = document.getElementById('profileCropModal');
+  if (modal) {
+    modal.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function(button) {
+      button.disabled = disabled && lockDismiss !== false;
+    });
+  }
+}
+
+function updateProfileCropZoomDisplay(percent) {
+  var rounded = Math.min(400, Math.max(100, Math.round(Number(percent) || 100)));
+  var slider = document.getElementById('profileCropZoom');
+  var output = document.getElementById('profileCropZoomValue');
+  var status = document.getElementById('profileCropStatus');
+  if (slider && String(slider.value) !== String(rounded)) slider.value = String(rounded);
+  if (slider) slider.setAttribute('aria-valuetext', 'ซูม ' + rounded + ' เปอร์เซ็นต์');
+  if (output) output.textContent = rounded + '%';
+  if (status && profileCropReady) status.textContent = 'ซูมรูป ' + rounded + ' เปอร์เซ็นต์';
+}
+
+function normalizedProfileCropRotation() {
+  return ((profileCropRotation % 360) + 360) % 360;
+}
+
+function getProfileCropCurrentRatio() {
+  if (!profileCropInstance) return profileCropBaseRatio || 1;
+  var imageData = profileCropInstance.getImageData();
+  var canvasData = profileCropInstance.getCanvasData();
+  if (!imageData || !canvasData || !imageData.naturalWidth || !imageData.naturalHeight) {
+    return profileCropBaseRatio || 1;
+  }
+  var quarterTurn = normalizedProfileCropRotation() % 180 !== 0;
+  var rotatedNaturalWidth = quarterTurn ? imageData.naturalHeight : imageData.naturalWidth;
+  return canvasData.width / rotatedNaturalWidth;
+}
+
+function getProfileCropMinimumRatio() {
+  if (!profileCropInstance) return 1;
+  var imageData = profileCropInstance.getImageData();
+  var cropBoxData = profileCropInstance.getCropBoxData();
+  if (!imageData || !cropBoxData || !imageData.naturalWidth || !imageData.naturalHeight) return 1;
+  var quarterTurn = normalizedProfileCropRotation() % 180 !== 0;
+  var rotatedNaturalWidth = quarterTurn ? imageData.naturalHeight : imageData.naturalWidth;
+  var rotatedNaturalHeight = quarterTurn ? imageData.naturalWidth : imageData.naturalHeight;
+  return Math.max(
+    cropBoxData.width / rotatedNaturalWidth,
+    cropBoxData.height / rotatedNaturalHeight
+  );
+}
+
+function syncProfileCropZoomDisplay() {
+  if (!profileCropReady || !profileCropInstance) return;
+  var currentRatio = getProfileCropCurrentRatio();
+  var percent = profileCropBaseRatio > 0
+    ? (currentRatio / profileCropBaseRatio) * 100
+    : 100;
+  updateProfileCropZoomDisplay(percent);
+}
+
+function updateProfileCropResolutionWarning() {
+  if (!profileCropReady || !profileCropInstance) return;
+  var warning = document.getElementById('profileCropWarning');
+  if (!warning) return;
+  var cropData = profileCropInstance.getData(true);
+  var effectiveEdge = Math.floor(Math.min(cropData.width || 0, cropData.height || 0));
+  warning.classList.toggle('hidden', effectiveEdge >= PROFILE_CROP_LOW_RES_EDGE);
+}
+
+function rebaseProfileCropZoom() {
+  if (!profileCropReady || !profileCropInstance) return;
+  profileCropBaseRatio = getProfileCropMinimumRatio();
+  var currentRatio = getProfileCropCurrentRatio();
+  if (currentRatio < profileCropBaseRatio) {
+    profileCropInstance.zoomTo(profileCropBaseRatio);
+  }
+  syncProfileCropZoomDisplay();
+  updateProfileCropResolutionWarning();
+}
+
+function setProfileCropZoom(percent) {
+  if (!profileCropReady || !profileCropInstance || profileCropProcessing) return;
+  var normalized = Math.min(400, Math.max(100, Number(percent) || 100));
+  profileCropInstance.zoomTo(profileCropBaseRatio * (normalized / 100));
+  updateProfileCropZoomDisplay(normalized);
+  updateProfileCropResolutionWarning();
+}
+
+function changeProfileCropZoom(delta) {
+  var slider = document.getElementById('profileCropZoom');
+  var current = slider ? Number(slider.value) : 100;
+  setProfileCropZoom(current + Number(delta || 0));
+}
+
+function rotateProfileCrop(degrees) {
+  if (!profileCropReady || !profileCropInstance || profileCropProcessing) return;
+  profileCropRotation += Number(degrees) || 0;
+  profileCropInstance.rotate(Number(degrees) || 0);
+  requestAnimationFrame(function() {
+    rebaseProfileCropZoom();
+    var status = document.getElementById('profileCropStatus');
+    if (status) status.textContent = 'หมุนรูปแล้ว ' + normalizedProfileCropRotation() + ' องศา';
+  });
+}
+
+function resetProfileCrop() {
+  if (!profileCropReady || !profileCropInstance || profileCropProcessing) return;
+  profileCropRotation = 0;
+  profileCropInstance.reset();
+  requestAnimationFrame(function() {
+    rebaseProfileCropZoom();
+    updateProfileCropZoomDisplay(100);
+    var warning = document.getElementById('profileCropWarning');
+    if (warning) warning.classList.add('hidden');
+    var status = document.getElementById('profileCropStatus');
+    if (status) status.textContent = 'รีเซ็ตตำแหน่งรูปแล้ว';
+  });
+}
+
+function destroyProfileCropper() {
+  if (profileCropInstance) {
+    profileCropInstance.destroy();
+    profileCropInstance = null;
+  }
+  if (profileCropObjectUrl) {
+    URL.revokeObjectURL(profileCropObjectUrl);
+    profileCropObjectUrl = '';
+  }
+  var image = document.getElementById('profileCropImage');
+  if (image) image.src = BLANK_IMAGE_SRC;
+  profileCropReady = false;
+  profileCropProcessing = false;
+  profileCropBaseRatio = 1;
+  profileCropRotation = 0;
+  updateProfileCropZoomDisplay(100);
+  setProfileCropControlsDisabled(false);
+  setProfileCropState('loading', 'กำลังเตรียมรูป...');
+  var warning = document.getElementById('profileCropWarning');
+  if (warning) warning.classList.add('hidden');
+}
+
+function initializeProfileCropper() {
+  var image = document.getElementById('profileCropImage');
+  if (!image || !profileCropObjectUrl || profileCropInstance) return;
+  if (typeof window.Cropper !== 'function') {
+    setProfileCropState('error', 'ไม่สามารถเปิดเครื่องมือจัดรูปได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+    return;
+  }
+
+  setProfileCropState('loading', 'กำลังเตรียมรูป...');
+  setProfileCropControlsDisabled(true, false);
+  profileCropInstance = new window.Cropper(image, {
+    aspectRatio: 1,
+    viewMode: 1,
+    dragMode: 'move',
+    autoCropArea: 0.78,
+    restore: false,
+    guides: true,
+    center: true,
+    highlight: false,
+    background: false,
+    cropBoxMovable: false,
+    cropBoxResizable: false,
+    toggleDragModeOnDblclick: false,
+    responsive: true,
+    checkOrientation: true,
+    zoomOnTouch: true,
+    zoomOnWheel: true,
+    wheelZoomRatio: 0.08,
+    ready: function() {
+      profileCropReady = true;
+      profileCropRotation = 0;
+      profileCropBaseRatio = getProfileCropMinimumRatio();
+      setProfileCropState('ready');
+      setProfileCropControlsDisabled(false);
+      rebaseProfileCropZoom();
+      updateProfileCropZoomDisplay(100);
+      var workspace = document.getElementById('profileCropWorkspace');
+      if (workspace) workspace.focus({ preventScroll: true });
+    },
+    crop: function() {
+      updateProfileCropResolutionWarning();
+    }
+  });
+}
+
+function initProfileCrop() {
+  var modal = document.getElementById('profileCropModal');
+  var image = document.getElementById('profileCropImage');
+  var workspace = document.getElementById('profileCropWorkspace');
+  if (!modal || !image || !workspace || modal.dataset.initialized === 'true') return;
+  modal.dataset.initialized = 'true';
+
+  modal.addEventListener('shown.bs.modal', initializeProfileCropper);
+  modal.addEventListener('hide.bs.modal', function(event) {
+    if (profileCropProcessing) event.preventDefault();
+  });
+  modal.addEventListener('hidden.bs.modal', function() {
+    if (profileCropResolve) {
+      var resolveCancel = profileCropResolve;
+      profileCropResolve = null;
+      resolveCancel(null);
+    }
+    destroyProfileCropper();
+    var editButton = document.getElementById('photoEditButton');
+    if (editButton && typeof editButton.focus === 'function') editButton.focus();
+  });
+
+  image.addEventListener('zoom', function(event) {
+    if (!profileCropReady || profileCropProcessing) return;
+    var minimum = profileCropBaseRatio;
+    var maximum = profileCropBaseRatio * 4;
+    if (event.detail.ratio < minimum || event.detail.ratio > maximum) {
+      event.preventDefault();
+      return;
+    }
+    updateProfileCropZoomDisplay((event.detail.ratio / profileCropBaseRatio) * 100);
+    updateProfileCropResolutionWarning();
+  });
+
+  workspace.addEventListener('keydown', function(event) {
+    if (!profileCropReady || !profileCropInstance || profileCropProcessing) return;
+    var moveStep = event.shiftKey ? 12 : 3;
+    var handled = true;
+    if (event.key === 'ArrowLeft') profileCropInstance.move(-moveStep, 0);
+    else if (event.key === 'ArrowRight') profileCropInstance.move(moveStep, 0);
+    else if (event.key === 'ArrowUp') profileCropInstance.move(0, -moveStep);
+    else if (event.key === 'ArrowDown') profileCropInstance.move(0, moveStep);
+    else if (event.key === '+' || event.key === '=') changeProfileCropZoom(10);
+    else if (event.key === '-' || event.key === '_') changeProfileCropZoom(-10);
+    else handled = false;
+    if (handled) {
+      event.preventDefault();
+      updateProfileCropResolutionWarning();
+    }
+  });
+}
+
+function openProfileCrop(file) {
+  return new Promise(function(resolve, reject) {
+    if (!file) {
+      resolve(null);
+      return;
+    }
+    if (typeof window.Cropper !== 'function') {
+      reject(new Error('ไม่สามารถโหลดเครื่องมือจัดรูปได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'));
+      return;
+    }
+    initProfileCrop();
+    destroyProfileCropper();
+    profileCropResolve = resolve;
+    profileCropObjectUrl = URL.createObjectURL(file);
+    var image = document.getElementById('profileCropImage');
+    var modal = document.getElementById('profileCropModal');
+    if (!image || !modal) {
+      destroyProfileCropper();
+      profileCropResolve = null;
+      reject(new Error('ไม่พบหน้าต่างจัดตำแหน่งรูป'));
+      return;
+    }
+    image.src = profileCropObjectUrl;
+    setProfileCropState('loading', 'กำลังเตรียมรูป...');
+    setProfileCropControlsDisabled(true, false);
+    profileCropModalInstance = bootstrap.Modal.getOrCreateInstance(modal, {
+      backdrop: 'static',
+      keyboard: true
+    });
+    profileCropModalInstance.show();
+  });
+}
+
+async function confirmProfileCrop() {
+  if (!profileCropReady || !profileCropInstance || profileCropProcessing || !profileCropResolve) return;
+  profileCropProcessing = true;
+  setProfileCropControlsDisabled(true);
+  setProfileCropState('loading', 'กำลังเตรียมรูปคุณภาพสูง...');
+  var applyButton = document.getElementById('profileCropApply');
+  var applyLabel = applyButton && applyButton.querySelector('span');
+  if (applyButton) applyButton.setAttribute('aria-busy', 'true');
+  if (applyLabel) applyLabel.textContent = 'กำลังเตรียม...';
+
+  try {
+    var cropData = profileCropInstance.getData(true);
+    var effectiveEdge = Math.max(1, Math.floor(Math.min(cropData.width, cropData.height)));
+    var outputEdge = Math.min(PROFILE_IMAGE_MAX_EDGE, effectiveEdge);
+    var canvas = profileCropInstance.getCroppedCanvas({
+      width: outputEdge,
+      height: outputEdge,
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: 'high'
+    });
+    if (!canvas || !canvas.width || !canvas.height) {
+      throw new Error('ไม่สามารถสร้างรูปจากตำแหน่งที่เลือกได้');
+    }
+    var prepared = await compressImageCanvas(canvas, 0.92, 'image/webp', {
+      targetBytes: PROFILE_IMAGE_TARGET_BYTES,
+      softMaxBytes: PROFILE_IMAGE_SOFT_MAX_BYTES,
+      minQuality: 0.86,
+      minLongEdge: Math.min(PROFILE_IMAGE_MIN_EDGE, outputEdge)
+    });
+    var resolveCrop = profileCropResolve;
+    profileCropResolve = null;
+    resolveCrop(prepared);
+    profileCropProcessing = false;
+    profileCropModalInstance.hide();
+  } catch (error) {
+    console.error(error);
+    profileCropProcessing = false;
+    setProfileCropControlsDisabled(false);
+    setProfileCropState('error', error.message || 'เตรียมรูปไม่สำเร็จ กรุณาลองใหม่');
+  } finally {
+    if (applyButton) applyButton.removeAttribute('aria-busy');
+    if (applyLabel) applyLabel.textContent = 'ใช้รูปนี้';
+  }
+}
+
 function openPhotoUpload() {
   if (isGuestMode()) {
     return Swal.fire({
@@ -3037,35 +3954,139 @@ function openPhotoUpload() {
       confirmButtonColor: '#4f46e5'
     });
   }
+  if (profileUploadInFlight) return;
   document.getElementById('photoInput').click();
 }
 
+function isSupportedProfileImage(file) {
+  var supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (supportedTypes.indexOf(String(file.type || '').toLowerCase()) !== -1) return true;
+  return /\.(jpe?g|png|webp)$/i.test(String(file.name || ''));
+}
+
+async function validateProfileImageFile(file) {
+  var decoded = await decodeImageFile(file);
+  try {
+    if (!decoded.width || !decoded.height) throw new Error('รูปภาพไม่มีขนาดที่ถูกต้อง');
+    return { width: decoded.width, height: decoded.height };
+  } finally {
+    decoded.cleanup();
+  }
+}
+
+function setProfileUploadBusy(isBusy) {
+  profileUploadInFlight = isBusy;
+  var editButton = document.getElementById('photoEditButton');
+  var input = document.getElementById('photoInput');
+  var trigger = document.getElementById('profilePhotoTrigger');
+  if (editButton) {
+    editButton.disabled = isBusy;
+    editButton.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+  }
+  if (input) input.disabled = isBusy;
+  if (trigger) trigger.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+}
+
 async function handlePhotoChange(event) {
-  var file = event.target.files[0];
+  var input = event.target;
+  var file = input.files[0];
   if (!file) return;
   if (isGuestMode()) {
-    event.target.value = '';
+    input.value = '';
     return;
   }
-  if (file.size > 5 * 1024 * 1024) {
-    event.target.value = '';
+  if (!isSupportedProfileImage(file)) {
+    input.value = '';
+    return Swal.fire({
+      icon: 'warning',
+      title: 'รูปแบบไฟล์ไม่รองรับ',
+      text: 'กรุณาใช้ไฟล์ JPG, PNG หรือ WebP',
+      confirmButtonColor: UI_COLOR_PRIMARY
+    });
+  }
+  if (file.size > PROFILE_IMAGE_MAX_BYTES) {
+    input.value = '';
     return Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'กรุณาเลือกรูปที่เล็กกว่า 5MB' });
   }
+
+  input.value = '';
+  try {
+    await validateProfileImageFile(file);
+  } catch (decodeError) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'ไม่สามารถอ่านรูปภาพได้',
+      text: 'ไฟล์อาจเสียหายหรือไม่ใช่รูป JPG, PNG หรือ WebP ที่ถูกต้อง กรุณาเลือกรูปใหม่',
+      confirmButtonColor: UI_COLOR_PRIMARY
+    });
+  }
+
+  var prepared = null;
+  try {
+    prepared = await openProfileCrop(file);
+  } catch (cropError) {
+    onErr(cropError);
+    return;
+  }
+  if (!prepared) return;
+
+  var uploaded = null;
+  var profileSaved = false;
+  setProfileUploadBusy(true);
   try {
     loading('กำลังอัปโหลดรูปโปรไฟล์...');
-    var uploaded = await uploadCompressedImage(file, {
-      folder: 'students/' + CU.id,
-      maxWidth: 160,
-      maxHeight: 160,
-      quality: 0.75
+    var profileStorageId = safeStudentStorageId(CU.id);
+    if (!profileStorageId) throw new Error('รหัสนักเรียนไม่สามารถใช้สร้างเส้นทางรูปโปรไฟล์ได้');
+    var expectedPhotoUrl = await getProfilePictureUrlDb(CU.id);
+    uploaded = await uploadPreparedImage(prepared, file.name, {
+      folder: 'students/' + profileStorageId,
+      filePrefix: 'profile',
+      outputType: 'image/webp',
+      cacheControl: 31536000,
+      upsert: false
     });
-    await saveProfilePictureDb(CU.id, uploaded.publicUrl);
-    document.getElementById('studentPhoto').src = uploaded.publicUrl;
-    Swal.fire({ icon: 'success', title: 'บันทึกรูปแล้ว', timer: 1500, timerProgressBar: true, confirmButtonColor: UI_COLOR_PRIMARY });
+    var replacement = await replaceProfilePictureDb(CU.id, expectedPhotoUrl, uploaded.publicUrl);
+    if (replacement.status === 'conflict') {
+      await removeStoragePathsWithRetry([uploaded.path], 3);
+      setStudentProfilePhoto(replacement.photoUrl || '');
+      return Swal.fire({
+        icon: 'info',
+        title: 'รูปถูกเปลี่ยนจากอีกหน้าต่างแล้ว',
+        text: 'ระบบโหลดรูปโปรไฟล์ล่าสุดกลับมาให้ กรุณาเลือกใหม่อีกครั้งหากยังต้องการเปลี่ยน',
+        confirmButtonColor: UI_COLOR_PRIMARY
+      });
+    }
+    if (replacement.status !== 'success') throw new Error('ไม่สามารถบันทึกรูปโปรไฟล์ได้');
+
+    profileSaved = true;
+    setStudentProfilePhoto(uploaded.publicUrl);
+    var cleanup = await cleanupStudentProfileStorage(CU.id, uploaded.path, expectedPhotoUrl);
+    var sizeKb = Math.max(1, Math.round(uploaded.bytes / 1024));
+    if (!cleanup.ok) {
+      console.warn('Profile cleanup failed:', cleanup.error);
+      return Swal.fire({
+        icon: 'warning',
+        title: 'บันทึกรูปใหม่แล้ว',
+        text: 'รูปใหม่ใช้งานได้ตามปกติ แต่ระบบลบไฟล์เก่าบางรายการไม่สำเร็จ กรุณาลองเปลี่ยนรูปอีกครั้งภายหลัง',
+        confirmButtonColor: UI_COLOR_PRIMARY
+      });
+    }
+    Swal.fire({
+      icon: 'success',
+      title: 'บันทึกรูปแล้ว',
+      text: uploaded.width + '×' + uploaded.height + ' px · ประมาณ ' + sizeKb + ' KB',
+      timer: 1800,
+      timerProgressBar: true,
+      confirmButtonColor: UI_COLOR_PRIMARY
+    });
   } catch (e) {
+    if (uploaded && !profileSaved) {
+      var rollback = await removeStoragePathsWithRetry([uploaded.path], 3);
+      if (!rollback.ok) console.warn('Profile upload rollback failed:', rollback.error);
+    }
     onErr(e);
   } finally {
-    event.target.value = '';
+    setProfileUploadBusy(false);
   }
 }
 
