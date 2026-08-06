@@ -61,6 +61,19 @@ var passwordResetReloadTimer = null;
 
 // Student Shop State
 var shopItems = null, shopWallet = null, shopTabCurrent = 'shop';
+var STUDENT_GIFT_POLL_MS = 30000;
+var STUDENT_GIFT_REFRESH_DELAY_MS = 550;
+var STUDENT_GIFT_TOAST_STORAGE_KEY = 'mathquest_student_gift_toasts_v1';
+var studentGiftUnreadGroups = [];
+var studentGiftKnownGroupKeys = {};
+var studentGiftHistoryHighlightIds = {};
+var studentGiftNotificationChannel = null;
+var studentGiftNotificationPollTimer = null;
+var studentGiftNotificationRefreshTimer = null;
+var studentGiftNotificationStarted = false;
+var studentGiftInitialSnapshotLoaded = false;
+var studentGiftRefreshInFlight = null;
+var studentGiftToastClaims = {};
 var PET_MANIFEST_URL = './assets/pets/manifest.json';
 var PET_FREE_SELECT_LIMIT = 3;
 var PET_PAID_CHANGE_COST = 25;
@@ -656,6 +669,7 @@ async function enterStudentApp(res) {
   shopWallet = await getWalletBalanceDb(CU.id);
   updateShopCoinsBadge(shopWallet.mathCoins);
   await loadStudentPet();
+  await startStudentGiftNotifications();
 }
 
 async function startGuestLogin() {
@@ -2634,29 +2648,107 @@ async function getRedemptionHistoryDb(studentId) {
       showGuestExpiredAlert();
       return [];
     }
-    return (session.redemptions || []).map(function(r) {
+    return (session.redemptions || []).map(function(r, index) {
       return {
+        id: index + 1,
+        timestamp: r.timestamp || '',
         date: formatDateTime(r.timestamp),
+        itemId: String(r.item_id || '').trim(),
         itemName: String(r.item_name || '').trim(),
         cost: Number(r.points_used) || 0,
-        status: String(r.status || 'pending').trim()
+        status: String(r.status || 'pending').trim(),
+        isFreeGrant: (Number(r.points_used) || 0) === 0 && String(r.status || '') === 'approved'
       };
     });
   }
   var client = getSupabase();
   var rows = await runQuery(client.from('redemption_logs')
-    .select('timestamp,item_name,points_used,status')
+    .select('id,timestamp,item_id,item_name,points_used,status')
     .eq('student_id', String(studentId).trim())
     .order('timestamp', { ascending: false })
     .limit(50));
   return (rows || []).map(function(r) {
     return {
+      id: Number(r.id),
+      timestamp: r.timestamp || '',
       date: formatDateTime(r.timestamp),
+      itemId: String(r.item_id || '').trim(),
       itemName: String(r.item_name || '').trim(),
       cost: Number(r.points_used) || 0,
-      status: String(r.status || 'pending').trim()
+      status: String(r.status || 'pending').trim(),
+      isFreeGrant: (Number(r.points_used) || 0) === 0 && String(r.status || '') === 'approved'
     };
   });
+}
+
+async function getStudentFreeItemNotificationSnapshotDb(studentId) {
+  if (isGuestStudentId(studentId)) {
+    var guestSession = getActiveGuestSession();
+    if (!guestSession) return { lastSeenId: 0, rows: [] };
+    var guestLastSeenId = Number(guestSession.giftLastSeenRedemptionId) || 0;
+    var guestRows = (guestSession.redemptions || []).map(function(row, index) {
+      return {
+        id: index + 1,
+        timestamp: row.timestamp || '',
+        item_id: String(row.item_id || '').trim(),
+        item_name: String(row.item_name || '').trim(),
+        points_used: Number(row.points_used) || 0,
+        status: String(row.status || '').trim()
+      };
+    }).filter(function(row) {
+      return row.id > guestLastSeenId && row.points_used === 0 && row.status === 'approved';
+    });
+    return { lastSeenId: guestLastSeenId, rows: guestRows };
+  }
+
+  var sid = String(studentId || '').trim();
+  var client = getSupabase();
+  var state = await runQuery(client.from('student_free_item_notification_state')
+    .select('last_seen_redemption_id')
+    .eq('student_id', sid)
+    .maybeSingle());
+  var lastSeenId = state ? Number(state.last_seen_redemption_id) || 0 : null;
+  var query = client.from('redemption_logs')
+    .select('id,timestamp,item_id,item_name,points_used,status')
+    .eq('student_id', sid)
+    .eq('points_used', 0)
+    .eq('status', 'approved')
+    .order('id', { ascending: true })
+    .limit(1000);
+  if (lastSeenId !== null) query = query.gt('id', lastSeenId);
+  var rows = await runQuery(query);
+
+  if (lastSeenId === null && rows && rows.length) {
+    var latest = rows[rows.length - 1];
+    rows = rows.filter(function(row) {
+      return row.timestamp === latest.timestamp
+        && String(row.item_id || '') === String(latest.item_id || '')
+        && String(row.item_name || '') === String(latest.item_name || '');
+    });
+  }
+
+  return {
+    lastSeenId: lastSeenId === null ? 0 : lastSeenId,
+    rows: rows || []
+  };
+}
+
+async function markStudentFreeItemNotificationsSeenDb(studentId, lastSeenId) {
+  var safeLastSeenId = Math.max(0, Math.floor(Number(lastSeenId) || 0));
+  if (isGuestStudentId(studentId)) {
+    var guestSession = getActiveGuestSession();
+    if (!guestSession) return safeLastSeenId;
+    guestSession.giftLastSeenRedemptionId = Math.max(
+      Number(guestSession.giftLastSeenRedemptionId) || 0,
+      safeLastSeenId
+    );
+    saveActiveGuestSession(guestSession);
+    return guestSession.giftLastSeenRedemptionId;
+  }
+  return runQuery(getSupabase().rpc('mark_student_free_item_notifications_seen', {
+    p_student_id: String(studentId || '').trim(),
+    p_last_seen_redemption_id: safeLastSeenId
+  }));
 }
 
 async function getAllRedemptionsForTeacherDb() {
@@ -5262,6 +5354,7 @@ async function saveSettings() {
 function logout() {
   if (isGuestMode()) clearGuestSession();
   stopGuestSessionClock();
+  stopStudentGiftNotifications();
   CU = {};
   statsCache = null;
   statsLoaded = false;
@@ -5527,6 +5620,339 @@ function exportRewardReportPDF() {
       if (titleEl) titleEl.textContent = oldTitle || 'รายงานการเข้าเรียน';
     }, 500);
   }, 300);
+}
+
+/* ════════════════════════════════════════════════════
+   STUDENT FREE-ITEM NOTIFICATIONS
+═════════════════════════════════════════════════════ */
+
+function isStudentGiftNotificationActive() {
+  return studentGiftNotificationStarted && CU && CU.role === 'STUDENT';
+}
+
+function getStudentGiftGroupKey(row) {
+  return [
+    String(row.timestamp || ''),
+    String(row.item_id || ''),
+    String(row.item_name || '')
+  ].join('|');
+}
+
+function groupStudentGiftRows(rows) {
+  var groupsByKey = {};
+  (rows || []).forEach(function(row) {
+    var id = Number(row.id);
+    if (!id) return;
+    var key = getStudentGiftGroupKey(row);
+    if (!groupsByKey[key]) {
+      groupsByKey[key] = {
+        key: key,
+        timestamp: row.timestamp || '',
+        itemId: String(row.item_id || '').trim(),
+        itemName: String(row.item_name || '').trim() || 'ไม่ระบุชื่อไอเทม',
+        quantity: 0,
+        maxId: 0,
+        rowIds: []
+      };
+    }
+    groupsByKey[key].quantity++;
+    groupsByKey[key].maxId = Math.max(groupsByKey[key].maxId, id);
+    groupsByKey[key].rowIds.push(id);
+  });
+  return Object.keys(groupsByKey).map(function(key) {
+    return groupsByKey[key];
+  }).sort(function(a, b) {
+    return b.maxId - a.maxId;
+  });
+}
+
+function formatStudentGiftCount(count) {
+  return count > 99 ? '99+' : String(count);
+}
+
+function updateStudentGiftNotificationUI(groups, announce) {
+  var previousCount = studentGiftUnreadGroups.length;
+  studentGiftUnreadGroups = groups || [];
+  var count = studentGiftUnreadGroups.length;
+  var displayCount = formatStudentGiftCount(count);
+
+  ['studentShopGiftCount', 'studentHistoryGiftCount'].forEach(function(id) {
+    var badge = document.getElementById(id);
+    if (!badge) return;
+    badge.textContent = displayCount;
+    badge.classList.toggle('hidden', count === 0);
+  });
+
+  var shopButton = document.getElementById('studentShopButton');
+  var historyTab = document.getElementById('stab-history');
+  var unreadLabel = count > 0 ? ' มีของขวัญใหม่ ' + count + ' รายการ' : ' ไม่มีของขวัญใหม่';
+  if (shopButton) shopButton.setAttribute('aria-label', 'เปิด Magic Shop' + unreadLabel);
+  if (historyTab) historyTab.setAttribute('aria-label', 'ประวัติการแลกของ' + unreadLabel);
+
+  var banner = document.getElementById('studentGiftNotification');
+  var title = document.getElementById('studentGiftNotificationTitle');
+  var item = document.getElementById('studentGiftNotificationItem');
+  var meta = document.getElementById('studentGiftNotificationMeta');
+  if (banner) {
+    banner.classList.toggle('hidden', count === 0);
+    banner.classList.remove('is-error');
+  }
+  if (count > 0) {
+    var latest = studentGiftUnreadGroups[0];
+    if (title) title.textContent = count > 1
+      ? 'คุณมีของขวัญใหม่ ' + count + ' รายการ'
+      : 'ครูมอบของให้คุณ';
+    if (item) item.textContent = latest.itemName + (latest.quantity > 1 ? ' ×' + latest.quantity : '');
+    if (meta) {
+      meta.textContent = 'ได้รับเมื่อ ' + formatDateTime(latest.timestamp)
+        + (count > 1 ? ' และอีก ' + (count - 1) + ' รายการ' : '');
+    }
+  }
+
+  if (announce !== false && previousCount !== count) {
+    var live = document.getElementById('studentGiftStatusLive');
+    if (live) {
+      live.textContent = count > 0
+        ? 'คุณมีของขวัญใหม่จากครู ' + count + ' รายการ'
+        : 'เปิดดูของขวัญใหม่ครบแล้ว';
+    }
+  }
+}
+
+function claimStudentGiftToast(group) {
+  var groupKey = String(group && group.key || '');
+  var key = String(CU && CU.id || '') + '|' + groupKey;
+  if (!groupKey || studentGiftToastClaims[key]) return false;
+  studentGiftToastClaims[key] = true;
+  try {
+    var now = Date.now();
+    var stored = JSON.parse(localStorage.getItem(STUDENT_GIFT_TOAST_STORAGE_KEY) || '{}');
+    Object.keys(stored).forEach(function(storedKey) {
+      if (!Number(stored[storedKey]) || now - Number(stored[storedKey]) > 24 * 60 * 60 * 1000) {
+        delete stored[storedKey];
+      }
+    });
+    if (stored[key]) return false;
+    stored[key] = now;
+    localStorage.setItem(STUDENT_GIFT_TOAST_STORAGE_KEY, JSON.stringify(stored));
+  } catch (e) {}
+  return true;
+}
+
+function removeStudentGiftToast(toast) {
+  if (!toast || !toast.parentNode) return;
+  if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+  toast.classList.add('is-leaving');
+  setTimeout(function() {
+    if (toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 180);
+}
+
+function showStudentGiftToast(group) {
+  var region = document.getElementById('studentGiftToastRegion');
+  if (!region || !isStudentGiftNotificationActive() || !claimStudentGiftToast(group)) return;
+  while (region.children.length >= 3) region.removeChild(region.firstElementChild);
+
+  var toast = document.createElement('div');
+  toast.className = 'student-gift-toast';
+  var main = document.createElement('button');
+  main.type = 'button';
+  main.className = 'student-gift-toast-main';
+  main.setAttribute(
+    'aria-label',
+    'เปิดดูของขวัญจากครู ' + group.itemName + (group.quantity > 1 ? ' จำนวน ' + group.quantity + ' ชิ้น' : '')
+  );
+
+  var icon = document.createElement('span');
+  icon.className = 'student-gift-toast-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = '<i class="fa-solid fa-gift"></i>';
+  var content = document.createElement('span');
+  content.className = 'student-gift-toast-content';
+  var title = document.createElement('strong');
+  title.textContent = 'ครูมอบของให้คุณ';
+  var item = document.createElement('span');
+  item.className = 'student-gift-toast-item';
+  item.textContent = group.itemName + (group.quantity > 1 ? ' ×' + group.quantity : '');
+  var date = document.createElement('span');
+  date.className = 'student-gift-toast-date';
+  date.textContent = formatDateTime(group.timestamp);
+  content.appendChild(title);
+  content.appendChild(item);
+  content.appendChild(date);
+  main.appendChild(icon);
+  main.appendChild(content);
+
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'student-gift-toast-close';
+  close.title = 'ปิด';
+  close.setAttribute('aria-label', 'ปิดการแจ้งเตือนนี้');
+  close.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+  main.addEventListener('click', function() {
+    removeStudentGiftToast(toast);
+    openStudentGiftHistory();
+  });
+  close.addEventListener('click', function() { removeStudentGiftToast(toast); });
+  toast.appendChild(main);
+  toast.appendChild(close);
+  region.appendChild(toast);
+
+  function armDismissTimer() {
+    if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+    toast._dismissTimer = setTimeout(function() { removeStudentGiftToast(toast); }, 9000);
+  }
+  toast.addEventListener('mouseenter', function() {
+    if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+  });
+  toast.addEventListener('mouseleave', armDismissTimer);
+  toast.addEventListener('focusin', function() {
+    if (toast._dismissTimer) clearTimeout(toast._dismissTimer);
+  });
+  toast.addEventListener('focusout', armDismissTimer);
+  armDismissTimer();
+}
+
+async function refreshStudentGiftNotificationSnapshot(notifyMissed) {
+  if (!isStudentGiftNotificationActive()) return false;
+  if (studentGiftRefreshInFlight) return studentGiftRefreshInFlight;
+  var previousKeys = studentGiftKnownGroupKeys;
+  studentGiftRefreshInFlight = (async function() {
+    try {
+      var snapshot = await getStudentFreeItemNotificationSnapshotDb(CU.id);
+      var groups = groupStudentGiftRows(snapshot.rows);
+      var shouldNotify = notifyMissed && studentGiftInitialSnapshotLoaded;
+      var newGroups = shouldNotify ? groups.filter(function(group) {
+        return !previousKeys[group.key];
+      }).reverse() : [];
+      var nextKeys = {};
+      groups.forEach(function(group) { nextKeys[group.key] = true; });
+      studentGiftKnownGroupKeys = nextKeys;
+      studentGiftInitialSnapshotLoaded = true;
+      updateStudentGiftNotificationUI(groups, shouldNotify && newGroups.length === 0);
+      newGroups.slice(-3).forEach(showStudentGiftToast);
+      return true;
+    } catch (e) {
+      console.warn('โหลดการแจ้งเตือนของขวัญไม่สำเร็จ', e);
+      return false;
+    } finally {
+      studentGiftRefreshInFlight = null;
+    }
+  })();
+  return studentGiftRefreshInFlight;
+}
+
+function scheduleStudentGiftNotificationRefresh(delay) {
+  if (studentGiftNotificationRefreshTimer) clearTimeout(studentGiftNotificationRefreshTimer);
+  studentGiftNotificationRefreshTimer = setTimeout(function() {
+    studentGiftNotificationRefreshTimer = null;
+    refreshStudentGiftNotificationSnapshot(true);
+  }, typeof delay === 'number' ? delay : STUDENT_GIFT_REFRESH_DELAY_MS);
+}
+
+function handleStudentGiftRealtimeChange() {
+  scheduleStudentGiftNotificationRefresh(STUDENT_GIFT_REFRESH_DELAY_MS);
+}
+
+function handleStudentGiftVisibilityRefresh() {
+  if (!document.hidden && isStudentGiftNotificationActive()) {
+    refreshStudentGiftNotificationSnapshot(true);
+  }
+}
+
+async function startStudentGiftNotifications() {
+  stopStudentGiftNotifications();
+  if (!CU || CU.role !== 'STUDENT') return;
+  studentGiftNotificationStarted = true;
+  document.addEventListener('visibilitychange', handleStudentGiftVisibilityRefresh);
+  window.addEventListener('online', handleStudentGiftVisibilityRefresh);
+  await refreshStudentGiftNotificationSnapshot(false);
+  if (!isStudentGiftNotificationActive() || isGuestMode()) return;
+  try {
+    var studentFilter = 'student_id=eq.' + String(CU.id || '').trim();
+    studentGiftNotificationChannel = getSupabase().channel('student-gift-notifications-' + String(CU.id || '').trim())
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'redemption_logs',
+        filter: studentFilter
+      }, handleStudentGiftRealtimeChange)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'redemption_logs',
+        filter: studentFilter
+      }, handleStudentGiftRealtimeChange)
+      .subscribe(function(status) {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime ของขวัญไม่พร้อม ระบบจะตรวจข้อมูลทุก 30 วินาทีแทน');
+        }
+      });
+  } catch (e) {
+    console.warn('เปิด Realtime ของขวัญไม่สำเร็จ ระบบจะตรวจข้อมูลทุก 30 วินาทีแทน', e);
+  }
+  studentGiftNotificationPollTimer = setInterval(function() {
+    refreshStudentGiftNotificationSnapshot(true);
+  }, STUDENT_GIFT_POLL_MS);
+}
+
+function stopStudentGiftNotifications() {
+  studentGiftNotificationStarted = false;
+  document.removeEventListener('visibilitychange', handleStudentGiftVisibilityRefresh);
+  window.removeEventListener('online', handleStudentGiftVisibilityRefresh);
+  if (studentGiftNotificationPollTimer) clearInterval(studentGiftNotificationPollTimer);
+  if (studentGiftNotificationRefreshTimer) clearTimeout(studentGiftNotificationRefreshTimer);
+  studentGiftNotificationPollTimer = null;
+  studentGiftNotificationRefreshTimer = null;
+  if (studentGiftNotificationChannel && supabaseClient) {
+    supabaseClient.removeChannel(studentGiftNotificationChannel);
+  }
+  studentGiftNotificationChannel = null;
+  studentGiftRefreshInFlight = null;
+  studentGiftInitialSnapshotLoaded = false;
+  studentGiftKnownGroupKeys = {};
+  studentGiftToastClaims = {};
+  studentGiftHistoryHighlightIds = {};
+  updateStudentGiftNotificationUI([], false);
+  var region = document.getElementById('studentGiftToastRegion');
+  if (region) region.innerHTML = '';
+}
+
+function prepareStudentGiftHistoryHighlights() {
+  studentGiftHistoryHighlightIds = {};
+  studentGiftUnreadGroups.forEach(function(group) {
+    group.rowIds.forEach(function(id) { studentGiftHistoryHighlightIds[id] = true; });
+  });
+}
+
+async function markStudentGiftNotificationsSeen() {
+  if (!studentGiftUnreadGroups.length || !CU || CU.role !== 'STUDENT') return true;
+  var pendingGroups = studentGiftUnreadGroups.slice();
+  var maxId = pendingGroups.reduce(function(maxValue, group) {
+    return Math.max(maxValue, Number(group.maxId) || 0);
+  }, 0);
+  updateStudentGiftNotificationUI([], true);
+  try {
+    await markStudentFreeItemNotificationsSeenDb(CU.id, maxId);
+    studentGiftKnownGroupKeys = {};
+    return true;
+  } catch (e) {
+    updateStudentGiftNotificationUI(pendingGroups, false);
+    var banner = document.getElementById('studentGiftNotification');
+    var meta = document.getElementById('studentGiftNotificationMeta');
+    if (banner) banner.classList.add('is-error');
+    if (meta) meta.textContent = 'บันทึกว่าอ่านแล้วไม่สำเร็จ กดเพื่อทดลองอีกครั้ง';
+    var live = document.getElementById('studentGiftStatusLive');
+    if (live) live.textContent = 'บันทึกว่าอ่านของขวัญแล้วไม่สำเร็จ กรุณาลองอีกครั้ง';
+    console.warn('บันทึกสถานะอ่านของขวัญไม่สำเร็จ', e);
+    return false;
+  }
+}
+
+function openStudentGiftHistory() {
+  prepareStudentGiftHistoryHighlights();
+  openShop();
+  switchShopTab('history');
 }
 
 /* ════════════════════════════════════════════════════
@@ -6351,7 +6777,7 @@ function handleShopOverlayClick(e) {
   if (e.target === document.getElementById('shopOverlay')) closeShop();
 }
 
-function switchShopTab(tab) {
+async function switchShopTab(tab) {
   shopTabCurrent = tab;
   var shopPanel = document.getElementById('shopTabContent');
   var historyPanel = document.getElementById('historyTabContent');
@@ -6367,7 +6793,11 @@ function switchShopTab(tab) {
   historyTab.classList.toggle('active', tab === 'history');
   historyTab.setAttribute('aria-selected', tab === 'history' ? 'true' : 'false');
   historyTab.tabIndex = tab === 'history' ? 0 : -1;
-  if (tab === 'history') loadRedemptionHistory();
+  if (tab === 'history') {
+    prepareStudentGiftHistoryHighlights();
+    var loaded = await loadRedemptionHistory();
+    if (loaded) await markStudentGiftNotificationsSeen();
+  }
 }
 
 async function loadShopData() {
@@ -6524,7 +6954,7 @@ async function loadRedemptionHistory() {
     var logs = await getRedemptionHistoryDb(CU.id);
     if (!logs.length) {
       el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🧾</div><p>ยังไม่มีประวัติการซื้อ</p></div>';
-      return;
+      return true;
     }
     var statusBadge = function(s) {
       if (s === 'approved') return '<span class="badge-approved">✓ อนุมัติแล้ว</span>';
@@ -6535,9 +6965,24 @@ async function loadRedemptionHistory() {
       var costHtml = l.cost > 0
         ? '<div class="ri-cost">-' + l.cost + ' 🪙</div>'
         : '<div class="ri-cost redeem-free">ครูมอบให้</div>';
-      return '<div class="redeem-item"><div class="redeem-main"><div class="ri-name">' + escHtml(l.itemName) + '</div><div class="ri-date">' + l.date + '</div></div><div class="redeem-side">' + costHtml + statusBadge(l.status) + '</div></div>';
+      var isHighlighted = l.isFreeGrant && studentGiftHistoryHighlightIds[l.id];
+      return '<div class="redeem-item' + (isHighlighted ? ' is-new-gift' : '') + '" data-redemption-id="' + l.id + '"><div class="redeem-main"><div class="ri-name">' + escHtml(l.itemName) + '</div><div class="ri-date">' + l.date + '</div></div><div class="redeem-side">' + costHtml + statusBadge(l.status) + '</div></div>';
     }).join('');
+    var firstHighlighted = el.querySelector('.redeem-item.is-new-gift');
+    if (firstHighlighted) {
+      requestAnimationFrame(function() {
+        firstHighlighted.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+      setTimeout(function() {
+        el.querySelectorAll('.redeem-item.is-new-gift').forEach(function(row) {
+          row.classList.remove('is-new-gift');
+        });
+        studentGiftHistoryHighlightIds = {};
+      }, 3200);
+    }
+    return true;
   } catch (e) {
     el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">😵</div><p>โหลดประวัติไม่สำเร็จ</p></div>';
+    return false;
   }
 }

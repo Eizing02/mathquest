@@ -79,6 +79,22 @@
       <strong id="guestCountdown">10:00</strong>
     </div>
 
+    <button type="button" class="student-gift-notification hidden" id="studentGiftNotification"
+            onclick="openStudentGiftHistory()" aria-describedby="studentGiftNotificationMeta">
+      <span class="student-gift-notification-icon" aria-hidden="true">
+        <i class="fa-solid fa-gift"></i>
+      </span>
+      <span class="student-gift-notification-copy">
+        <strong id="studentGiftNotificationTitle">ครูมอบของให้คุณ</strong>
+        <span id="studentGiftNotificationItem"></span>
+        <small id="studentGiftNotificationMeta"></small>
+      </span>
+      <span class="student-gift-notification-action">
+        <span>ดูรายละเอียด</span>
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+      </span>
+    </button>
+
     <!-- Profile + Level Card -->
     <div class="s-card mb-3" id="levelCard">
       <div class="text-center">
@@ -146,10 +162,11 @@
     </div>
 
     <div class="student-actions">
-      <button class="btn-shop" onclick="openShop()">
-        <span>🛒</span>
+      <button class="btn-shop" id="studentShopButton" onclick="openShop()" aria-label="เปิด Magic Shop ไม่มีของขวัญใหม่">
+        <i class="fa-solid fa-store" aria-hidden="true"></i>
         <span>Magic Shop</span>
         <span class="btn-shop-coins" id="shopCoinsBadge">—</span>
+        <span class="student-gift-count hidden" id="studentShopGiftCount" aria-hidden="true">0</span>
       </button>
       <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="showStudentHistory()">
         <i class="fa-solid fa-clock-rotate-left me-1"></i>ประวัติของฉัน
@@ -850,8 +867,9 @@
       <button class="shop-tab active" id="stab-shop" role="tab" aria-selected="true" aria-controls="shopTabContent" onclick="switchShopTab('shop')">
         <i class="fa-solid fa-store me-1"></i>สินค้า
       </button>
-      <button class="shop-tab" id="stab-history" role="tab" aria-selected="false" aria-controls="historyTabContent" tabindex="-1" onclick="switchShopTab('history')">
+      <button class="shop-tab" id="stab-history" role="tab" aria-selected="false" aria-controls="historyTabContent" aria-label="ประวัติการแลกของ ไม่มีของขวัญใหม่" tabindex="-1" onclick="switchShopTab('history')">
         <i class="fa-solid fa-receipt me-1"></i>ประวัติ
+        <span class="student-gift-count shop-tab-gift-count hidden" id="studentHistoryGiftCount" aria-hidden="true">0</span>
       </button>
     </div>
     <div class="shop-scroll">
@@ -1081,6 +1099,8 @@
 
 <div id="shopOrderToastRegion" class="shop-order-toast-region" aria-live="polite" aria-relevant="additions" aria-label="การแจ้งเตือนออเดอร์ใหม่"></div>
 <div id="shopOrderStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+<div id="studentGiftToastRegion" class="student-gift-toast-region" aria-live="polite" aria-relevant="additions" aria-label="การแจ้งเตือนของขวัญจากครู"></div>
+<div id="studentGiftStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <script defer src="./app.js"></script>
 </body>
 </html>
