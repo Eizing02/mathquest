@@ -327,9 +327,11 @@
             </select>
           </div>
           <div class="col-6 col-md-3">
+            <label class="form-label" for="statYear">ปี ค.ศ.</label>
+            <input id="statYear" type="number" min="2000" max="2200" class="form-control form-control-sm mb-1" aria-label="ปี ค.ศ." onchange="loadStats()">
             <label class="form-label" for="statMonth">เดือน</label>
             <select id="statMonth" class="form-select form-select-sm" onchange="loadStats()">
-              <option value="all">ทั้งหมด</option>
+              <option value="all">ทั้งปีที่เลือก</option>
               <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
               <option value="3">มีนาคม</option><option value="4">เมษายน</option>
               <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
@@ -340,9 +342,9 @@
           </div>
           <div class="col-12 col-md-6 d-flex gap-2 flex-wrap justify-content-md-end mt-1 mt-md-0 no-print">
             <div class="export-bar mb-0">
-              <button class="btn-exp exp-csv" onclick="exportCSV()"><i class="fa-solid fa-file-csv me-1"></i>CSV</button>
-              <button class="btn-exp exp-xls" onclick="exportExcel()"><i class="fa-solid fa-file-excel me-1"></i>Excel</button>
-              <button class="btn-exp exp-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
+              <button class="btn-exp exp-csv" onclick="exportReport('csv', 'attendance')"><i class="fa-solid fa-file-csv me-1"></i>CSV</button>
+              <button class="btn-exp exp-xls" onclick="exportReport('xlsx', 'attendance')"><i class="fa-solid fa-file-excel me-1"></i>Excel</button>
+              <button class="btn-exp exp-pdf" onclick="exportReport('pdf', 'attendance')"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
             </div>
             <button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:10px" onclick="promptIndividualPDF()">
               <i class="fa-solid fa-user me-1"></i>พิมพ์รายบุคคล
@@ -681,15 +683,15 @@
           <div class="col-12 col-md-8 d-flex justify-content-md-end align-items-center gap-2">
             <small class="text-muted" id="rewardReportCount">ยังไม่ได้โหลดข้อมูล</small>
             <button class="btn btn-sm btn-outline-secondary fw-bold btn-compact"
-                    onclick="exportRewardReportCSV()">
+                    onclick="exportReport('csv', 'reward')">
               <i class="fa-solid fa-file-csv me-1"></i>CSV
             </button>
             <button class="btn btn-sm btn-outline-success fw-bold btn-compact"
-                    onclick="exportRewardReportExcel()">
+                    onclick="exportReport('xlsx', 'reward')">
               <i class="fa-solid fa-file-excel me-1"></i>Excel
             </button>
             <button class="btn btn-sm btn-outline-danger fw-bold btn-compact"
-                    onclick="exportRewardReportPDF()">
+                    onclick="exportReport('pdf', 'reward')">
               <i class="fa-solid fa-file-pdf me-1"></i>PDF
             </button>
             <button class="btn btn-sm btn-outline-primary fw-bold btn-compact"
@@ -700,6 +702,11 @@
         </div>
       </div>
       <div class="card p-3">
+        <div class="report-options" role="group" aria-labelledby="reportOptionsTitle"><h3 id="reportOptionsTitle">ตัวเลือกการส่งออก</h3>
+          <div><label for="reportKind" class="form-label">รูปแบบรายงาน</label><select id="reportKind" class="form-select"><option value="history">ประวัติแลกของ</option><option value="pending">รายการรอแจก</option><option value="bonus">สรุปแต้มพิเศษ</option><option value="wallet">สรุปเหรียญ ณ ปัจจุบัน</option></select></div>
+          <div><label for="reportFrom" class="form-label">ตั้งแต่วันที่</label><input id="reportFrom" type="date" class="form-control"></div>
+          <div><label for="reportTo" class="form-label">ถึงวันที่</label><input id="reportTo" type="date" class="form-control"></div>
+        </div>
         <div id="rewardReportSpinner" class="text-center py-4 hidden">
           <div class="spinner-border text-primary spinner-compact"></div>
           <div class="mt-2 loading-note">กำลังโหลดรายงาน...</div>
@@ -952,6 +959,8 @@
 
         <label class="form-label" for="itemCost">ราคา (เหรียญ) <span class="text-danger">*</span></label>
         <input type="number" id="itemCost" class="form-control mb-3" placeholder="0" min="0" step="1">
+        <label class="form-label" for="itemBonusPoints">แต้มพิเศษต่อชิ้น (0 = ของรางวัลทั่วไป)</label>
+        <input type="number" id="itemBonusPoints" class="form-control mb-3" value="0" min="0" max="10000" step="0.01">
 
         <label class="form-label" for="itemDesc">คำอธิบาย</label>
         <textarea id="itemDesc" class="form-control mb-3" rows="2" placeholder="รายละเอียดสินค้า..."></textarea>
@@ -1101,6 +1110,7 @@
 <div id="shopOrderStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <div id="studentGiftToastRegion" class="student-gift-toast-region" aria-live="polite" aria-relevant="additions" aria-label="การแจ้งเตือนของขวัญจากครู"></div>
 <div id="studentGiftStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+<script defer src="./reports.js"></script>
 <script defer src="./app.js"></script>
 </body>
 </html>

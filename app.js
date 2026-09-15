@@ -310,6 +310,8 @@ function sanitizeFilename(name) {
 
 function matchesMonth(value, targetMonth) {
   if (!targetMonth || targetMonth === 'all') return true;
+  if (/^\d{4}$/.test(String(targetMonth))) return monthKeyBangkok(value).slice(0, 4) === String(targetMonth);
+  if (/^\d{4}-\d{2}$/.test(String(targetMonth))) return monthKeyBangkok(value) === String(targetMonth);
   return monthNumberBangkok(value) === String(targetMonth);
 }
 
@@ -334,6 +336,7 @@ function mapShopItem(row) {
     itemId: row.item_id,
     itemName: row.item_name,
     cost: Number(row.cost) || 0,
+    bonusPoints: Number(row.bonus_points) || 0,
     description: row.description || '',
     image: row.image_url || '',
     imageUrl: row.image_url || '',
@@ -1788,10 +1791,9 @@ async function getStudentHistoryDb(studentId, targetMonth) {
     });
   }
   var client = getSupabase();
-  var rows = await runQuery(client.from('attendance_logs')
-    .select('id,timestamp,status,points')
-    .eq('student_id', String(studentId).trim())
-    .order('timestamp', { ascending: false }));
+  var rows = await reportReadAll(function() { return client.from('attendance_logs')
+    .select('id,timestamp,status,points').eq('student_id', String(studentId).trim()); }, 'id');
+  rows.sort(function(a, b) { return b.timestamp.localeCompare(a.timestamp) || Number(b.id) - Number(a.id); });
   return (rows || []).filter(function(r) {
     return matchesMonth(r.timestamp, targetMonth || 'all');
   }).map(function(r) {
@@ -1807,15 +1809,11 @@ async function getStudentHistoryDb(studentId, targetMonth) {
 
 async function getAttendanceStatsDb(targetGrade, targetMonth) {
   var client = getSupabase();
-  var students = await runQuery(client.from('students')
-    .select('id,name,grade')
-    .eq('grade', normalizeGrade(targetGrade))
-    .order('id', { ascending: true }));
+  var students = await reportReadAll(function() { return client.from('students')
+    .select('id,name,grade').eq('grade', normalizeGrade(targetGrade)); }, 'id');
   if (!students.length) return [];
   var ids = students.map(function(s) { return s.id; });
-  var logs = await runQuery(client.from('attendance_logs')
-    .select('student_id,status,points,timestamp')
-    .in('student_id', ids));
+  var logs = await reportReadStudents('attendance_logs', 'id,student_id,status,points,timestamp', ids);
   var bySt = {};
   var levelMap = {};
   (logs || []).forEach(function(log) {
@@ -1854,9 +1852,7 @@ async function getDashboardChartDataDb(grade) {
     .eq('grade', normalizeGrade(grade)));
   var ids = students.map(function(s) { return s.id; });
   if (!ids.length) return { months: [], totalStudents: 0 };
-  var logs = await runQuery(client.from('attendance_logs')
-    .select('student_id,status,timestamp')
-    .in('student_id', ids));
+  var logs = await reportReadStudents('attendance_logs', 'id,student_id,status,timestamp', ids);
   var mp = {};
   (logs || []).forEach(function(log) {
     var mk = monthKeyBangkok(log.timestamp);
@@ -2395,17 +2391,11 @@ async function getWalletBalanceDb(studentId) {
   }
   var client = getSupabase();
   var cid = String(studentId).trim();
-  var logData = await runQuery(client.from('attendance_logs')
-    .select('status,points')
-    .eq('student_id', cid));
-  var redData = await runQuery(client.from('redemption_logs')
-    .select('points_used,status')
-    .eq('student_id', cid));
+  var logData = await reportReadStudents('attendance_logs', 'id,status,points', [cid]);
+  var redData = await reportReadStudents('redemption_logs', 'id,points_used,status', [cid]);
   var petData = [];
   try {
-    petData = await runQuery(client.from('student_pet_events')
-      .select('points_used')
-      .eq('student_id', cid));
+    petData = await reportReadStudents('student_pet_events', 'id,points_used', [cid]);
   } catch (e) {
     petData = [];
   }
@@ -2455,7 +2445,7 @@ async function getAllShopItemsForTeacherDb() {
   return (rows || []).map(mapShopItem);
 }
 
-async function addShopItemDb(itemName, cost, description, imageUrl, active) {
+async function addShopItemDb(itemName, cost, description, imageUrl, active, bonusPoints) {
   if (!itemName || !itemName.trim()) return { status: 'fail', msg: 'กรุณาระบุชื่อสินค้า' };
   var price = Number(cost);
   if (isNaN(price) || price < 0) return { status: 'fail', msg: 'ราคาไม่ถูกต้อง' };
@@ -2465,6 +2455,7 @@ async function addShopItemDb(itemName, cost, description, imageUrl, active) {
     item_id: itemId,
     item_name: itemName.trim(),
     cost: price,
+    bonus_points: Number(bonusPoints) || 0,
     description: (description || '').trim(),
     image_url: imageUrl || '',
     is_active: active === true
@@ -2472,7 +2463,7 @@ async function addShopItemDb(itemName, cost, description, imageUrl, active) {
   return { status: 'success', msg: 'เพิ่มสินค้า "' + itemName.trim() + '" เรียบร้อย', itemId: itemId };
 }
 
-async function updateShopItemDb(itemId, itemName, cost, description, imageUrl, active) {
+async function updateShopItemDb(itemId, itemName, cost, description, imageUrl, active, bonusPoints) {
   if (!itemId) return { status: 'fail', msg: 'ไม่พบ ItemID' };
   if (!itemName || !itemName.trim()) return { status: 'fail', msg: 'กรุณาระบุชื่อสินค้า' };
   var price = Number(cost);
@@ -2487,6 +2478,7 @@ async function updateShopItemDb(itemId, itemName, cost, description, imageUrl, a
     .update({
       item_name: itemName.trim(),
       cost: price,
+      bonus_points: Number(bonusPoints) || 0,
       description: (description || '').trim(),
       image_url: imageUrl || '',
       is_active: active === true
@@ -2813,13 +2805,10 @@ async function getShopOrderStudentNameDb(studentId) {
 async function getRewardRedemptionReportDb(grade) {
   var client = getSupabase();
   var targetGrade = normalizeGrade(grade);
-  var studentsQuery = client.from('students')
-    .select('id,name,grade')
-    .order('id', { ascending: true });
-  if (targetGrade && targetGrade !== 'all') {
-    studentsQuery = studentsQuery.eq('grade', targetGrade);
-  }
-  var students = await runQuery(studentsQuery);
+  var students = await reportReadAll(function() {
+    var query = client.from('students').select('id,name,grade');
+    return targetGrade && targetGrade !== 'all' ? query.eq('grade', targetGrade) : query;
+  }, 'id');
   var studentMap = {};
   var studentIds = [];
   (students || []).forEach(function(st) {
@@ -2832,10 +2821,7 @@ async function getRewardRedemptionReportDb(grade) {
   });
   if (!studentIds.length) return [];
 
-  var orders = await runQuery(client.from('redemption_logs')
-    .select('id,timestamp,student_id,item_id,item_name,points_used,status')
-    .in('student_id', studentIds)
-    .order('timestamp', { ascending: false }));
+  var orders = await reportReadStudents('redemption_logs', 'id,timestamp,student_id,item_id,item_name,points_used,status', studentIds);
   var rows = (orders || []).map(function(row) {
     var st = studentMap[row.student_id] || {};
     return {
@@ -2870,7 +2856,7 @@ function groupRewardRedemptionRows(rows) {
       };
     }
     var student = studentMap[sid];
-    var itemKey = row.itemId || row.itemName || 'unknown';
+    var itemKey = JSON.stringify([row.itemId || row.itemName || 'unknown', row.status]);
     if (!student.itemMap[itemKey]) {
       student.itemMap[itemKey] = {
         groupId: groupSeq++,
@@ -4500,23 +4486,29 @@ async function cancelSession() {
 }
 
 /* ══ Stats & Charts ══════════════════════════════════ */
+var statsLoadVersion = 0;
 async function loadStats() {
+  var version = ++statsLoadVersion;
   var g = document.getElementById('statGrade') && document.getElementById('statGrade').value;
-  var m = document.getElementById('statMonth') && document.getElementById('statMonth').value;
+  var m;
+  try { m = getReportMonth(); } catch (e) { onErr(e); return; }
   if (!g || !m) return;
   statsLoaded = true;
   document.getElementById('statsSpinner').classList.remove('hidden');
   document.getElementById('statsTbody').innerHTML = '';
   try {
     var data = await getAttendanceStatsDb(g, m);
+    if (version !== statsLoadVersion) return;
     document.getElementById('statsSpinner').classList.add('hidden');
     statsCache = data;
     renderSummary(data);
     renderTable(data);
     renderDonut(data);
     var cd = await getDashboardChartDataDb(g);
+    if (version !== statsLoadVersion) return;
     renderBar(cd.months);
   } catch (e) {
+    if (version !== statsLoadVersion) return;
     document.getElementById('statsSpinner').classList.add('hidden');
     onErr(e);
   }
@@ -4635,7 +4627,7 @@ function renderBar(months) {
 }
 
 async function showHistory(id, mt) {
-  var m = document.getElementById('statMonth') ? document.getElementById('statMonth').value : 'all';
+  var m = getReportMonth();
   loading('กำลังโหลด...');
   try {
     var pair = await Promise.all([
@@ -4669,77 +4661,11 @@ async function showHistory(id, mt) {
 }
 
 /* ══ Export ══════════════════════════════════════════ */
-function getExportData() {
-  var g = document.getElementById('statGrade') ? document.getElementById('statGrade').value : '';
-  var m = document.getElementById('statMonth') ? document.getElementById('statMonth').value : 'all';
-  var mo = document.getElementById('statMonth');
-  var mt = mo ? mo.options[mo.selectedIndex].text : 'ทั้งหมด';
-  return { g: g, m: m, mt: mt, data: statsCache };
-}
-
-function exportCSV() {
-  var ex = getExportData();
-  if (!ex.data || !ex.data.length) return Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'กรุณาโหลดสถิติก่อน' });
-  var rows = [['#', 'รหัส', 'ชื่อ-นามสกุล', 'Level', 'มา', 'กิจกรรม', 'ขาด', 'ลา']];
-  ex.data.forEach(function(s, i) { rows.push([i + 1, s.id, s.name, s.level || 0, s.present, s.activity || 0, s.absent, s.leave]); });
-  var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
-  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a'); a.href = url;
-  a.download = 'attendance_' + ex.g + '_' + ex.mt + '_' + new Date().toISOString().slice(0, 10) + '.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-}
-
-function exportExcel() {
-  if (typeof XLSX === 'undefined') return Swal.fire({ icon: 'error', title: 'โหลด Library ไม่สำเร็จ' });
-  var ex = getExportData();
-  if (!ex.data || !ex.data.length) return Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'กรุณาโหลดสถิติก่อน' });
-  var now = new Date().toLocaleDateString('th-TH');
-  var header = [['#', 'รหัส', 'ชื่อ-นามสกุล', 'Level', 'XP รวม', 'มา (ครั้ง)', 'กิจกรรม (ครั้ง)', 'ขาด (ครั้ง)', 'ลา (ครั้ง)']];
-  var body = ex.data.map(function(s, i) { return [i + 1, s.id, s.name, s.level || 0, s.totalPoints || 0, s.present, s.activity || 0, s.absent, s.leave]; });
-  var ws = XLSX.utils.aoa_to_sheet([['รายงานการเข้าเรียน'], ['ชั้น: ' + ex.g + ' | เดือน: ' + ex.mt + ' | วันที่พิมพ์: ' + now], [[]]].concat(header, body));
-  ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 28 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 10 }];
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'สถิติ');
-  XLSX.writeFile(wb, 'attendance_' + ex.g + '_' + ex.mt + '.xlsx');
-}
-
-function exportPDF() {
-  var ex = getExportData();
-  if (!ex.data || !ex.data.length) return Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'กรุณาโหลดสถิติก่อน' });
-  var now = formatThaiLongDate(new Date());
-  document.getElementById('printSubtitle').textContent = 'รายห้อง: ชั้น ' + ex.g + ' | เดือน: ' + ex.mt;
-  document.getElementById('printDate').textContent = 'พิมพ์วันที่ ' + now;
-  document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
-  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>Level</th><th>มา</th><th>กิจกรรม</th><th>ขาด</th><th>ลา</th></tr>';
-  document.getElementById('printBody').innerHTML = ex.data.map(function(s, i) {
-    return '<tr><td>' + (i + 1) + '</td><td>' + s.id + '</td><td class="text-start">' + s.name + '</td><td>Lv.' + (s.level || 0) + '</td><td>' + s.present + '</td><td>' + (s.activity || 0) + '</td><td>' + s.absent + '</td><td>' + s.leave + '</td></tr>';
-  }).join('');
-  setTimeout(function() { window.print(); }, 300);
-}
-
-async function preparePDF(type, id) {
-  var m = document.getElementById('statMonth');
-  var mt = m ? m.options[m.selectedIndex].text : 'ทั้งหมด';
-  var now = formatThaiLongDate(new Date());
-  document.getElementById('printDate').textContent = 'พิมพ์วันที่ ' + now;
-  document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
-  loading('กำลังเตรียมเอกสาร...');
-  if (type === 'single' && id) {
-    document.getElementById('printSubtitle').textContent = 'รายบุคคล รหัส: ' + id + ' | เดือน: ' + mt;
-    try {
-      var logs = await getStudentHistoryDb(id, m ? m.value : 'all');
-      if (!logs.length) return Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล' });
-      document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>วันที่</th><th>สถานะ</th><th>คะแนน</th></tr>';
-      document.getElementById('printBody').innerHTML = logs.map(function(l, i) {
-        return '<tr><td>' + (i + 1) + '</td><td>' + l.date + '</td><td>' + l.status + '</td><td>' + (l.status === 'กิจกรรม' ? '0' : (l.points > 0 ? '+' + l.points : '0')) + '</td></tr>';
-      }).join('');
-      Swal.close();
-      setTimeout(function() { window.print(); }, 400);
-    } catch (e) {
-      onErr(e);
-    }
-  }
+function exportCSV() { return exportReport('csv', 'attendance'); }
+function exportExcel() { return exportReport('xlsx', 'attendance'); }
+function exportPDF() { return exportReport('pdf', 'attendance'); }
+function preparePDF(type, id) {
+  if (type === 'single' && id) return exportReport('pdf', 'individual', id);
 }
 
 function promptIndividualPDF() {
@@ -5518,109 +5444,9 @@ function rewardReportStatusText(status) {
   return 'รอดำเนินการ';
 }
 
-function ensureRewardReportLoaded() {
-  if (!rewardReportCache || !rewardReportCache.length) {
-    Swal.fire({
-      icon: 'info',
-      title: 'ยังไม่มีข้อมูลสำหรับ Export',
-      text: 'กรุณาโหลดรายงานการแลกของรางวัลก่อน',
-      confirmButtonColor: UI_COLOR_PRIMARY
-    });
-    return false;
-  }
-  return true;
-}
-
-function getRewardReportExportRows() {
-  var rows = [];
-  (rewardReportCache || []).forEach(function(student, studentIndex) {
-    student.items.forEach(function(item) {
-      rows.push({
-        no: studentIndex + 1,
-        studentId: student.studentId,
-        studentName: student.studentName,
-        grade: student.grade,
-        itemName: item.itemName,
-        quantity: item.quantity,
-        totalCost: item.totalCost,
-        source: item.sourceText || (item.totalCost > 0 ? 'แลกด้วยเหรียญ' : 'ครูมอบให้'),
-        latestDate: item.latestDate,
-        status: rewardReportStatusText(item.status)
-      });
-    });
-  });
-  return rows;
-}
-
-function getRewardReportExportMeta() {
-  var gradeEl = document.getElementById('rewardReportGrade');
-  var grade = gradeEl ? gradeEl.value : 'all';
-  return {
-    grade: grade === 'all' ? 'ทุกห้อง' : grade,
-    date: formatThaiLongDate(new Date())
-  };
-}
-
-function exportRewardReportCSV() {
-  if (!ensureRewardReportLoaded()) return;
-  var rows = [['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'ประเภท', 'วันที่ล่าสุด', 'สถานะ']];
-  getRewardReportExportRows().forEach(function(r) {
-    rows.push([r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.source, r.latestDate, r.status]);
-  });
-  var csv = rows.map(function(row) {
-    return row.map(function(c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
-  }).join('\n');
-  var meta = getRewardReportExportMeta();
-  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'reward_picklist_' + meta.grade + '_' + new Date().toISOString().slice(0, 10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function exportRewardReportExcel() {
-  if (typeof XLSX === 'undefined') return Swal.fire({ icon: 'error', title: 'โหลด Library ไม่สำเร็จ' });
-  if (!ensureRewardReportLoaded()) return;
-  var meta = getRewardReportExportMeta();
-  var body = getRewardReportExportRows().map(function(r) {
-    return [r.no, r.studentId, r.studentName, r.grade, r.itemName, r.quantity, r.totalCost, r.source, r.latestDate, r.status];
-  });
-  var ws = XLSX.utils.aoa_to_sheet([
-    ['Pick List รายงานการแลกของรางวัล'],
-    ['ห้อง: ' + meta.grade + ' | วันที่พิมพ์: ' + meta.date],
-    [],
-    ['ลำดับนักเรียน', 'เลขประจำตัว', 'ชื่อ-นามสกุล', 'ห้อง', 'ของรางวัล', 'จำนวน', 'ใช้เหรียญรวม', 'ประเภท', 'วันที่ล่าสุด', 'สถานะ']
-  ].concat(body));
-  ws['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 10 }, { wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 20 }, { wch: 18 }, { wch: 14 }];
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Reward Pick List');
-  XLSX.writeFile(wb, 'reward_picklist_' + meta.grade + '.xlsx');
-}
-
-function exportRewardReportPDF() {
-  if (!ensureRewardReportLoaded()) return;
-  var meta = getRewardReportExportMeta();
-  var titleEl = document.querySelector('#printArea h3');
-  var oldTitle = titleEl ? titleEl.textContent : '';
-  if (titleEl) titleEl.textContent = 'Pick List รายงานการแลกของรางวัล';
-  document.getElementById('printSubtitle').textContent = 'ห้อง: ' + meta.grade;
-  document.getElementById('printDate').textContent = 'พิมพ์วันที่ ' + meta.date;
-  document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
-  document.getElementById('printHead').innerHTML = '<tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ห้อง</th><th>ของรางวัล</th><th>จำนวน</th><th>ประเภท</th><th>สถานะ</th></tr>';
-  document.getElementById('printBody').innerHTML = getRewardReportExportRows().map(function(r) {
-    return '<tr><td>' + r.no + '</td><td>' + escHtml(r.studentId) + '</td><td class="text-start">' + escHtml(r.studentName) + '</td><td>' + escHtml(r.grade) + '</td><td class="text-start">' + escHtml(r.itemName) + '</td><td>x' + r.quantity + '</td><td>' + escHtml(r.source) + '</td><td>' + escHtml(r.status) + '</td></tr>';
-  }).join('');
-  setTimeout(function() {
-    window.print();
-    setTimeout(function() {
-      if (titleEl) titleEl.textContent = oldTitle || 'รายงานการเข้าเรียน';
-    }, 500);
-  }, 300);
-}
+function exportRewardReportCSV() { return exportReport('csv', 'reward'); }
+function exportRewardReportExcel() { return exportReport('xlsx', 'reward'); }
+function exportRewardReportPDF() { return exportReport('pdf', 'reward'); }
 
 /* ════════════════════════════════════════════════════
    STUDENT FREE-ITEM NOTIFICATIONS
@@ -6534,6 +6360,7 @@ function openAddItemModal() {
   document.getElementById('editItemId').value = '';
   document.getElementById('itemName').value = '';
   document.getElementById('itemCost').value = '';
+  document.getElementById('itemBonusPoints').value = 0;
   document.getElementById('itemDesc').value = '';
   document.getElementById('itemActive').checked = true;
   itemImageUrl = '';
@@ -6555,6 +6382,7 @@ function openEditItemModal(itemId) {
   document.getElementById('editItemId').value = item.itemId;
   document.getElementById('itemName').value = item.itemName;
   document.getElementById('itemCost').value = item.cost;
+  document.getElementById('itemBonusPoints').value = item.bonusPoints || 0;
   document.getElementById('itemDesc').value = item.description;
   document.getElementById('itemActive').checked = item.active;
   itemImageUrl = item.image || '';
@@ -6599,6 +6427,8 @@ async function saveItemModal() {
   var editId = document.getElementById('editItemId').value.trim();
   var name = document.getElementById('itemName').value.trim();
   var cost = document.getElementById('itemCost').value;
+  var bonusPoints = Number(document.getElementById('itemBonusPoints').value);
+  if (!Number.isFinite(bonusPoints) || bonusPoints < 0 || bonusPoints > 10000) return Swal.fire({ icon: 'warning', title: 'แต้มพิเศษต้องอยู่ระหว่าง 0 ถึง 10,000' });
   var desc = document.getElementById('itemDesc').value.trim();
   var active = document.getElementById('itemActive').checked;
   if (!name) return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุชื่อสินค้า' });
@@ -6608,8 +6438,8 @@ async function saveItemModal() {
   loading('กำลังบันทึก...');
   try {
     var res = editId
-      ? await updateShopItemDb(editId, name, Number(cost), desc, itemImageUrl, active)
-      : await addShopItemDb(name, Number(cost), desc, itemImageUrl, active);
+      ? await updateShopItemDb(editId, name, Number(cost), desc, itemImageUrl, active, bonusPoints)
+      : await addShopItemDb(name, Number(cost), desc, itemImageUrl, active, bonusPoints);
     bootstrap.Modal.getInstance(document.getElementById('itemModal'))?.hide();
     Swal.close();
     if (res.status === 'success') {
