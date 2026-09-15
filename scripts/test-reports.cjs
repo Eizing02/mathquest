@@ -11,7 +11,7 @@ function formatDate(t){return dateKeyBangkok(t);}
 function formatThaiLongDate(t){return new Date(t).toLocaleDateString('th-TH');}
 function rewardReportStatusText(s){return {approved:'อนุมัติแล้ว',pending:'รอดำเนินการ',rejected:'ปฏิเสธ'}[s];}
 var TH_MO_L=['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];`;
-const context = vm.createContext({ Intl, Date, Map, Set, console });
+const context = vm.createContext({ Intl, Date, Map, Set, console, setTimeout, clearTimeout, AbortController });
 vm.runInContext(helpers + code, context);
 const selection = { kind:'attendance',grade:'ม.6',month:'2026-09',from:'',to:'',createdAt:'2026-09-15T05:00:00Z',school:'โรงเรียนตัวอย่าง',teacher:'ครูทดสอบ' };
 const students = Array.from({length:70},(_,i)=>({id:String(2000+i).padStart(5,'0'),name:'นักเรียนทดสอบชื่อยาว นามสกุลเพื่อทดสอบการพิมพ์ '+(i+1),grade:'ม.6'}));
@@ -90,6 +90,76 @@ async function main(){
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'responsive '+width);
       await page.screenshot({path:path.join(output,'controls-'+width+'.png')});
     }
+    await page.evaluate(fixture=>{
+      document.getElementById('rewardReportGrade').value='ม.6';
+      window.originalLoadReportData=loadReportData;
+      loadReportData=async()=>fixture;
+    },data);
+    const popupEvent=page.waitForEvent('popup');
+    await page.locator('#tab-reward-report [onclick="exportReport(\'pdf\', \'reward\')"]').click();
+    const popup=await popupEvent;
+    try {
+      await page.waitForFunction(()=>!reportExportBusy,{},{timeout:10000});
+      assert.ok(await popup.locator('.report-page').count()>0,'click creates PDF preview');
+      assert.ok(await popup.locator('nav button').isEnabled(),'preview print button is enabled');
+      await popup.locator('.report-page').nth(1).screenshot({path:path.join(output,'pdf-click-page2.png')});
+      console.log('PASS actual PDF click and button recovery');
+    } catch(e) {
+      console.log('PDF click stuck',await popup.evaluate(()=>({url:location.href,state:document.readyState,fonts:document.fonts.status,styles:document.styleSheets.length,sheet:!!document.querySelector('link').sheet,html:document.documentElement.outerHTML.slice(0,1200)})));
+      throw e;
+    } finally { await popup.close(); }
+    await page.evaluate(fixture=>{
+      loadReportData=window.originalLoadReportData;
+      var tables={students:fixture.students,attendance_logs:fixture.attendance,redemption_logs:fixture.orders,shop_items:fixture.catalog,student_pet_events:fixture.pets};
+      getSupabase=()=>({from(table){
+        return {filters:[],key:null,signal:null,
+          select(){return this},eq(key,value){this.filters.push(r=>r[key]===value);return this},
+          in(key,values){this.filters.push(r=>values.includes(r[key]));return this},
+          order(key){this.key=key;return this},limit(){return this},
+          gt(key,value){this.filters.push(r=>r[key]>value);return this},abortSignal(signal){this.signal=signal;return this},
+          then(resolve,reject){return Promise.resolve().then(()=>{
+            if(this.signal&&this.signal.aborted)throw this.signal.reason;
+            return {data:tables[table].filter(r=>this.filters.every(f=>f(r))).sort((a,b)=>a[this.key]>b[this.key]?1:a[this.key]<b[this.key]?-1:0).slice(0,80),error:null};
+          }).then(resolve,reject)}
+        };
+      }});
+    },data);
+    for(const format of ['csv','xlsx']){
+      const event=page.waitForEvent('download');
+      await page.locator('#tab-reward-report [onclick="exportReport(\''+format+'\', \'reward\')"]').click();
+      await (await event).saveAs(path.join(output,'history-click.'+format));
+      await page.waitForFunction(()=>!reportExportBusy);
+      assert.ok(await page.locator('#tab-reward-report [onclick*="exportReport"]').evaluateAll(buttons=>buttons.every(b=>!b.disabled)));
+      console.log('PASS actual',format,'click through paginated query pipeline');
+    }
+    async function failedExport(setup,message){
+      await page.evaluate(setup);
+      await page.locator('#tab-reward-report [onclick="exportReport(\'csv\', \'reward\')"]').click();
+      await page.waitForFunction(()=>!reportExportBusy,{},{timeout:5000});
+      assert.ok(await page.locator('#tab-reward-report [onclick*="exportReport"]').evaluateAll(buttons=>buttons.every(b=>!b.disabled)));
+      assert.match(await page.locator('#rewardExportStatus').innerText(),message);
+      await page.evaluate(()=>Swal.close());
+    }
+    await failedExport(()=>{loadReportData=async()=>{throw new Error('ฐานข้อมูลทดสอบผิดพลาด')}},/ฐานข้อมูลทดสอบผิดพลาด/);
+    await failedExport(()=>{REPORT_EXPORT_TIMEOUT_MS=100;loadReportData=()=>new Promise(()=>{})},/นานเกินไป/);
+    await page.evaluate(()=>{REPORT_EXPORT_TIMEOUT_MS=45000;loadReportData=()=>new Promise(()=>{})});
+    await page.locator('#tab-reward-report [onclick="exportReport(\'csv\', \'reward\')"]').click();
+    await page.locator('#rewardExportStatus [data-report-cancel]').click();
+    await page.waitForFunction(()=>!reportExportBusy);
+    assert.ok(await page.locator('#tab-reward-report [onclick*="exportReport"]').evaluateAll(buttons=>buttons.every(b=>!b.disabled)));
+    assert.match(await page.locator('#rewardExportStatus').innerText(),/ยกเลิก/);
+    await page.evaluate(fixture=>{loadReportData=async()=>fixture},data);
+    await page.context().route('**/report-print.css',route=>route.abort());
+    const failedPopupEvent=page.waitForEvent('popup');
+    await page.locator('#tab-reward-report [onclick="exportReport(\'pdf\', \'reward\')"]').click();
+    const failedPopup=await failedPopupEvent;
+    await page.waitForFunction(()=>!reportExportBusy,{},{timeout:15000});
+    assert.ok(failedPopup.isClosed());
+    assert.match(await page.locator('#rewardExportStatus').innerText(),/รูปแบบรายงาน/);
+    assert.ok(await page.locator('#tab-reward-report [onclick*="exportReport"]').evaluateAll(buttons=>buttons.every(b=>!b.disabled)));
+    await page.context().unroute('**/report-print.css');
+    await page.evaluate(()=>Swal.close());
+    console.log('PASS button recovery: database error, timeout, cancellation, failed stylesheet');
   }finally{if(browser)await browser.close();server.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1});

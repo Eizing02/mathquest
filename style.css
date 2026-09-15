@@ -420,6 +420,10 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
 .report-options{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;padding:16px 0}
 .report-options>div{min-width:0}
 .report-options h3{grid-column:1/-1;font-size:1rem;font-weight:600;margin:0}
+.report-export-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+.report-export-actions .btn{min-height:44px;border-radius:6px}
+.report-export-status{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;font-size:.875rem;overflow-wrap:anywhere}
+.report-export-status[hidden],.report-export-status button[hidden]{display:none!important}
 @media(max-width:600px){.report-options{grid-template-columns:1fr 1fr}.report-options>div:first-of-type{grid-column:1/-1}}
 
 /* Official app polish */

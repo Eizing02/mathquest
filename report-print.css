@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
 *{box-sizing:border-box}
-body{margin:0;color:#111;background:#e8ebee;font:11pt 'Sarabun',Tahoma,sans-serif;letter-spacing:0}
+body{--report-print-ready:1;margin:0;color:#111;background:#e8ebee;font:11pt 'Sarabun',Tahoma,sans-serif;letter-spacing:0}
 nav{padding:12px;text-align:center;background:#fff;border-bottom:1px solid #ccc}
 button{font:inherit;padding:10px 20px;cursor:pointer;border:1px solid #777;background:#fff;border-radius:4px}
 .report-page{position:relative;width:180mm;height:266mm;margin:12px auto;background:white;overflow:hidden;break-after:page}

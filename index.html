@@ -349,6 +349,7 @@
             <button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:10px" onclick="promptIndividualPDF()">
               <i class="fa-solid fa-user me-1"></i>พิมพ์รายบุคคล
             </button>
+            <div id="attendanceExportStatus" class="report-export-status" role="status" aria-live="polite" hidden><span data-report-progress></span><button data-report-cancel type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelReportExport()" hidden>ยกเลิก</button></div>
           </div>
         </div>
       </div>
@@ -682,18 +683,6 @@
           </div>
           <div class="col-12 col-md-8 d-flex justify-content-md-end align-items-center gap-2">
             <small class="text-muted" id="rewardReportCount">ยังไม่ได้โหลดข้อมูล</small>
-            <button class="btn btn-sm btn-outline-secondary fw-bold btn-compact"
-                    onclick="exportReport('csv', 'reward')">
-              <i class="fa-solid fa-file-csv me-1"></i>CSV
-            </button>
-            <button class="btn btn-sm btn-outline-success fw-bold btn-compact"
-                    onclick="exportReport('xlsx', 'reward')">
-              <i class="fa-solid fa-file-excel me-1"></i>Excel
-            </button>
-            <button class="btn btn-sm btn-outline-danger fw-bold btn-compact"
-                    onclick="exportReport('pdf', 'reward')">
-              <i class="fa-solid fa-file-pdf me-1"></i>PDF
-            </button>
             <button class="btn btn-sm btn-outline-primary fw-bold btn-compact"
                     onclick="loadRewardReport()">
               <i class="fa-solid fa-rotate-right me-1"></i>รีเฟรช
@@ -706,6 +695,12 @@
           <div><label for="reportKind" class="form-label">รูปแบบรายงาน</label><select id="reportKind" class="form-select"><option value="history">ประวัติแลกของ</option><option value="pending">รายการรอแจก</option><option value="bonus">สรุปแต้มพิเศษ</option><option value="wallet">สรุปเหรียญ ณ ปัจจุบัน</option></select></div>
           <div><label for="reportFrom" class="form-label">ตั้งแต่วันที่</label><input id="reportFrom" type="date" class="form-control"></div>
           <div><label for="reportTo" class="form-label">ถึงวันที่</label><input id="reportTo" type="date" class="form-control"></div>
+          <div class="report-export-actions">
+            <button type="button" class="btn btn-outline-secondary fw-bold" onclick="exportReport('csv', 'reward')"><i class="fa-solid fa-file-csv me-1"></i>ส่งออก CSV</button>
+            <button type="button" class="btn btn-outline-success fw-bold" onclick="exportReport('xlsx', 'reward')"><i class="fa-solid fa-file-excel me-1"></i>ส่งออก Excel</button>
+            <button type="button" class="btn btn-primary fw-bold" onclick="exportReport('pdf', 'reward')"><i class="fa-solid fa-file-pdf me-1"></i>เปิดรายงาน PDF</button>
+          </div>
+          <div id="rewardExportStatus" class="report-export-status" role="status" aria-live="polite" hidden><span data-report-progress></span><button data-report-cancel type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelReportExport()" hidden>ยกเลิก</button></div>
         </div>
         <div id="rewardReportSpinner" class="text-center py-4 hidden">
           <div class="spinner-border text-primary spinner-compact"></div>

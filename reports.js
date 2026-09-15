@@ -1,6 +1,35 @@
 /* Reports use fresh, complete data. PDF, CSV and XLSX share the same rows. */
 'use strict';
 var reportExportBusy = false;
+var reportExportController = null;
+var REPORT_EXPORT_TIMEOUT_MS = 45000;
+var REPORT_PREVIEW_TIMEOUT_MS = 12000;
+
+function reportWait(task, signal, timeout, message) {
+  return new Promise(function(resolve, reject) {
+    var timer;
+    function cleanup() {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', aborted);
+    }
+    function aborted() { cleanup(); reject(signal.reason || new Error('ยกเลิกการส่งออกแล้ว')); }
+    if (signal && signal.aborted) { aborted(); return; }
+    if (signal) signal.addEventListener('abort', aborted, { once: true });
+    if (timeout) timer = setTimeout(function() { cleanup(); reject(new Error(message)); }, timeout);
+    Promise.resolve(task).then(function(value) { cleanup(); resolve(value); }, function(error) { cleanup(); reject(error); });
+  });
+}
+
+function cancelReportExport() {
+  if (reportExportController) reportExportController.abort(new Error('ยกเลิกการส่งออกแล้ว'));
+}
+
+function reportStatus(region, message, busy) {
+  if (!region) return;
+  region.hidden = false;
+  region.querySelector('[data-report-progress]').textContent = message;
+  region.querySelector('[data-report-cancel]').hidden = !busy;
+}
 
 function getReportMonth() {
   var yearEl = document.getElementById('statYear');
@@ -11,13 +40,15 @@ function getReportMonth() {
   return month === 'all' ? year : year + '-' + month.padStart(2, '0');
 }
 
-async function reportReadAll(makeQuery, key) {
+async function reportReadAll(makeQuery, key, signal) {
   var rows = [], cursor = null;
   // Keyset pagination also works when the server caps pages below our request.
   while (true) {
+    if (signal && signal.aborted) throw signal.reason;
     var query = makeQuery().order(key, { ascending: true }).limit(500);
     if (cursor !== null) query = query.gt(key, cursor);
-    var page = await runQuery(query);
+    if (signal && typeof query.abortSignal === 'function') query = query.abortSignal(signal);
+    var page = await reportWait(runQuery(query), signal);
     if (!page || !page.length) break;
     var next = page[page.length - 1][key];
     if (next == null || next === cursor) throw new Error('อ่านข้อมูลรายงานไม่ครบ กรุณาลองใหม่');
@@ -27,13 +58,13 @@ async function reportReadAll(makeQuery, key) {
   return rows;
 }
 
-async function reportReadStudents(table, columns, ids) {
+async function reportReadStudents(table, columns, ids, signal) {
   var rows = [];
   for (var i = 0; i < ids.length; i += 100) {
     var chunk = ids.slice(i, i + 100);
     rows = rows.concat(await reportReadAll(function() {
       return getSupabase().from(table).select(columns).in('student_id', chunk);
-    }, 'id'));
+    }, 'id', signal));
   }
   return rows;
 }
@@ -63,28 +94,33 @@ function reportSelection(kind, studentId) {
   return selection;
 }
 
-async function loadReportData(selection) {
+async function loadReportData(selection, signal, progress) {
+  progress = progress || function() {};
+  progress('กำลังโหลดรายชื่อนักเรียน...');
   var students = await reportReadAll(function() {
     var q = getSupabase().from('students').select('id,name,grade');
     if (selection.studentId) return q.eq('id', selection.studentId);
     return selection.grade === 'all' ? q : q.eq('grade', normalizeGrade(selection.grade));
-  }, 'id');
+  }, 'id', signal);
   var ids = students.map(function(s) { return s.id; });
   students.sort(function(a, b) { return String(a.grade).localeCompare(String(b.grade), 'th') || String(a.id).localeCompare(String(b.id)); });
   var data = { students: students, attendance: [], orders: [], pets: [], catalog: [] };
   if (['attendance', 'individual', 'wallet'].includes(selection.kind)) {
-    data.attendance = await reportReadStudents('attendance_logs', 'id,student_id,timestamp,status,points', ids);
+    progress('กำลังโหลดข้อมูลเข้าเรียน...');
+    data.attendance = await reportReadStudents('attendance_logs', 'id,student_id,timestamp,status,points', ids, signal);
   }
   if (selection.kind !== 'attendance') {
-    data.orders = await reportReadStudents('redemption_logs', '*', ids);
-    data.catalog = await reportReadAll(function() { return getSupabase().from('shop_items').select('*'); }, 'item_id');
+    progress('กำลังโหลดรายการแลกของ...');
+    data.orders = await reportReadStudents('redemption_logs', '*', ids, signal);
+    data.catalog = await reportReadAll(function() { return getSupabase().from('shop_items').select('*'); }, 'item_id', signal);
     if (selection.kind === 'bonus' && data.catalog.some(function(item) { return !Object.prototype.hasOwnProperty.call(item, 'bonus_points'); })) {
       throw new Error('ยังไม่ได้ติดตั้งข้อมูลแต้มพิเศษ กรุณารัน SQL อัปเดตรายงานก่อน');
     }
   }
   if (['wallet', 'individual'].includes(selection.kind)) {
     // A failed read must not silently turn spending into zero.
-    data.pets = await reportReadStudents('student_pet_events', 'id,student_id,points_used', ids);
+    progress('กำลังตรวจยอดเหรียญ...');
+    data.pets = await reportReadStudents('student_pet_events', 'id,student_id,points_used', ids, signal);
   }
   return data;
 }
@@ -237,42 +273,88 @@ async function exportReport(format, kind, studentId) {
   var popup = null;
   var buttons = Array.from(document.querySelectorAll('[onclick*="exportReport"]'));
   var previous = buttons.map(function(b) { return b.disabled; });
+  var region = document.getElementById(kind === 'reward' ? 'rewardExportStatus' : 'attendanceExportStatus');
+  var controller = new AbortController();
+  var deadline;
+  var popupWatch;
+  function progress(message) { if (!controller.signal.aborted) reportStatus(region, message, true); }
   try {
     var selection = reportSelection(kind, studentId);
     if (format === 'pdf') {
-      popup = window.open('', '_blank');
+      popup = window.open(new URL('report-preview.html', document.baseURI).href, '_blank');
       if (!popup) throw new Error('กรุณาอนุญาตหน้าต่างป๊อปอัปสำหรับรายงาน');
-      popup.document.body.textContent = 'กำลังเตรียมรายงาน...';
     }
-    reportExportBusy = true; buttons.forEach(function(b) { b.disabled = true; });
-    var report = buildReport(selection, await loadReportData(selection));
+    reportExportBusy = true; reportExportController = controller;
+    buttons.forEach(function(b) { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
+    deadline = setTimeout(function() { controller.abort(new Error('เตรียมรายงานนานเกินไป กรุณาตรวจการเชื่อมต่อแล้วลองใหม่')); }, REPORT_EXPORT_TIMEOUT_MS);
+    if (popup) popupWatch = setInterval(function() {
+      if (popup.closed) controller.abort(new Error('ปิดหน้าตัวอย่างรายงานแล้ว'));
+    }, 250);
+    progress('กำลังเตรียมรายงาน...');
+    var data = await reportWait(loadReportData(selection, controller.signal, progress), controller.signal);
+    var report = buildReport(selection, data);
     if (!report.rows.length) throw new Error('ไม่พบข้อมูลในช่วงที่เลือก');
-    if (popup) await renderReportPrint(popup, report);
+    if (popup) {
+      progress('กำลังจัดหน้ารายงาน...');
+      await reportWait(renderReportPrint(popup, report, controller.signal), controller.signal);
+    }
     else downloadReport(report, format);
+    reportStatus(region, popup ? 'เปิดตัวอย่างรายงานแล้ว กดพิมพ์ / บันทึก PDF ในหน้ารายงาน' : 'ส่งไฟล์ไปยังรายการดาวน์โหลดแล้ว', false);
     Swal.close();
   } catch (error) {
     if (popup && !popup.closed) popup.close();
-    Swal.fire({ icon: 'error', title: 'ส่งออกไม่สำเร็จ', text: error.message || 'กรุณาลองใหม่' });
+    controller.abort(error);
+    reportStatus(region, error.message || 'ส่งออกไม่สำเร็จ กรุณาลองใหม่', false);
+    if (error.message !== 'ยกเลิกการส่งออกแล้ว') Swal.fire({ icon: 'error', title: 'ส่งออกไม่สำเร็จ', text: error.message || 'กรุณาลองใหม่' });
   } finally {
-    reportExportBusy = false; buttons.forEach(function(b, i) { b.disabled = previous[i]; });
+    clearTimeout(deadline);
+    clearInterval(popupWatch);
+    reportExportBusy = false; reportExportController = null;
+    buttons.forEach(function(b, i) { b.disabled = previous[i]; b.removeAttribute('aria-busy'); });
   }
 }
 
-async function renderReportPrint(popup, report) {
+function waitReportPreview(popup, signal) {
+  var interval;
+  var loaded = new Promise(function(resolve, reject) {
+    function check() {
+      if (popup.closed) { reject(new Error('ปิดหน้าตัวอย่างรายงานแล้ว')); return; }
+      var doc;
+      try { doc = popup.document; } catch (e) { reject(new Error('เปิดหน้าตัวอย่างรายงานไม่สำเร็จ กรุณาลองใหม่')); return; }
+      if (doc.body && doc.body.hasAttribute('data-report-preview') && doc.readyState === 'complete') {
+        var css = doc.querySelector('link[rel="stylesheet"]');
+        if (!css || !css.sheet || popup.getComputedStyle(doc.body).getPropertyValue('--report-print-ready').trim() !== '1') reject(new Error('โหลดรูปแบบรายงานไม่สำเร็จ กรุณาลองใหม่'));
+        else resolve();
+      }
+    }
+    interval = setInterval(check, 50);
+    check();
+  });
+  return reportWait(loaded, signal, REPORT_PREVIEW_TIMEOUT_MS, 'โหลดหน้าตัวอย่างรายงานนานเกินไป กรุณาลองใหม่')
+    .finally(function() { clearInterval(interval); });
+}
+
+async function renderReportPrint(popup, report, signal) {
+  var isPreview = popup !== window;
+  if (isPreview) await waitReportPreview(popup, signal);
   var doc = popup.document;
   doc.documentElement.lang = 'th';
-  doc.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
+  if (!isPreview) doc.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
   doc.title = report.title;
   var base = doc.createElement('base'); base.href = document.baseURI; doc.head.appendChild(base);
-  var link = doc.createElement('link'); link.rel = 'stylesheet'; link.href = new URL('report-print.css', document.baseURI).href;
-  var ready = new Promise(function(resolve, reject) { link.onload = resolve; link.onerror = function() { reject(new Error('โหลดรูปแบบรายงานไม่สำเร็จ')); }; });
-  doc.head.appendChild(link);
+  if (!isPreview) {
+    var link = doc.createElement('link'); link.rel = 'stylesheet'; link.href = new URL('report-print.css', document.baseURI).href;
+    var ready = new Promise(function(resolve, reject) { link.onload = resolve; link.onerror = function() { reject(new Error('โหลดรูปแบบรายงานไม่สำเร็จ')); }; });
+    doc.head.appendChild(link);
+    await reportWait(ready, signal, REPORT_PREVIEW_TIMEOUT_MS, 'โหลดรูปแบบรายงานนานเกินไป กรุณาลองใหม่');
+  }
   var pageStyle = doc.createElement('style'); pageStyle.textContent = '@page{size:A4 ' + (report.landscape ? 'landscape' : 'portrait') + ';margin:15mm}'; doc.head.appendChild(pageStyle);
   doc.body.className = report.landscape ? 'landscape' : 'portrait';
   doc.body.innerHTML = '<nav><button type="button">พิมพ์ / บันทึก PDF</button></nav><main></main>';
-  doc.querySelector('button').onclick = function() { popup.print(); };
-  await ready;
-  await doc.fonts.ready;
+  var printButton = doc.querySelector('button');
+  printButton.disabled = true;
+  printButton.onclick = function() { popup.print(); };
+  await reportWait(doc.fonts.ready, signal, REPORT_PREVIEW_TIMEOUT_MS, 'โหลดตัวอักษรรายงานนานเกินไป กรุณาลองใหม่');
   var main = doc.querySelector('main');
   var pages = [], current, lastGroup = null;
   function element(tag, text, className) { var el = doc.createElement(tag); if (text != null) el.textContent = text; if (className) el.className = className; return el; }
@@ -346,6 +428,7 @@ async function renderReportPrint(popup, report) {
   }
   });
   pages.forEach(function(page, i) { page.querySelector('.page-number').textContent = 'หน้า ' + (i + 1) + ' / ' + pages.length; });
+  printButton.disabled = false;
   popup.focus();
 }
 
