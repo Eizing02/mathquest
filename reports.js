@@ -132,12 +132,19 @@ function buildReport(selection, data) {
   var columns = function(labels, widths) { return labels.map(function(label, i) { return { label: label, width: widths[i] }; }); };
   var catalog = new Map(data.catalog.map(function(item) { return [item.item_id, item]; }));
   var fallbackCount = 0, unmappedCount = 0;
+  var unconfiguredBonusItems = new Set();
   function bonus(row) {
-    if (row.bonus_points != null) return reportNumber(row.bonus_points);
+    if (Number(row.bonus_points) > 0) return reportNumber(row.bonus_points);
     var item = catalog.get(row.item_id);
-    if (!item || !Number(item.bonus_points)) { unmappedCount++; return 0; }
-    fallbackCount++;
-    return reportNumber(item.bonus_points);
+    if (item && Number(item.bonus_points) > 0) {
+      fallbackCount++;
+      return reportNumber(item.bonus_points);
+    }
+    if (/^แต้มพิเศษ\s*\d+(?:\.\d+)?\s*คะแนน$/u.test(String(row.item_name || '').trim())) {
+      unconfiguredBonusItems.add(String(row.item_name).trim());
+    }
+    unmappedCount++;
+    return 0;
   }
   function studentLogs(student) { return data.attendance.filter(function(r) { return r.student_id === student.id; }); }
   function stats(logs) {
@@ -213,6 +220,9 @@ function buildReport(selection, data) {
       });
       report.rows.push({ cells: [i + 1, student.id, student.name, student.grade, reportNumber(paid), reportNumber(free), reportNumber(paid + free)] });
     });
+    if (unconfiguredBonusItems.size) {
+      throw new Error('ยังไม่ได้กำหนดแต้มต่อชิ้นให้สินค้า: ' + Array.from(unconfiguredBonusItems).join(', ') + ' กรุณารัน SQL เติมแต้มพิเศษแล้วลองใหม่');
+    }
     report.note = 'แต้มพิเศษแยกจาก XP และเหรียญ • เฉพาะรายการอนุมัติแล้วตามสถานะปัจจุบัน';
     if (fallbackCount) report.note += ' • ' + fallbackCount + ' รายการเดิมใช้แต้มต่อชิ้นตามค่าของสินค้าปัจจุบัน';
     if (unmappedCount) report.note += ' • ' + unmappedCount + ' รายการเดิมไม่มีแต้มกำกับหรือเป็นของทั่วไป จึงไม่นับแต้ม';

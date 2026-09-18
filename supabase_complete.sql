@@ -39,6 +39,7 @@ create table if not exists public.shop_items (
   item_id     text        primary key,
   item_name   text        not null,
   cost        integer     not null default 0 check (cost >= 0),
+  bonus_points numeric(10,2) not null default 0 check (bonus_points between 0 and 10000),
   description text        default '',
   image_url   text        default '',
   is_active   boolean     not null default true,
@@ -431,10 +432,12 @@ on conflict (key) do nothing;
 -- ──────────────────────────────────────────────────────────
 -- 7. Shop items seed (จาก Excel)
 -- ──────────────────────────────────────────────────────────
-insert into public.shop_items (item_id, item_name, cost, description, image_url, is_active) values
-  ('ITEM_1777287693380', 'ปากกา',              50, '', '', true),
-  ('ITEM_1777287708960', 'ไม้บรรทัด',          60, '', '', true),
-  ('ITEM_1777287733286', 'แต้มพิเศษ 1 คะแนน', 25, '', '', true)
+alter table public.shop_items add column if not exists bonus_points numeric(10,2) not null default 0 check (bonus_points between 0 and 10000);
+insert into public.shop_items (item_id, item_name, cost, bonus_points, description, image_url, is_active) values
+  ('ITEM_1777287693380', 'ปากกา',              50, 0, '', '', true),
+  ('ITEM_1777287708960', 'ไม้บรรทัด',          60, 0, '', '', true),
+  ('ITEM_1777287733286', 'แต้มพิเศษ 1 คะแนน', 25, 1, '', '', true),
+  ('ITEM_1778916009290', 'แต้มพิเศษ 2 คะแนน', 40, 2, '', '', true)
 on conflict (item_id) do nothing;
 
 -- ──────────────────────────────────────────────────────────
@@ -648,6 +651,22 @@ $$;
 drop trigger if exists capture_redemption_bonus_points on public.redemption_logs;
 create trigger capture_redemption_bonus_points before insert on public.redemption_logs
 for each row execute function public.capture_redemption_bonus_points();
+
+update public.shop_items
+set bonus_points = case item_name
+  when 'แต้มพิเศษ 1 คะแนน' then 1
+  when 'แต้มพิเศษ 2 คะแนน' then 2
+  else bonus_points
+end
+where item_name in ('แต้มพิเศษ 1 คะแนน', 'แต้มพิเศษ 2 คะแนน');
+
+update public.redemption_logs
+set bonus_points = case item_name
+  when 'แต้มพิเศษ 1 คะแนน' then 1
+  when 'แต้มพิเศษ 2 คะแนน' then 2
+  else bonus_points
+end
+where item_name in ('แต้มพิเศษ 1 คะแนน', 'แต้มพิเศษ 2 คะแนน');
 
 -- ✅ เสร็จสิ้น — ตาราง / RLS / Storage / Seed ครบทั้งหมด
 -- ──────────────────────────────────────────────────────────

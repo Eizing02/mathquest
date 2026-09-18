@@ -3,11 +3,12 @@
 ## Deploy
 
 1. Run `20260915_01_report_bonus_points.sql` in the existing Supabase project before deploying the application. It adds bonus metadata and an insert trigger only; it does not change XP, balances, or existing redemptions.
+   Then run `20260918_01_backfill_special_bonus_points.sql` once to assign 1/2 points to the two existing special-point products and their historical redemptions.
 2. Deploy `app.js`, `reports.js`, `report-preview.html`, `report-print.css`, `index.html`, and `style.css` together.
 3. In the teacher shop, edit each bonus item and set its explicit bonus points per unit. Leave physical items at zero. Do not infer points from an item's name.
 4. Check a known student against attendance, orders, and pet costs. Open PDF preview, then use Print / Save PDF at A4, 100% scale, with the browser's own headers/footers off.
 
-New redemption rows capture bonus points at creation. Old NULL rows use the current catalog value and the report discloses that fallback. An old row whose product is deleted or has zero bonus points contributes no bonus; review the report's warning before using it for grades. This is not an automatic historical backfill.
+New redemption rows capture bonus points at creation. Old missing/zero rows use the current catalog value and the report discloses that fallback. A recognized special-point item with no configured value blocks export with a clear error instead of printing a misleading zero.
 
 ## Semantics
 
