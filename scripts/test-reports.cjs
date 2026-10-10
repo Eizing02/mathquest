@@ -13,8 +13,8 @@ function rewardReportStatusText(s){return {approved:'อนุมัติแล
 var TH_MO_L=['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];`;
 const context = vm.createContext({ Intl, Date, Map, Set, console, setTimeout, clearTimeout, AbortController });
 vm.runInContext(helpers + code, context);
-const selection = { kind:'attendance',grade:'ม.6',month:'2026-09',from:'',to:'',createdAt:'2026-09-15T05:00:00Z',school:'โรงเรียนตัวอย่าง',teacher:'ครูทดสอบ' };
-const students = Array.from({length:70},(_,i)=>({id:String(2000+i).padStart(5,'0'),name:'นักเรียนทดสอบชื่อยาว นามสกุลเพื่อทดสอบการพิมพ์ '+(i+1),grade:'ม.6'}));
+const selection = { kind:'attendance',grade:'ม.6',semester:'1/2569',month:'2026-09',from:'',to:'',createdAt:'2026-09-15T05:00:00Z',school:'โรงเรียนตัวอย่าง',teacher:'ครูทดสอบ' };
+const students = Array.from({length:70},(_,i)=>({id:String(2000+i).padStart(5,'0'),name:'นักเรียนทดสอบชื่อยาว นามสกุลเพื่อทดสอบการพิมพ์ '+(i+1),grade:'ม.6',role:'STUDENT'}));
 const data = { students, attendance:[], orders:[], pets:[], catalog:[{item_id:'bonus',bonus_points:2}] };
 students.forEach(s=>{
   data.attendance.push({id:1,student_id:s.id,timestamp:'2026-09-02T02:00:00Z',status:'มา',points:100});
@@ -26,6 +26,7 @@ students.forEach(s=>{
 const build=(kind)=>context.buildReport({...selection,kind,month:kind==='attendance'?selection.month:''},data);
 assert.equal(build('attendance').rows[0].cells[7],100);
 assert.equal(build('attendance').rows[0].cells[4],1);
+assert.equal(context.buildReport({...selection,month:'term',from:'2026-05-16',to:'2026-10-15'},data).rows[0].cells[7],100);
 assert.equal(build('wallet').rows[0].cells.at(-1),60);
 assert.equal(build('bonus').rows[0].cells.at(-1),4);
 const zeroSnapshot={...data,orders:data.orders.map(r=>({...r,bonus_points:r.status==='approved'?0:r.bonus_points}))};
@@ -94,6 +95,8 @@ async function main(){
       await page.screenshot({path:path.join(output,'controls-'+width+'.png')});
     }
     await page.evaluate(fixture=>{
+      schoolRooms=['ม.6'];
+      document.getElementById('rewardReportGrade').innerHTML=roomSelectHtml(true,'ม.6','',true);
       document.getElementById('rewardReportGrade').value='ม.6';
       window.originalLoadReportData=loadReportData;
       loadReportData=async()=>fixture;
@@ -117,6 +120,7 @@ async function main(){
       getSupabase=()=>({from(table){
         return {filters:[],key:null,signal:null,
           select(){return this},eq(key,value){this.filters.push(r=>r[key]===value);return this},
+          or(value){const grade=value.split(',')[0].split('.').slice(2).join('.');this.filters.push(r=>r.grade===grade||r.grade.startsWith(grade+'/'));return this},
           in(key,values){this.filters.push(r=>values.includes(r[key]));return this},
           order(key){this.key=key;return this},limit(){return this},
           gt(key,value){this.filters.push(r=>r[key]>value);return this},abortSignal(signal){this.signal=signal;return this},

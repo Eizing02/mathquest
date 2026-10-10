@@ -163,7 +163,15 @@ function createSupabaseClient() {
   if (!window.supabase || !window.supabase.createClient) {
     throw new Error('โหลดไลบรารี Supabase ไม่สำเร็จ');
   }
-  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { fetch: function(url, options) {
+      var headers = new Headers(options && options.headers);
+      if (typeof schoolSemester !== 'undefined' && schoolSemester.version) {
+        headers.set('x-school-data-version', schoolSemester.version);
+      }
+      return fetch(url, Object.assign({}, options, { headers: headers }));
+    } }
+  });
 }
 
 function getSupabase() {
@@ -309,6 +317,10 @@ function sanitizeFilename(name) {
 }
 
 function matchesMonth(value, targetMonth) {
+  if (targetMonth === 'term') {
+    var day = dateKeyBangkok(value);
+    return (!schoolSemester.start || day >= schoolSemester.start) && (!schoolSemester.end || day <= schoolSemester.end);
+  }
   if (!targetMonth || targetMonth === 'all') return true;
   if (/^\d{4}$/.test(String(targetMonth))) return monthKeyBangkok(value).slice(0, 4) === String(targetMonth);
   if (/^\d{4}-\d{2}$/.test(String(targetMonth))) return monthKeyBangkok(value) === String(targetMonth);
@@ -1076,14 +1088,17 @@ async function upsertSettings(entries) {
 }
 
 async function getAppSettingsDb() {
-  var s = await getSettingsMap(['app_name', 'school_name', 'accent_color', 'logo_url']);
+  var s = await getSettingsMap(['app_name', 'school_name', 'accent_color', 'logo_url',
+    'semester_number', 'semester_year', 'semester_start', 'semester_end', 'school_data_version']);
   var logoUrl = s.logo_url || '';
   return {
     appName: s.app_name || 'ระบบเช็คชื่อนักเรียน',
     schoolName: s.school_name || 'กุงแก้ววิทยาคาร',
     accentColor: s.accent_color || UI_COLOR_PRIMARY,
     logoBase64: logoUrl,
-    logoUrl: logoUrl
+    logoUrl: logoUrl,
+    semester: { number: s.semester_number || '', year: s.semester_year || '',
+      start: s.semester_start || '', end: s.semester_end || '', version: s.school_data_version || '' }
   };
 }
 
@@ -1206,14 +1221,6 @@ async function forceChangePassword(studentId) {
 }
 
 /* Password Reset Requests */
-function generatePasswordResetCode() {
-  if (window.crypto && window.crypto.getRandomValues) {
-    var values = new Uint32Array(1);
-    window.crypto.getRandomValues(values);
-    return String(100000 + (values[0] % 900000));
-  }
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
 
 function normalizeResetCode(code) {
   return String(code || '').replace(/\D/g, '').slice(0, 6);
@@ -1236,151 +1243,27 @@ function resetRemainingMinutes(expiresAt) {
   return Math.max(0, Math.ceil((expires.getTime() - Date.now()) / 60000));
 }
 
-async function cleanupExpiredPasswordResetRequestsDb(client) {
-  var db = client || getSupabase();
-  var now = (await getServerNowDb(db)).toISOString();
-  await runQuery(db.from('password_reset_requests')
-    .delete()
-    .eq('status', 'pending')
-    .lte('expires_at', now)
-    .select('id'));
-  return now;
-}
 
-async function getActivePasswordResetRequestDb(studentId, client) {
-  var db = client || getSupabase();
-  var now = (await getServerNowDb(db)).toISOString();
-  return runQuery(db.from('password_reset_requests')
-    .select('id,student_id,student_name,grade,reset_code,status,created_at,expires_at')
-    .eq('student_id', String(studentId || '').trim())
-    .eq('status', 'pending')
-    .gt('expires_at', now)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle());
-}
 
 async function createPasswordResetRequestDb(studentId) {
-  var client = getSupabase();
   var sid = String(studentId || '').trim();
   if (!sid) throw new Error('กรุณากรอกรหัสประจำตัวนักเรียน');
-
-  await cleanupExpiredPasswordResetRequestsDb(client);
-
-  var student = await runQuery(client.from('students')
-    .select('id,name,grade,role')
-    .eq('id', sid)
-    .maybeSingle());
-  if (!student || student.role === 'TEACHER') {
-    return { status: 'fail', message: 'ไม่พบรหัสนักเรียนนี้ในระบบ' };
-  }
-
-  var existing = await getActivePasswordResetRequestDb(sid, client);
-  if (existing) {
-    return {
-      status: 'existing',
-      studentId: existing.student_id,
-      studentName: existing.student_name,
-      grade: existing.grade,
-      expiresAt: existing.expires_at
-    };
-  }
-
-  var now = await getServerNowDb(client);
-  var expiresAt = new Date(now.getTime() + PASSWORD_RESET_TTL_MINUTES * 60000).toISOString();
-  var payload = {
-    student_id: student.id,
-    student_name: student.name || '',
-    grade: student.grade || '',
-    reset_code: generatePasswordResetCode(),
-    status: 'pending',
-    expires_at: expiresAt
-  };
-
-  try {
-    var created = await runQuery(client.from('password_reset_requests')
-      .insert(payload)
-      .select('id,student_id,student_name,grade,created_at,expires_at,status')
-      .single());
-    return {
-      status: 'success',
-      studentId: created.student_id,
-      studentName: created.student_name,
-      grade: created.grade,
-      expiresAt: created.expires_at
-    };
-  } catch (e) {
-    if (e && e.code === '23505') {
-      var active = await getActivePasswordResetRequestDb(sid, client);
-      if (active) {
-        return {
-          status: 'existing',
-          studentId: active.student_id,
-          studentName: active.student_name,
-          grade: active.grade,
-          expiresAt: active.expires_at
-        };
-      }
-    }
-    throw e;
-  }
+  return schoolRpc('request_student_password_reset', { p_student_id: sid });
 }
 
-async function verifyPasswordResetCodeDb(studentId, code, newPassword) {
-  var client = getSupabase();
-  var sid = String(studentId || '').trim();
-  var resetCode = normalizeResetCode(code);
-  var password = String(newPassword || '').trim();
-  if (!sid) return { status: 'fail', message: 'กรุณากรอกรหัสประจำตัวนักเรียน' };
-  if (resetCode.length !== 6) return { status: 'fail', message: 'กรุณากรอกรหัสรีเซ็ต 6 หลัก' };
-  if (password.length < 6) return { status: 'fail', message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' };
-  if (password === sid) return { status: 'fail', message: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสประจำตัวนักเรียน' };
-
-  await cleanupExpiredPasswordResetRequestsDb(client);
-  var now = (await getServerNowDb(client)).toISOString();
-  var req = await runQuery(client.from('password_reset_requests')
-    .select('id,student_id,student_name,grade,reset_code,expires_at,status')
-    .eq('student_id', sid)
-    .eq('reset_code', resetCode)
-    .eq('status', 'pending')
-    .gt('expires_at', now)
-    .maybeSingle());
-  if (!req) {
-    return { status: 'fail', message: 'รหัสรีเซ็ตไม่ถูกต้อง หรือหมดอายุแล้ว' };
-  }
-
-  await runQuery(client.from('students')
-    .update({ password: password, is_first_login: false })
-    .eq('id', sid)
-    .select('id'));
-  await runQuery(client.from('password_reset_requests')
-    .delete()
-    .eq('id', req.id)
-    .select('id'));
-
-  return {
-    status: 'success',
-    studentId: req.student_id,
-    studentName: req.student_name
-  };
+async function verifyPasswordResetCodeDb(studentId, resetToken, newPassword) {
+  return schoolRpc('complete_student_password_reset', {
+    p_student_id: String(studentId || '').trim(), p_reset_token: resetToken,
+    p_new_password: String(newPassword || '').trim()
+  });
 }
 
 async function getPasswordResetRequestsDb() {
-  var client = getSupabase();
-  await cleanupExpiredPasswordResetRequestsDb(client);
-  var rows = await runQuery(client.from('password_reset_requests')
-    .select('id,student_id,student_name,grade,reset_code,status,created_at,expires_at')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false }));
-  return rows || [];
+  return (await schoolRpc('teacher_password_reset_requests', teacherTokenArgs())) || [];
 }
 
 async function deletePasswordResetRequestDb(requestId) {
-  var client = getSupabase();
-  await runQuery(client.from('password_reset_requests')
-    .delete()
-    .eq('id', requestId)
-    .select('id'));
+  await schoolRpc('cancel_student_password_reset', Object.assign(teacherTokenArgs(), { p_request_id: Number(requestId) }));
   return { status: 'success' };
 }
 
@@ -1453,76 +1336,69 @@ async function openPasswordResetRequestModal() {
 
 async function openPasswordResetConfirmModal(prefillStudentId) {
   var currentId = prefillStudentId || (document.getElementById('username') ? document.getElementById('username').value.trim() : '');
+  var verified = await Swal.fire({
+    title: 'ยืนยัน OTP จากครู',
+    html: '<p class="otp-progress">ขั้นตอน 2 จาก 3 · แจ้งครูเพื่อรับรหัสก่อนตั้งรหัสผ่านใหม่</p>'
+      + '<div class="otp-form"><label for="resetStudentId">รหัสนักเรียน</label>'
+      + '<input id="resetStudentId" class="form-control" inputmode="numeric" autocomplete="username" value="' + escHtml(currentId) + '">'
+      + '<label for="resetCode">รหัส OTP 6 หลักจากครู</label>'
+      + '<input id="resetCode" class="form-control" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>',
+    confirmButtonText: 'ตรวจสอบ OTP', cancelButtonText: 'ยกเลิก', showCancelButton: true,
+    showLoaderOnConfirm: true, focusConfirm: false, confirmButtonColor: UI_COLOR_PRIMARY,
+    didOpen: function() {
+      var code = document.getElementById('resetCode');
+      code.focus();
+      code.addEventListener('input', function() { code.value = normalizeResetCode(code.value); });
+      code.addEventListener('keydown', function(event) { if (event.key === 'Enter') Swal.clickConfirm(); });
+    },
+    allowOutsideClick: function() { return !Swal.isLoading(); },
+    preConfirm: async function() {
+      var id = document.getElementById('resetStudentId').value.trim();
+      var code = normalizeResetCode(document.getElementById('resetCode').value);
+      if (!id || code.length !== 6) { Swal.showValidationMessage('กรอกรหัสนักเรียนและ OTP 6 หลักให้ครบ'); return false; }
+      try {
+        var result = await schoolRpc('verify_student_reset_otp', { p_student_id: id, p_code: code });
+        if (result.status !== 'success') { Swal.showValidationMessage(result.message); return false; }
+        return result;
+      } catch (error) { Swal.showValidationMessage(error.message); return false; }
+    }
+  });
+  if (!verified.isConfirmed || !verified.value) return;
+  var proof = verified.value;
   var result = await Swal.fire({
     title: 'ตั้งรหัสผ่านใหม่',
-    html: '<div class="reset-modal-copy">กรอกรหัสนักเรียน รหัสรีเซ็ต 6 หลักจากครู และรหัสผ่านใหม่</div>'
-      + '<input id="resetStudentId" class="swal2-input reset-swal-input" inputmode="numeric" autocomplete="username" placeholder="รหัสนักเรียน" value="' + escHtml(currentId) + '">'
-      + '<input id="resetCode" class="swal2-input reset-swal-input reset-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="รหัสรีเซ็ต 6 หลัก">'
-      + '<input id="resetNewPassword" type="password" class="swal2-input reset-swal-input" autocomplete="new-password" placeholder="รหัสผ่านใหม่ อย่างน้อย 6 ตัวอักษร">'
-      + '<input id="resetNewPassword2" type="password" class="swal2-input reset-swal-input" autocomplete="new-password" placeholder="ยืนยันรหัสผ่านใหม่">',
-    confirmButtonText: 'เปลี่ยนรหัสผ่าน',
-    cancelButtonText: 'ยกเลิก',
-    showCancelButton: true,
-    showLoaderOnConfirm: true,
-    focusConfirm: false,
-    confirmButtonColor: '#1d4ed8',
+    html: '<p class="otp-progress">ขั้นตอน 3 จาก 3 · ยืนยัน OTP แล้วสำหรับรหัส ' + escHtml(proof.studentId) + '</p>'
+      + '<div class="otp-form"><label for="resetNewPassword">รหัสผ่านใหม่ อย่างน้อย 6 ตัวอักษร</label>'
+      + '<input id="resetNewPassword" type="password" class="form-control" autocomplete="new-password">'
+      + '<label for="resetNewPassword2">ยืนยันรหัสผ่านใหม่</label>'
+      + '<input id="resetNewPassword2" type="password" class="form-control" autocomplete="new-password"></div>',
+    confirmButtonText: 'บันทึกรหัสผ่านใหม่', cancelButtonText: 'ยกเลิก', showCancelButton: true,
+    showLoaderOnConfirm: true, focusConfirm: false, confirmButtonColor: UI_COLOR_PRIMARY,
+    allowOutsideClick: function() { return !Swal.isLoading(); },
     didOpen: function() {
-      var codeEl = document.getElementById('resetCode');
-      var pass2 = document.getElementById('resetNewPassword2');
-      if (codeEl) {
-        codeEl.addEventListener('input', function() { codeEl.value = normalizeResetCode(codeEl.value); });
-      }
-      if (pass2) {
-        pass2.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') Swal.clickConfirm();
-        });
-      }
+      document.getElementById('resetNewPassword').focus();
+      document.getElementById('resetNewPassword2').addEventListener('keydown', function(event) { if (event.key === 'Enter') Swal.clickConfirm(); });
     },
     preConfirm: async function() {
-      var sid = (document.getElementById('resetStudentId').value || '').trim();
-      var code = normalizeResetCode(document.getElementById('resetCode').value);
-      var p1 = (document.getElementById('resetNewPassword').value || '').trim();
-      var p2 = (document.getElementById('resetNewPassword2').value || '').trim();
-      if (!sid) {
-        Swal.showValidationMessage('กรุณากรอกรหัสประจำตัวนักเรียน');
-        return false;
-      }
-      if (code.length !== 6) {
-        Swal.showValidationMessage('กรุณากรอกรหัสรีเซ็ต 6 หลัก');
-        return false;
-      }
-      if (p1.length < 6) {
-        Swal.showValidationMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
-        return false;
-      }
-      if (p1 !== p2) {
-        Swal.showValidationMessage('รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+      var pass = document.getElementById('resetNewPassword').value.trim();
+      var again = document.getElementById('resetNewPassword2').value.trim();
+      if (pass.length < 6 || pass === proof.studentId || pass !== again) {
+        Swal.showValidationMessage('รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร ไม่ซ้ำกับรหัสนักเรียน และทั้งสองช่องต้องตรงกัน');
         return false;
       }
       try {
-        var res = await verifyPasswordResetCodeDb(sid, code, p1);
-        if (res.status !== 'success') {
-          Swal.showValidationMessage(res.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
-          return false;
-        }
-        return res;
-      } catch (e) {
-        Swal.showValidationMessage(e.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
-        return false;
-      }
-    },
-    allowOutsideClick: function() { return !Swal.isLoading(); }
+        var saved = await verifyPasswordResetCodeDb(proof.studentId, proof.token, pass);
+        if (saved.status !== 'success') { Swal.showValidationMessage(saved.message); return false; }
+        return saved;
+      } catch (error) { Swal.showValidationMessage(error.message); return false; }
+    }
   });
-
+  proof.token = '';
   if (!result.isConfirmed || !result.value) return;
-  if (document.getElementById('username')) document.getElementById('username').value = result.value.studentId || '';
-  if (document.getElementById('password')) document.getElementById('password').value = '';
-  await Swal.fire({
-    icon: 'success',
-    title: 'เปลี่ยนรหัสผ่านสำเร็จ',
-    text: 'เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย',
-    confirmButtonColor: '#047857'
-  });
+  document.getElementById('username').value = result.value.studentId;
+  document.getElementById('password').value = '';
+  await Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านแล้ว', text: 'เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย', confirmButtonText: 'เข้าสู่ระบบ', confirmButtonColor: UI_COLOR_PRIMARY });
+  document.getElementById('password').focus();
 }
 
 function renderPasswordResetRequests(rows) {
@@ -1537,6 +1413,8 @@ function renderPasswordResetRequests(rows) {
     navCountEl.textContent = String(resetCount);
     navCountEl.classList.toggle('hidden', resetCount === 0);
   }
+  var studentCount = document.getElementById('studentNavCount');
+  if (studentCount) { studentCount.textContent = String(resetCount); studentCount.classList.toggle('hidden', resetCount === 0); }
   if (!passwordResetRequests.length) {
     wrap.innerHTML = '<div class="reset-empty"><i class="fa-regular fa-circle-check"></i><div><strong>ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</strong><span>ถ้ามีนักเรียนส่งคำขอ รายการจะขึ้นตรงนี้อัตโนมัติ</span></div></div>';
     return;
@@ -1723,10 +1601,8 @@ async function replaceProfilePictureDb(studentId, expectedPhotoUrl, photoUrl) {
 
 async function getStudentsInGradeDb(grade) {
   var client = getSupabase();
-  var rows = await runQuery(client.from('students')
-    .select('id,name')
-    .eq('grade', normalizeGrade(grade))
-    .order('id', { ascending: true }));
+  var rows = await reportReadAll(function() { return applyStudentGradeFilter(client.from('students')
+    .select('id,name').eq('role', 'STUDENT'), grade); }, 'id');
   return (rows || []).map(function(r) {
     return { id: r.id, name: r.name || '' };
   });
@@ -1735,10 +1611,8 @@ async function getStudentsInGradeDb(grade) {
 async function getStudentsForGradeScopeDb(grade) {
   var target = normalizeGrade(grade);
   if (!target) return [];
-  var rows = await runQuery(getSupabase().from('students')
-    .select('id,name,grade')
-    .eq('role', 'STUDENT')
-    .order('id', { ascending: true }));
+  var rows = await reportReadAll(function() { return applyStudentGradeFilter(getSupabase().from('students')
+    .select('id,name,grade').eq('role', 'STUDENT'), target); }, 'id');
   return (rows || []).filter(function(st) {
     return isStudentInSessionGrade(st.grade, target);
   }).map(function(st) {
@@ -1809,8 +1683,8 @@ async function getStudentHistoryDb(studentId, targetMonth) {
 
 async function getAttendanceStatsDb(targetGrade, targetMonth) {
   var client = getSupabase();
-  var students = await reportReadAll(function() { return client.from('students')
-    .select('id,name,grade').eq('grade', normalizeGrade(targetGrade)); }, 'id');
+  var students = await reportReadAll(function() { return applyStudentGradeFilter(client.from('students')
+    .select('id,name,grade').eq('role', 'STUDENT'), targetGrade); }, 'id');
   if (!students.length) return [];
   var ids = students.map(function(s) { return s.id; });
   var logs = await reportReadStudents('attendance_logs', 'id,student_id,status,points,timestamp', ids);
@@ -1847,9 +1721,8 @@ async function getAttendanceStatsDb(targetGrade, targetMonth) {
 
 async function getDashboardChartDataDb(grade) {
   var client = getSupabase();
-  var students = await runQuery(client.from('students')
-    .select('id')
-    .eq('grade', normalizeGrade(grade)));
+  var students = await reportReadAll(function() { return applyStudentGradeFilter(client.from('students')
+    .select('id').eq('role', 'STUDENT'), grade); }, 'id');
   var ids = students.map(function(s) { return s.id; });
   if (!ids.length) return { months: [], totalStudents: 0 };
   var logs = await reportReadStudents('attendance_logs', 'id,student_id,status,timestamp', ids);
@@ -1857,6 +1730,7 @@ async function getDashboardChartDataDb(grade) {
   (logs || []).forEach(function(log) {
     var mk = monthKeyBangkok(log.timestamp);
     if (!mk) return;
+    if (document.getElementById('statMonth').value === 'term' && !matchesMonth(log.timestamp, 'term')) return;
     if (!mp[mk]) mp[mk] = { present: 0, activity: 0, absent: 0, leave: 0 };
     if (log.status === 'มา') mp[mk].present++;
     else if (log.status === 'กิจกรรม') mp[mk].activity++;
@@ -1900,33 +1774,19 @@ async function getCurrentSessionStatusDb() {
 }
 
 async function generateNewPINDb(targetGrade) {
-  if (!targetGrade) return { status: 'fail', message: 'กรุณาเลือกระดับชั้น' };
-  var client = getSupabase();
-  var active = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'active_session_id']);
-  if ((active.pin || '').trim() && safeDate(active.pin_expiry) && normalizeGrade(active.current_grade)) {
-    return {
-      status: 'active',
-      message: 'มีคาบชั้น ' + normalizeGrade(active.current_grade) + ' เปิดอยู่แล้ว กรุณาปิดคาบเดิมก่อนสุ่ม PIN ใหม่'
-    };
+  if (!targetGrade) return { status: 'fail', message: 'กรุณาเลือกห้องเรียน' };
+  await refreshSchoolRooms();
+  if (schoolRooms.indexOf(normalizeGrade(targetGrade)) === -1) {
+    return { status: 'fail', message: 'ห้องนี้ไม่มีนักเรียนในระบบ กรุณาเลือกห้องที่มีอยู่จริง' };
   }
-  var pin = Math.floor(1000 + Math.random() * 9000).toString();
-  var now = await getServerNowDb(client);
-  var expiry = new Date(now.getTime() + 40 * 60000);
-  var sessionId = createAttendanceSessionId();
-  await upsertSettings({
-    pin: pin,
-    pin_expiry: expiry.toISOString(),
-    current_grade: normalizeGrade(targetGrade),
-    session_start: now.toISOString(),
-    active_session_id: sessionId
-  });
+  var result = await schoolRpc('open_school_attendance_session', Object.assign(teacherTokenArgs(), {
+    p_grade: normalizeGrade(targetGrade), p_expected_version: schoolSemester.version
+  }));
+  if (result.status !== 'success') return result;
   return {
-    status: 'success',
-    pin: pin,
-    expiry: formatTime(expiry),
-    startTime: now.getTime(),
-    sessionId: sessionId,
-    sessionDate: dateKeyBangkok(now)
+    status: 'success', pin: result.pin, expiry: formatTime(result.expiresAt),
+    startTime: new Date(result.startedAt).getTime(), sessionId: result.sessionId,
+    sessionDate: dateKeyBangkok(result.startedAt)
   };
 }
 
@@ -2806,8 +2666,7 @@ async function getRewardRedemptionReportDb(grade) {
   var client = getSupabase();
   var targetGrade = normalizeGrade(grade);
   var students = await reportReadAll(function() {
-    var query = client.from('students').select('id,name,grade');
-    return targetGrade && targetGrade !== 'all' ? query.eq('grade', targetGrade) : query;
+    return applyStudentGradeFilter(client.from('students').select('id,name,grade').eq('role', 'STUDENT'), targetGrade);
   }, 'id');
   var studentMap = {};
   var studentIds = [];
@@ -2942,10 +2801,8 @@ async function updateRedemptionStatusByIdsDb(rowIds, newStatus) {
 }
 
 async function getGradeWalletSummaryDb(grade) {
-  var students = await runQuery(getSupabase().from('students')
-    .select('id,name')
-    .eq('grade', normalizeGrade(grade))
-    .order('name', { ascending: true }));
+  var students = await reportReadAll(function() { return applyStudentGradeFilter(getSupabase().from('students')
+    .select('id,name').eq('role', 'STUDENT'), grade); }, 'id');
   var rows = await Promise.all(students.map(async function(st) {
     var w = await getWalletBalanceDb(st.id);
     return {
@@ -2964,11 +2821,6 @@ window.addEventListener('load', async function() {
   if (studentPhoto) profilePlaceholderSrc = studentPhoto.getAttribute('src') || BLANK_IMAGE_SRC;
   var el = document.getElementById('manDate');
   if (el) el.value = dateKeyBangkok(new Date());
-  var manGrade = document.getElementById('manGrade');
-  var histGrade = document.getElementById('histGrade');
-  if (manGrade && histGrade) histGrade.innerHTML = manGrade.innerHTML;
-  var bulkGrade = document.getElementById('bulkGrade');
-  if (manGrade && bulkGrade) bulkGrade.innerHTML = manGrade.innerHTML;
   var bulkDate = document.getElementById('bulkSingleDate');
   if (bulkDate) {
     bulkDate.value = dateKeyBangkok(new Date());
@@ -3046,6 +2898,7 @@ function initOverlayKeyboardControls() {
 
 function applyAppSettings(s) {
   if (!s) return;
+  applySemesterSettings(s);
   appSettings = s;
   if (s.accentColor && s.accentColor !== UI_COLOR_PRIMARY) {
     document.documentElement.style.setProperty('--pri', s.accentColor);
@@ -3055,14 +2908,18 @@ function applyAppSettings(s) {
   document.getElementById('loginSchoolName').textContent = s.schoolName || 'กุงแก้ววิทยาคาร';
   if (s.logoBase64) {
     var w = document.getElementById('loginLogoWrap');
-    w.innerHTML = '<img src="' + s.logoBase64 + '" class="login-logo" alt="โลโก้แอป">';
+    w.innerHTML = '<img src="' + escHtml(s.logoBase64) + '" class="login-logo" width="144" height="144" alt="โลโก้โรงเรียน">';
+  } else {
+    document.getElementById('loginLogoWrap').innerHTML = '<i class="fa-solid fa-school" aria-hidden="true"></i>';
   }
   document.title = s.appName || 'ระบบเช็คชื่อนักเรียน';
   if (document.getElementById('tHdrSchool')) {
     document.getElementById('tHdrSchool').textContent = s.schoolName || 'กุงแก้ววิทยาคาร';
   }
   if (s.logoBase64 && document.getElementById('tHdrLogo')) {
-    document.getElementById('tHdrLogo').innerHTML = '<img src="' + s.logoBase64 + '" class="header-logo-img" alt="โลโก้โรงเรียน">';
+    document.getElementById('tHdrLogo').innerHTML = '<img src="' + escHtml(s.logoBase64) + '" class="header-logo-img" width="44" height="44" alt="โลโก้โรงเรียน">';
+  } else if (document.getElementById('tHdrLogo')) {
+    document.getElementById('tHdrLogo').innerHTML = '<i class="fa-solid fa-school" aria-hidden="true"></i>';
   }
 }
 
@@ -3079,8 +2936,13 @@ async function login() {
     Swal.close();
     if (res.status === 'success') {
       CU = res;
+      applyAppSettings(await getAppSettingsDb());
+      startSchoolSync();
       document.getElementById('loginSection').classList.add('hidden');
       if (res.role === 'TEACHER') {
+        try { await openTeacherAdminSession(u, p); }
+        catch (adminError) { console.warn(adminError.message); }
+        await refreshSchoolRooms();
         document.getElementById('teacherSection').classList.remove('hidden');
         document.getElementById('tNameDisp').textContent = res.name;
         if (document.getElementById('printTeacher')) document.getElementById('printTeacher').textContent = res.name;
@@ -4282,12 +4144,7 @@ function switchTab(name, btn) {
     p.classList.toggle('active', active);
     p.hidden = !active;
   });
-  document.querySelectorAll('.tn').forEach(function(b) {
-    var active = b === btn;
-    b.classList.toggle('active', active);
-    b.setAttribute('aria-selected', active ? 'true' : 'false');
-    b.tabIndex = active ? 0 : -1;
-  });
+  updateTeacherNavigation(name);
   if (name === 'stats') loadStats();
   if (name === 'reset') loadPasswordResetRequests();
   if (name === 'shop') loadTeacherShopItems();
@@ -4488,6 +4345,7 @@ async function cancelSession() {
 /* ══ Stats & Charts ══════════════════════════════════ */
 var statsLoadVersion = 0;
 async function loadStats() {
+  document.getElementById('statYear').disabled = document.getElementById('statMonth').value === 'term';
   var version = ++statsLoadVersion;
   var g = document.getElementById('statGrade') && document.getElementById('statGrade').value;
   var m;
@@ -4729,6 +4587,8 @@ function resetAddStudentForm() {
   document.getElementById('newStudentId').value = '';
   document.getElementById('newStudentName').value = '';
   document.getElementById('newStudentGrade').value = '';
+  document.getElementById('newRoomName').value = '';
+  document.getElementById('newRoomFields').classList.add('hidden');
 }
 
 function openAddStudentModal() {
@@ -4742,6 +4602,7 @@ function openAddStudentModal() {
 }
 
 async function refreshStudentViewsAfterAdd(student) {
+  await refreshSchoolRooms();
   var manGrade = document.getElementById('manGrade');
   if (manGrade && normalizeGrade(manGrade.value) === student.grade) {
     await loadManualStudents();
@@ -4767,6 +4628,10 @@ async function addNewStudent() {
   var sid = document.getElementById('newStudentId').value.trim();
   var name = document.getElementById('newStudentName').value.trim();
   var grade = document.getElementById('newStudentGrade').value;
+  if (grade === '__new__') grade = document.getElementById('newRoomName').value.trim();
+  if (!/^ม\.[1-6](?:\/[1-9]\d*)?$/.test(grade)) {
+    return onErr(new Error('ระบุชั้น / ห้องให้ถูกต้อง เช่น ม.2 หรือ ม.2/1'));
+  }
   if (!sid || !name || !grade) {
     return Swal.fire({
       icon: 'warning',
@@ -5205,6 +5070,8 @@ async function loadSettings() {
   try {
     var s = await getAppSettingsDb();
     if (!s) return;
+    applySemesterSettings(s);
+    populateSemesterForm();
     document.getElementById('setAppName').value = s.appName || '';
     document.getElementById('setSchoolName').value = s.schoolName || '';
     var col = s.accentColor || UI_COLOR_PRIMARY;
@@ -5230,13 +5097,15 @@ function resetColor() {
 async function handleLogoChange(ev) {
   var file = ev.target.files[0];
   if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { ev.target.value = ''; return onErr(new Error('โลโก้ต้องมีขนาดไม่เกิน 10 MB')); }
   try {
     loading('กำลังอัปโหลดโลโก้...');
     var uploaded = await uploadCompressedImage(file, {
       folder: 'settings',
-      maxWidth: 80,
-      maxHeight: 80,
-      quality: 0.8
+      maxWidth: 512,
+      maxHeight: 512,
+      quality: 0.95,
+      outputType: 'image/png'
     });
     settingsLogoUrl = uploaded.publicUrl;
     document.getElementById('logoPreview').src = settingsLogoUrl;
@@ -5265,8 +5134,7 @@ async function saveSettings() {
   try {
     var res = await saveAppSettingsDb(s);
     if (res.status === 'success') {
-      appSettings = s;
-      applyAppSettings(s);
+      applyAppSettings(await getAppSettingsDb());
       Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', confirmButtonColor: UI_COLOR_PRIMARY, timer: 2000, timerProgressBar: true });
     } else {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.msg });
@@ -5278,6 +5146,8 @@ async function saveSettings() {
 
 /* ══ Logout ══════════════════════════════════════════ */
 function logout() {
+  stopSchoolSync();
+  teacherAdminToken = '';
   if (isGuestMode()) clearGuestSession();
   stopGuestSessionClock();
   stopStudentGiftNotifications();
@@ -6119,12 +5989,11 @@ async function loadManageShopItems() {
 }
 
 function buildGradeSelectOptions(selectedGrade) {
-  return '<option value="">-- เลือกชั้น/ห้อง --</option>' + GRADE_LIST.map(function(g) {
-    return '<option value="' + escHtml(g) + '"' + (g === selectedGrade ? ' selected' : '') + '>' + escHtml(g) + '</option>';
-  }).join('');
+  return roomSelectHtml(true, selectedGrade, '-- เลือกชั้น / ห้อง --', false);
 }
 
-function openGrantItemModal() {
+async function openGrantItemModal() {
+  try { await refreshSchoolRooms(); } catch (error) { onErr(error); return; }
   var currentGrade = document.getElementById('walletGrade') ? document.getElementById('walletGrade').value : '';
   Swal.fire({
     title: 'มอบไอเทมฟรี',

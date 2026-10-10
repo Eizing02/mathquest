@@ -15,6 +15,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" rel="stylesheet">
   <link href="./style.css" rel="stylesheet">
+  <link href="./school-admin.css" rel="stylesheet">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -119,8 +120,11 @@
             </div>
           </div>
         </div>
+      </div>
+      <div class="student-identity">
         <div class="student-name" id="sNameDisp"></div>
         <small class="student-grade" id="sGradeDisp"></small>
+        <small class="student-grade" id="studentTermLabel"></small>
       </div>
       <section class="pet-hero" id="petHero" aria-live="polite">
         <div class="pet-empty-state">
@@ -183,63 +187,51 @@
   <h1 class="visually-hidden">ระบบจัดการสำหรับครู</h1>
   <div class="t-hdr">
     <div>
-      <h4>
+      <p class="teacher-name">
         <span id="tHdrLogo" class="teacher-logo"><i class="fa-solid fa-school" aria-hidden="true"></i></span>
         ครู <span id="tNameDisp"></span>
-      </h4>
+      </p>
       <small id="tHdrSchool">กุงแก้ววิทยาคาร</small>
     </div>
+    <div class="teacher-header-actions">
+      <span id="teacherTermLabel" class="term-label">ภาคเรียนยังไม่ระบุ</span>
+      <button type="button" class="teacher-settings" onclick="switchTab('settings')" aria-label="ตั้งค่าระบบ" title="ตั้งค่าระบบ"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
     <button class="teacher-logout"
             aria-label="ออกจากระบบ" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
+    </div>
   </div>
 
   <div class="container-fluid teacher-workspace">
-    <div class="t-nav" role="tablist" aria-label="เมนูจัดการสำหรับครู">
-      <button class="tn active" id="teacher-tab-pin" data-tab="pin" role="tab" aria-selected="true" aria-controls="tab-pin" onclick="switchTab('pin',this)"><i class="fa-solid fa-key me-1"></i>คาบ</button>
-      <button class="tn" id="teacher-tab-stats" data-tab="stats" role="tab" aria-selected="false" aria-controls="tab-stats" tabindex="-1" onclick="switchTab('stats',this)"><i class="fa-solid fa-chart-pie me-1"></i>สถิติ</button>
-      <button class="tn" id="teacher-tab-manual" data-tab="manual" role="tab" aria-selected="false" aria-controls="tab-manual" tabindex="-1" onclick="switchTab('manual',this)"><i class="fa-solid fa-pen-to-square me-1"></i>แก้ไข</button>
-      <button class="tn" id="teacher-tab-shop" data-tab="shop" role="tab" aria-selected="false" aria-controls="tab-shop" aria-label="ร้านค้า ไม่มีออเดอร์รอดำเนินการ" tabindex="-1" onclick="switchTab('shop',this)">
+    <nav class="t-nav" aria-label="เมนูจัดการสำหรับครู">
+      <button class="tn active" id="teacher-tab-pin" data-tab="pin" aria-current="page" aria-controls="tab-pin" onclick="switchTab('pin',this)"><i class="fa-solid fa-key me-1" aria-hidden="true"></i>เช็คชื่อ</button>
+      <button class="tn" id="teacher-tab-manual" data-tab="manual" aria-controls="tab-manual tab-reset" onclick="switchTab('manual',this)"><i class="fa-solid fa-users me-1" aria-hidden="true"></i>นักเรียน<span id="studentNavCount" class="tn-badge hidden" aria-hidden="true">0</span></button>
+      <button class="tn" id="teacher-tab-shop" data-tab="shop" aria-controls="tab-shop" aria-label="ร้านค้า ไม่มีออเดอร์รอดำเนินการ" onclick="switchTab('shop',this)">
         <i class="fa-solid fa-store me-1" aria-hidden="true"></i>ร้านค้า
         <span class="tn-badge hidden" id="shopNavCount" aria-hidden="true">0</span>
       </button>
-      <button class="tn" id="teacher-tab-reward-report" data-tab="reward-report" role="tab" aria-selected="false" aria-controls="tab-reward-report" tabindex="-1" onclick="switchTab('reward-report',this)"><i class="fa-solid fa-clipboard-list me-1"></i>รายงานแลกของ</button>
-      <button class="tn" id="teacher-tab-reset" data-tab="reset" role="tab" aria-selected="false" aria-controls="tab-reset" tabindex="-1" onclick="switchTab('reset',this)">
-        <i class="fa-solid fa-unlock-keyhole me-1"></i>รีเซ็ตรหัส
-        <span class="tn-badge hidden" id="resetNavCount">0</span>
-      </button>
-      <button class="tn" id="teacher-tab-settings" data-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" onclick="switchTab('settings',this)"><i class="fa-solid fa-gear me-1"></i>ตั้งค่า</button>
+      <button class="tn" id="teacher-tab-stats" data-tab="stats" aria-controls="tab-stats tab-reward-report" onclick="switchTab('stats',this)"><i class="fa-solid fa-chart-pie me-1" aria-hidden="true"></i>รายงาน</button>
+    </nav>
+    <div class="teacher-subnav hidden" id="studentSubnav" role="tablist" aria-label="งานนักเรียน">
+      <button id="student-edit-tab" role="tab" aria-selected="true" aria-controls="tab-manual" onclick="switchTab('manual')">ข้อมูลเข้าเรียน</button>
+      <button id="teacher-tab-reset" role="tab" aria-selected="false" aria-controls="tab-reset" tabindex="-1" onclick="switchTab('reset')">คำขอเปลี่ยนรหัสผ่าน <span class="tn-badge hidden" id="resetNavCount">0</span></button>
+    </div>
+    <div class="teacher-subnav hidden" id="reportSubnav" role="tablist" aria-label="ประเภทรายงาน">
+      <button id="attendance-report-tab" role="tab" aria-selected="true" aria-controls="tab-stats" onclick="switchTab('stats')">เข้าเรียนและสถิติ</button>
+      <button id="teacher-tab-reward-report" role="tab" aria-selected="false" aria-controls="tab-reward-report" tabindex="-1" onclick="switchTab('reward-report')">ร้านค้าและแต้มพิเศษ</button>
     </div>
 
     <!-- ── TAB: PIN ── -->
-    <div class="t-pane active" id="tab-pin" role="tabpanel" aria-labelledby="teacher-tab-pin">
+    <div class="t-pane active" id="tab-pin" role="region" aria-labelledby="teacher-tab-pin">
       <div id="sessBar" class="sess-bar closed">
         <span id="sessDot"></span><span id="sessText">ยังไม่มีคาบเรียน</span>
       </div>
       <div class="row g-3">
         <div class="col-md-6">
           <div class="card p-4 h-100">
-            <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-door-open me-2"></i>เปิดคาบเรียน</h6>
+            <h2 class="teacher-section-title fw-bold text-primary mb-3"><i class="fa-solid fa-door-open me-2"></i>เปิดคาบเรียน</h2>
             <label class="form-label" for="targetGrade">ชั้น / ห้องที่จะเปิดคาบ</label>
-            <select id="targetGrade" class="form-select mb-3">
-              <option value="">-- เลือกระดับชั้น --</option>
-              <optgroup label="มัธยมศึกษาปีที่ 1">
-                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 2">
-                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 3">
-                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 4">
-                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 5">
-                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 6">
-                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
-              </optgroup>
+<select id="targetGrade" class="form-select mb-3">
+              <option value="">กำลังโหลดห้องเรียน...</option>
             </select>
             <button class="btn w-100 mb-3 fw-bold"
                     style="background:var(--pri);color:#fff;border-radius:12px" onclick="generatePIN()">
@@ -255,7 +247,7 @@
         </div>
         <div class="col-md-6">
           <div class="card p-4 h-100" style="border:1px solid #fee2e2">
-            <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-door-closed me-2"></i>ปิดคาบเรียน</h6>
+            <h2 class="teacher-section-title fw-bold text-danger mb-3"><i class="fa-solid fa-door-closed me-2"></i>ปิดคาบเรียน</h2>
             <p class="session-close-help">
               กดเพื่อดูรายชื่อนักเรียนที่ยังไม่เช็คชื่อ<br>
               เลือกสถานะ "ขาด" "ลา" หรือ "กิจกรรม" ก่อนปิดคาบ
@@ -276,8 +268,7 @@
       <section class="reset-panel" id="resetPanel" aria-labelledby="resetPanelTitle">
         <div class="reset-panel-head">
           <div>
-            <div class="reset-panel-kicker">Password reset</div>
-            <h6 id="resetPanelTitle"><i class="fa-solid fa-unlock-keyhole me-2"></i>คำขอรีเซ็ตรหัสผ่านนักเรียน</h6>
+            <h2 id="resetPanelTitle" class="teacher-section-title"><i class="fa-solid fa-unlock-keyhole me-2"></i>คำขอรีเซ็ตรหัสผ่านนักเรียน</h2>
             <p>แจ้งรหัส 6 หลักให้นักเรียน ใช้ได้ 15 นาทีและลบอัตโนมัติเมื่อเปลี่ยนสำเร็จ</p>
           </div>
           <div class="reset-panel-actions">
@@ -300,30 +291,13 @@
     </div>
 
     <!-- ── TAB: STATS ── -->
-    <div class="t-pane" id="tab-stats" role="tabpanel" aria-labelledby="teacher-tab-stats" hidden>
+    <div class="t-pane" id="tab-stats" role="tabpanel" aria-labelledby="attendance-report-tab" hidden>
       <div class="card p-3 mb-3">
         <div class="row g-2 align-items-end">
           <div class="col-6 col-md-3">
             <label class="form-label" for="statGrade">ระดับชั้น</label>
-            <select id="statGrade" class="form-select form-select-sm" onchange="loadStats()">
-              <optgroup label="มัธยมศึกษาปีที่ 1">
-                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 2">
-                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 3">
-                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 4">
-                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 5">
-                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 6">
-                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
-              </optgroup>
+<select id="statGrade" class="form-select form-select-sm" onchange="loadStats()">
+              <option value="">กำลังโหลดห้องเรียน...</option>
             </select>
           </div>
           <div class="col-6 col-md-3">
@@ -331,6 +305,7 @@
             <input id="statYear" type="number" min="2000" max="2200" class="form-control form-control-sm mb-1" aria-label="ปี ค.ศ." onchange="loadStats()">
             <label class="form-label" for="statMonth">เดือน</label>
             <select id="statMonth" class="form-select form-select-sm" onchange="loadStats()">
+              <option value="term">ทั้งภาคเรียน</option>
               <option value="all">ทั้งปีที่เลือก</option>
               <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
               <option value="3">มีนาคม</option><option value="4">เมษายน</option>
@@ -357,14 +332,14 @@
       <div class="row g-3 mb-3">
         <div class="col-md-4">
           <div class="chart-wrap h-100">
-            <h6>สัดส่วนเข้าเรียน</h6>
+            <h2 class="teacher-section-title">สัดส่วนเข้าเรียน</h2>
             <div style="height:160px;position:relative"><canvas id="chartDonut" role="img" aria-label="กราฟสัดส่วนการเข้าเรียน"></canvas></div>
             <div id="donutLeg" class="chart-legend d-flex justify-content-center gap-3 mt-2"></div>
           </div>
         </div>
         <div class="col-md-8">
           <div class="chart-wrap h-100">
-            <h6>แนวโน้มรายเดือน (6 เดือนล่าสุด)</h6>
+            <h2 class="teacher-section-title">แนวโน้มรายเดือน (6 เดือนล่าสุด)</h2>
             <div style="height:160px;position:relative"><canvas id="chartBar" role="img" aria-label="กราฟแนวโน้มรายเดือน"></canvas></div>
           </div>
         </div>
@@ -392,38 +367,22 @@
     </div>
 
     <!-- ── TAB: MANUAL ── -->
-    <div class="t-pane" id="tab-manual" role="tabpanel" aria-labelledby="teacher-tab-manual" hidden>
+    <div class="t-pane" id="tab-manual" role="tabpanel" aria-labelledby="student-edit-tab" hidden>
+      <div class="workspace-heading"><h2>ข้อมูลเข้าเรียน</h2><button type="button" class="btn btn-outline-success" onclick="openAddStudentModal()"><i class="fa-solid fa-user-plus me-1" aria-hidden="true"></i>เพิ่มนักเรียน</button></div>
+      <div class="teacher-subnav manual-modes" role="tablist" aria-label="รูปแบบการแก้ไข">
+        <button id="manual-mode-single" role="tab" aria-selected="true" aria-controls="manual-view-single" onclick="setManualMode('single')">แก้ไขรายคน</button>
+        <button id="manual-mode-bulk" role="tab" aria-selected="false" aria-controls="manual-view-bulk" tabindex="-1" onclick="setManualMode('bulk')">หลายคน / หลายวัน</button>
+        <button id="manual-mode-history" role="tab" aria-selected="false" aria-controls="manual-view-history" tabindex="-1" onclick="setManualMode('history')">ประวัติและแก้ย้อนหลัง</button>
+      </div>
       <div class="row g-3">
-        <div class="col-md-6">
+        <div class="col-12 manual-view" id="manual-view-single" role="tabpanel" aria-labelledby="manual-mode-single">
           <div class="man-form">
-            <h6 class="fw-bold mb-4" style="color:var(--pri)">
+            <h3 class="teacher-section-title fw-bold mb-4" style="color:var(--pri)">
               <i class="fa-solid fa-hand-pointer me-2"></i>เช็คชื่อ / แก้ไข ด้วยมือ
-            </h6>
-            <button class="btn btn-sm fw-bold w-100 mb-3 session-success-note"
-                    onclick="openAddStudentModal()">
-              <i class="fa-solid fa-user-plus me-1"></i>เพิ่มนักเรียนใหม่
-            </button>
+            </h3>
             <label class="form-label" for="manGrade">ระดับชั้น</label>
-            <select id="manGrade" class="form-select mb-3" onchange="loadManualStudents()">
-              <option value="">-- เลือกชั้น --</option>
-              <optgroup label="มัธยมศึกษาปีที่ 1">
-                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 2">
-                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 3">
-                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 4">
-                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 5">
-                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 6">
-                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
-              </optgroup>
+<select id="manGrade" class="form-select mb-3" onchange="loadManualStudents()">
+              <option value="">กำลังโหลดห้องเรียน...</option>
             </select>
             <label class="form-label" for="manStudent">นักเรียน</label>
             <select id="manStudent" class="form-select mb-3" disabled>
@@ -448,11 +407,11 @@
             </button>
           </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-12 manual-view" id="manual-view-history" role="tabpanel" aria-labelledby="manual-mode-history" hidden>
           <div class="man-form">
-            <h6 class="fw-bold mb-3" style="color:var(--pri)">
+            <h3 class="teacher-section-title fw-bold mb-3" style="color:var(--pri)">
               <i class="fa-solid fa-clock-rotate-left me-2"></i>ดูประวัติ & แก้ไข
-            </h6>
+            </h3>
             <label class="form-label" for="histGrade">ระดับชั้น</label>
             <select id="histGrade" class="form-select mb-3" onchange="loadHistoryStudents()">
               <option value="">-- เลือกชั้น --</option>
@@ -472,11 +431,11 @@
             </div>
           </div>
         </div>
-        <div class="col-12">
+        <div class="col-12 manual-view" id="manual-view-bulk" role="tabpanel" aria-labelledby="manual-mode-bulk" hidden>
           <section class="man-form bulk-editor" aria-labelledby="bulkEditorTitle">
             <div class="bulk-editor-head">
               <div>
-                <h6 id="bulkEditorTitle" class="fw-bold mb-1"><i class="fa-solid fa-users-gear me-2"></i>แก้ไขหลายคน / หลายวัน</h6>
+                <h3 id="bulkEditorTitle" class="teacher-section-title fw-bold mb-1"><i class="fa-solid fa-users-gear me-2"></i>แก้ไขหลายคน / หลายวัน</h3>
                 <p class="mb-0">เลือกนักเรียน วันที่ และสถานะ แล้วตรวจตัวอย่างก่อนบันทึก</p>
               </div>
               <span class="bulk-limit">สูงสุด 5,000 รายการ</span>
@@ -511,12 +470,11 @@
                   <button class="btn btn-outline-primary" type="button" onclick="addBulkSingleDate()"><i class="fa-solid fa-plus"></i><span class="visually-hidden">เพิ่มวันที่</span></button>
                 </div>
                 <div id="bulkSingleDates" class="bulk-date-chips"></div>
-                <label class="form-label mt-3">เพิ่มช่วงวันที่</label>
+                <div class="form-label mt-3">เพิ่มช่วงวันที่</div>
                 <div class="bulk-range-row">
-                  <input type="date" id="bulkRangeStart" class="form-control" aria-label="วันเริ่มต้น">
-                  <span>ถึง</span>
-                  <input type="date" id="bulkRangeEnd" class="form-control" aria-label="วันสิ้นสุด">
-                  <button class="btn btn-outline-primary" type="button" onclick="addBulkDateRange()"><i class="fa-solid fa-plus"></i><span class="visually-hidden">เพิ่มช่วงวันที่</span></button>
+                  <div><label for="bulkRangeStart" class="form-label">ตั้งแต่วันที่</label><input type="date" id="bulkRangeStart" class="form-control"></div>
+                  <div><label for="bulkRangeEnd" class="form-label">ถึงวันที่</label><input type="date" id="bulkRangeEnd" class="form-control"></div>
+                  <button class="btn btn-outline-primary" type="button" onclick="addBulkDateRange()"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>เพิ่มช่วงวันที่</button>
                 </div>
                 <label class="bulk-weekend-toggle mt-3">
                   <input id="bulkIncludeWeekends" type="checkbox" onchange="renderBulkDateSelection()">
@@ -557,10 +515,10 @@
     </div>
 
     <!-- ── TAB: SHOP (Teacher Management) ── -->
-    <div class="t-pane" id="tab-shop" role="tabpanel" aria-labelledby="teacher-tab-shop" hidden>
+    <div class="t-pane" id="tab-shop" role="region" aria-labelledby="teacher-tab-shop" hidden>
       <div class="tshop-wrap">
         <div class="tshop-hdr">
-          <h5><i class="fa-solid fa-store me-2"></i>จัดการ Magic Shop</h5>
+          <h2 class="teacher-section-title"><i class="fa-solid fa-store me-2"></i>จัดการ Magic Shop</h2>
           <div class="tshop-hdr-actions">
             <button class="tshop-action-btn tshop-action-gift" onclick="openGrantItemModal()">
               <i class="fa-solid fa-gift me-1"></i>มอบไอเทมฟรี
@@ -623,27 +581,10 @@
               <div>
                 <label class="form-label mb-0" for="walletGrade">ระดับชั้น</label>
               </div>
-              <select id="walletGrade" class="form-select form-select-sm" style="width:auto"
+<select id="walletGrade" class="form-select form-select-sm" style="width:auto"
                       onchange="loadWalletSummary()">
-                <optgroup label="มัธยมศึกษาปีที่ 1">
-                  <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
-                </optgroup>
-                <optgroup label="มัธยมศึกษาปีที่ 2">
-                  <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
-                </optgroup>
-                <optgroup label="มัธยมศึกษาปีที่ 3">
-                  <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
-                </optgroup>
-                <optgroup label="มัธยมศึกษาปีที่ 4">
-                  <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
-                </optgroup>
-                <optgroup label="มัธยมศึกษาปีที่ 5">
-                  <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
-                </optgroup>
-                <optgroup label="มัธยมศึกษาปีที่ 6">
-                  <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
-                </optgroup>
-              </select>
+              <option value="">กำลังโหลดห้องเรียน...</option>
+            </select>
             </div>
             <div id="walletSummaryList">
               <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลด...</div>
@@ -659,26 +600,8 @@
         <div class="row g-2 align-items-end">
           <div class="col-12 col-md-4">
             <label class="form-label" for="rewardReportGrade">ห้องเรียน</label>
-            <select id="rewardReportGrade" class="form-select form-select-sm" onchange="loadRewardReport()">
-              <option value="all">ทุกห้อง</option>
-              <optgroup label="มัธยมศึกษาปีที่ 1">
-                <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 2">
-                <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 3">
-                <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 4">
-                <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 5">
-                <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
-              </optgroup>
-              <optgroup label="มัธยมศึกษาปีที่ 6">
-                <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
-              </optgroup>
+<select id="rewardReportGrade" class="form-select form-select-sm" onchange="loadRewardReport()">
+              <option value="">กำลังโหลดห้องเรียน...</option>
             </select>
           </div>
           <div class="col-12 col-md-8 d-flex justify-content-md-end align-items-center gap-2">
@@ -713,11 +636,29 @@
     </div>
 
     <!-- ── TAB: SETTINGS ── -->
-    <div class="t-pane" id="tab-settings" role="tabpanel" aria-labelledby="teacher-tab-settings" hidden>
+    <div class="t-pane" id="tab-settings" role="region" aria-labelledby="teacher-tab-settings" hidden>
+      <section class="semester-settings" aria-labelledby="semesterTitle">
+        <div class="workspace-heading"><h2 id="semesterTitle">ภาคเรียน</h2><span id="semesterStatus" role="status"></span></div>
+        <form id="semesterForm" onsubmit="event.preventDefault(); saveSemester()">
+          <div class="semester-fields">
+            <div><label for="semesterNumber" class="form-label">ภาคเรียน</label><select id="semesterNumber" class="form-select"><option value="1">1</option><option value="2">2</option></select></div>
+            <div><label for="semesterYear" class="form-label">ปีการศึกษา (พ.ศ.)</label><input id="semesterYear" type="number" min="2500" max="2800" required class="form-control"></div>
+            <div><label for="semesterStart" class="form-label">วันเริ่มภาคเรียน</label><input id="semesterStart" type="date" class="form-control"></div>
+            <div><label for="semesterEnd" class="form-label">วันสิ้นสุดภาคเรียน</label><input id="semesterEnd" type="date" class="form-control"></div>
+          </div>
+          <button id="semesterSaveBtn" type="submit" class="btn btn-primary-action"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึกภาคเรียน</button>
+        </form>
+      </section>
+      <section class="semester-reset" aria-labelledby="semesterResetTitle">
+        <h2 id="semesterResetTitle">เริ่มเทอมใหม่และลบข้อมูลเดิม</h2>
+        <p>ลบคะแนน เหรียญ แต้มพิเศษ สัตว์เลี้ยง ประวัติเข้าเรียน และรายการร้านค้าของนักเรียนทุกคนอย่างถาวร ไม่เก็บประวัติเทอมเก่า</p>
+        <p>คงรหัสนักเรียน ชื่อ ห้อง รหัสผ่าน และรูปโปรไฟล์ไว้ สินค้าและการตั้งค่าโรงเรียนไม่ถูกลบ</p>
+        <button id="semesterResetBtn" type="button" class="btn btn-outline-danger" onclick="openSemesterReset()"><i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i>ตรวจสอบก่อนลบและเริ่มเทอมใหม่</button>
+      </section>
       <div class="settings-section">
-        <h6 class="fw-bold mb-4" style="color:var(--pri)">
+        <h2 id="teacher-tab-settings" class="teacher-section-title fw-bold mb-4" style="color:var(--pri)">
           <i class="fa-solid fa-sliders me-2"></i>ตั้งค่าระบบ
-        </h6>
+        </h2>
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label" for="setAppName">ชื่อแอปพลิเคชัน</label>
@@ -734,10 +675,10 @@
             </div>
           </div>
           <div class="col-md-6">
-            <label class="form-label" for="logoInput">โลโก้แอป (ไฟล์รูป, แนะนำ 100×100px)</label>
+            <label class="form-label" for="logoInput">โลโก้โรงเรียน (PNG / WebP / JPEG)</label>
             <div class="d-flex align-items-center gap-3 mb-3">
               <img id="logoPreview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Crect width='60' height='60' rx='12' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' font-size='28' fill='%234f46e5'%3E🏫%3C/text%3E%3C/svg%3E" alt="ตัวอย่างโลโก้แอป"
-                   style="width:60px;height:60px;border-radius:12px;border:2px solid #e2e8f0;object-fit:cover">
+                   style="width:96px;height:96px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain">
               <div>
                 <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoChange(event)">
                 <button class="btn btn-sm btn-outline-primary fw-bold compact-control" style="border-radius:10px"
@@ -751,7 +692,7 @@
             <div class="alert settings-tip">
               <i class="fa-solid fa-circle-info me-1"></i>
               การตั้งค่าจะแสดงในหน้า Login และ Header ของครู<br>
-              โลโก้จะถูกบีบอัดอัตโนมัติเพื่อประหยัดพื้นที่
+              ใช้ต้นฉบับอย่างน้อย 512px เพื่อเก็บรายละเอียดและพื้นหลังโปร่งใส
             </div>
           </div>
         </div>
@@ -809,28 +750,14 @@
         <input type="text" id="newStudentName" class="form-control mb-3" placeholder="เช่น เด็กชาย..." autocomplete="off">
 
         <label class="form-label" for="newStudentGrade">ระดับชั้น/ห้องเรียนย่อย</label>
-        <select id="newStudentGrade" class="form-select mb-3">
-          <option value="">-- เลือกห้องเรียน --</option>
-          <optgroup label="มัธยมศึกษาปีที่ 1">
-            <option>ม.1</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option>
-          </optgroup>
-          <optgroup label="มัธยมศึกษาปีที่ 2">
-            <option>ม.2</option><option>ม.2/1</option><option>ม.2/2</option><option>ม.2/3</option>
-          </optgroup>
-          <optgroup label="มัธยมศึกษาปีที่ 3">
-            <option>ม.3</option><option>ม.3/1</option><option>ม.3/2</option><option>ม.3/3</option>
-          </optgroup>
-          <optgroup label="มัธยมศึกษาปีที่ 4">
-            <option>ม.4</option><option>ม.4/1</option><option>ม.4/2</option><option>ม.4/3</option>
-          </optgroup>
-          <optgroup label="มัธยมศึกษาปีที่ 5">
-            <option>ม.5</option><option>ม.5/1</option><option>ม.5/2</option><option>ม.5/3</option>
-          </optgroup>
-          <optgroup label="มัธยมศึกษาปีที่ 6">
-            <option>ม.6</option><option>ม.6/1</option><option>ม.6/2</option><option>ม.6/3</option>
-          </optgroup>
-        </select>
+<select id="newStudentGrade" class="form-select mb-3">
+              <option value="">กำลังโหลดห้องเรียน...</option>
+            </select>
 
+        <div id="newRoomFields" class="hidden mb-3">
+          <label class="form-label" for="newRoomName">ชื่อห้องใหม่</label>
+          <input id="newRoomName" class="form-control" placeholder="เช่น ม.2/1" maxlength="30">
+        </div>
         <div class="alert mb-0 alert-note">
           รหัสผ่านเริ่มต้นจะเป็นรหัสประจำตัวนักเรียน และระบบจะบังคับเปลี่ยนรหัสผ่านเมื่อเข้าใช้งานครั้งแรก
         </div>
@@ -1107,5 +1034,6 @@
 <div id="studentGiftStatusLive" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <script defer src="./reports.js"></script>
 <script defer src="./app.js"></script>
+<script defer src="./school-admin.js"></script>
 </body>
 </html>

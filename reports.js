@@ -32,10 +32,11 @@ function reportStatus(region, message, busy) {
 }
 
 function getReportMonth() {
+  var monthEl = document.getElementById('statMonth');
+  if (monthEl && monthEl.value === 'term') return 'term';
   var yearEl = document.getElementById('statYear');
   var year = yearEl && yearEl.value ? yearEl.value : new Date().getFullYear().toString();
   if (!/^\d{4}$/.test(year) || Number(year) < 2000 || Number(year) > 2200) throw new Error('กรุณาระบุปี ค.ศ. ระหว่าง 2000 ถึง 2200');
-  var monthEl = document.getElementById('statMonth');
   var month = monthEl ? monthEl.value : 'all';
   return month === 'all' ? year : year + '-' + month.padStart(2, '0');
 }
@@ -71,7 +72,7 @@ async function reportReadStudents(table, columns, ids, signal) {
 
 function reportInRange(timestamp, selection) {
   var day = dateKeyBangkok(timestamp);
-  return !!day && (!selection.month || matchesMonth(timestamp, selection.month)) &&
+  return !!day && (!selection.month || selection.month === 'term' || matchesMonth(timestamp, selection.month)) &&
     (!selection.from || day >= selection.from) && (!selection.to || day <= selection.to);
 }
 
@@ -88,6 +89,14 @@ function reportSelection(kind, studentId) {
     school: appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร',
     teacher: document.getElementById('printTeacher').textContent || ''
   };
+  if (typeof schoolSemester !== 'undefined') {
+    selection.semester = semesterLabel(schoolSemester);
+    selection.dataVersion = schoolSemester.version;
+    if (attendance && selection.month === 'term') {
+      selection.from = schoolSemester.start;
+      selection.to = schoolSemester.end;
+    }
+  }
   if (!selection.grade && !studentId) throw new Error('กรุณาเลือกห้องเรียน');
   if (selection.from && selection.to && selection.from > selection.to) throw new Error('วันเริ่มต้นต้องไม่เกินวันสิ้นสุด');
   if (selection.kind === 'wallet') { selection.from = ''; selection.to = ''; }
@@ -98,9 +107,9 @@ async function loadReportData(selection, signal, progress) {
   progress = progress || function() {};
   progress('กำลังโหลดรายชื่อนักเรียน...');
   var students = await reportReadAll(function() {
-    var q = getSupabase().from('students').select('id,name,grade');
+    var q = getSupabase().from('students').select('id,name,grade').eq('role', 'STUDENT');
     if (selection.studentId) return q.eq('id', selection.studentId);
-    return selection.grade === 'all' ? q : q.eq('grade', normalizeGrade(selection.grade));
+    return applyStudentGradeFilter(q, selection.grade);
   }, 'id', signal);
   var ids = students.map(function(s) { return s.id; });
   students.sort(function(a, b) { return String(a.grade).localeCompare(String(b.grade), 'th') || String(a.id).localeCompare(String(b.id)); });
@@ -121,6 +130,10 @@ async function loadReportData(selection, signal, progress) {
     // A failed read must not silently turn spending into zero.
     progress('กำลังตรวจยอดเหรียญ...');
     data.pets = await reportReadStudents('student_pet_events', 'id,student_id,points_used', ids, signal);
+  }
+  if (selection.dataVersion) {
+    var settings = await getSettingsMap(['school_data_version']);
+    if (settings.school_data_version !== selection.dataVersion) throw new Error('ข้อมูลถูกรีเซ็ตระหว่างส่งออก กรุณาเข้าสู่ระบบใหม่แล้วส่งออกอีกครั้ง');
   }
   return data;
 }
@@ -187,7 +200,7 @@ function buildReport(selection, data) {
     report.title = 'สรุปคะแนนสะสมและเหรียญ ณ ปัจจุบัน'; report.landscape = true;
     report.columns = columns(['ลำดับ', 'รหัส', 'ชื่อ-นามสกุล', 'ห้อง', 'XP สะสม', 'แลกสำเร็จ', 'รอดำเนินการ', 'สัตว์เลี้ยง', 'ปฏิเสธ', 'คงเหลือ'], [5, 8, 23, 8, 9, 9, 10, 9, 9, 10]);
     data.students.forEach(function(student, i) { report.rows.push({ cells: [i + 1, student.id, student.name, student.grade].concat(wallet(student)) }); });
-    report.note = 'ยอดทุกช่วงเวลา ณ วันที่พิมพ์ • คงเหลือ = XP - แลกสำเร็จ - รอดำเนินการ - สัตว์เลี้ยง (ขั้นต่ำ 0) • ปฏิเสธไม่หักเหรียญ';
+    report.note = (selection.semester ? 'ยอดสะสมภาคเรียนปัจจุบัน' : 'ยอดทุกช่วงเวลา ณ วันที่พิมพ์') + ' • คงเหลือ = XP - แลกสำเร็จ - รอดำเนินการ - สัตว์เลี้ยง (ขั้นต่ำ 0) • ปฏิเสธไม่หักเหรียญ';
   } else if (selection.kind === 'individual') {
     var student = data.students[0];
     if (!student) throw new Error('ไม่พบนักเรียน');
@@ -252,8 +265,8 @@ function buildReport(selection, data) {
 }
 
 function reportPeriod(selection) {
-  if (selection.kind === 'wallet') return 'ทุกช่วงเวลา ณ วันที่พิมพ์';
-  if (selection.month) return selection.month.length === 4 ? 'ปี พ.ศ. ' + (Number(selection.month) + 543) + ' (ทั้งปี)' : TH_MO_L[Number(selection.month.slice(5))] + ' ' + (Number(selection.month.slice(0, 4)) + 543);
+  if (selection.kind === 'wallet') return selection.semester ? 'ยอดภาคเรียนปัจจุบัน ณ วันที่พิมพ์' : 'ทุกช่วงเวลา ณ วันที่พิมพ์';
+  if (selection.month && selection.month !== 'term') return selection.month.length === 4 ? 'ปี พ.ศ. ' + (Number(selection.month) + 543) + ' (ทั้งปี)' : TH_MO_L[Number(selection.month.slice(5))] + ' ' + (Number(selection.month.slice(0, 4)) + 543);
   return (selection.from || selection.to) ? (selection.from || 'เริ่มต้นข้อมูล') + ' ถึง ' + (selection.to || 'ปัจจุบัน') : 'ทุกช่วงเวลา';
 }
 
@@ -265,14 +278,16 @@ function reportCsvCell(value) {
 
 function downloadReport(report, format) {
   var rows = [report.columns.map(function(c) { return c.label; })].concat(report.rows.map(function(r) { return r.cells; }));
-  var name = (report.title + '_' + (report.selection.grade || report.selection.studentId) + '_' + reportPeriod(report.selection) + '_' + dateKeyBangkok(report.selection.createdAt)).replace(/[\\/:*?"<>|]/g, '-');
+  var term = report.selection.semester ? 'ภาคเรียน ' + report.selection.semester : '';
+  var name = (report.title + '_' + (report.selection.grade || report.selection.studentId) + '_' + term + '_' + reportPeriod(report.selection) + '_' + dateKeyBangkok(report.selection.createdAt)).replace(/[\\/:*?"<>|]/g, '-');
   if (format === 'csv') {
+    if (term) rows = rows.map(function(row, index) { return row.concat(index === 0 ? 'ภาคเรียน' : term); });
     var url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(function(row) { return row.map(reportCsvCell).join(','); }).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     var a = document.createElement('a'); a.href = url; a.download = name + '.csv'; a.click();
     setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
   } else {
     if (typeof XLSX === 'undefined') throw new Error('โหลด Excel ไม่สำเร็จ กรุณารีเฟรชแล้วลองใหม่');
-    var sheet = XLSX.utils.aoa_to_sheet([[report.title], [report.selection.school], ['ห้อง: ' + report.selection.grade + ' | ' + reportPeriod(report.selection)], ['พิมพ์: ' + formatThaiLongDate(new Date(report.selection.createdAt))], [report.note], []].concat(rows));
+    var sheet = XLSX.utils.aoa_to_sheet([[report.title], [report.selection.school], [term], ['ห้อง: ' + report.selection.grade + ' | ' + reportPeriod(report.selection)], ['พิมพ์: ' + formatThaiLongDate(new Date(report.selection.createdAt))], [report.note], []].concat(rows));
     sheet['!cols'] = report.columns.map(function(c) { return { wch: Math.max(12, c.width) }; });
     var book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, 'รายงาน'); XLSX.writeFile(book, name + '.xlsx');
   }
@@ -373,6 +388,7 @@ async function renderReportPrint(popup, report, signal) {
     var header = element('header');
     header.appendChild(element('h1', report.title));
     header.appendChild(element('p', report.selection.school));
+    if (report.selection.semester) header.appendChild(element('p', 'ภาคเรียน ' + report.selection.semester));
     header.appendChild(element('p', report.student || ('ห้อง: ' + (report.selection.grade === 'all' ? 'ทุกห้อง' : report.selection.grade))));
     header.appendChild(element('p', reportPeriod(report.selection) + ' | พิมพ์ ' + formatThaiLongDate(new Date(report.selection.createdAt)), 'meta'));
     page.appendChild(header);

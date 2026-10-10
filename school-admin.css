@@ -1,0 +1,106 @@
+/* Teacher task navigation and school settings. */
+.teacher-header-actions{display:flex;align-items:center;gap:10px;min-width:0}
+.teacher-name{display:flex;align-items:center;gap:8px;font-family:'Sarabun',sans-serif;font-weight:700;font-size:1.1rem;line-height:1.3;color:var(--ink);margin:0}
+.term-label{font-size:.9rem;font-weight:600;color:var(--ink-muted);white-space:nowrap}
+.teacher-settings{display:grid;place-items:center;width:44px;height:44px;background:var(--white);color:var(--ink-muted);border:1px solid var(--border-soft);border-radius:8px}
+.teacher-settings:hover{color:var(--pri);background:var(--surface-brand)}
+.teacher-workspace{max-width:1400px;display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px 24px;padding:24px}
+.teacher-workspace>.t-nav{grid-column:1;grid-row:1 / span 4;align-self:start;display:flex;flex-direction:column;gap:6px;position:sticky;top:16px;overflow:visible;background:transparent;border:0;padding:0;box-shadow:none}
+.teacher-workspace>.t-nav .tn{display:flex;align-items:center;justify-content:flex-start;gap:10px;min-height:48px;padding:12px 14px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:1rem;white-space:normal;text-align:left}
+.teacher-workspace>.t-nav .tn.active{background:var(--white);color:var(--pri);box-shadow:none;border:1px solid var(--border-soft)}
+.teacher-workspace>.t-nav .tn-badge{position:static;margin-left:auto}
+.teacher-workspace>.t-pane,.teacher-workspace>.teacher-subnav{grid-column:2;min-width:0}
+.teacher-subnav{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--border-soft);margin:0;padding:0 0 8px}
+.teacher-subnav button{min-height:44px;padding:8px 14px;border:0;border-radius:6px;background:transparent;color:var(--ink-muted);font-family:'Sarabun',sans-serif;font-weight:600;font-size:1rem;text-align:center}
+.teacher-subnav button:hover{background:var(--surface-brand)}
+.teacher-subnav button[aria-selected="true"]{background:var(--surface-brand);color:var(--pri)}
+.teacher-subnav .tn-badge{position:static;margin-left:6px;transform:none}
+.workspace-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.workspace-heading h2,.semester-reset h2{font-family:'Sarabun',sans-serif;font-size:1.25rem;font-weight:700;margin:0;color:var(--ink)}
+.manual-modes{margin-bottom:20px}
+.manual-view[hidden]{display:none!important}
+#teacherSection .card,#teacherSection .man-form,#teacherSection .settings-section{border-radius:8px;box-shadow:none}
+#teacherSection .man-form{background:transparent;border:0;padding:0}
+#manual-view-single .man-form{max-width:680px}
+#teacherSection .bulk-editor{max-width:none}
+#teacherSection .bulk-grid{border-top:0}
+#teacherSection .bulk-step{padding:20px 20px 16px}
+#teacherSection .bulk-step:first-child{padding-left:0}
+#teacherSection .bulk-step:last-child{padding-right:0}
+#teacherSection .btn,#teacherSection .form-select,#teacherSection .form-control{min-height:44px;border-radius:8px}
+#teacherSection .btn-primary-action{background:var(--pri);color:var(--white)}
+#teacherSection .btn-primary-action:hover{filter:brightness(.95)}
+#teacherSection .btn[class*="btn-outline-"]{border:1px solid currentColor}
+#teacherSection .btn:disabled{opacity:.55;cursor:not-allowed}
+#teacherSection .bulk-range-row{grid-template-columns:minmax(0,1fr);gap:12px}
+#teacherSection .bulk-range-row button{justify-self:start}
+#teacherSection h6,#teacherSection button,#teacherSection .tshop-hdr{font-family:'Sarabun',sans-serif}
+#teacherSection .teacher-section-title{font-family:'Sarabun',sans-serif;font-size:1rem;font-weight:700;line-height:1.4}
+#teacherSection .btn-exp,#teacherSection .reset-delete-btn{min-height:44px;min-width:44px}
+#teacherSection .status-radio label{min-height:44px}
+#teacherSection .bulk-date-chip button,#teacherSection .bulk-range-item button{min-height:44px;min-width:44px}
+.semester-settings,.semester-reset{padding:0 0 28px;margin-bottom:28px;border-bottom:1px solid var(--border-soft)}
+.semester-fields{display:grid;grid-template-columns:100px 150px repeat(2,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.semester-reset p{color:var(--ink-muted);max-width:75ch;margin:12px 0}
+#semesterStatus{font-size:.9rem;color:var(--ink-muted)}
+.reset-summary{text-align:left}
+.reset-summary dl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin:16px 0}
+.reset-summary dt{font-weight:400}
+.reset-summary dd{text-align:right;margin:0;font-variant-numeric:tabular-nums}
+.reset-warning{color:var(--danger);font-weight:600}
+.reset-term-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin-bottom:16px}
+.reset-term-fields label{display:block;margin-bottom:6px}
+.reset-ack{display:flex;align-items:flex-start;gap:10px;margin:16px 0;text-align:left}
+.reset-ack input{flex:none;width:22px;height:22px;margin-top:2px}
+.otp-form{display:grid;gap:8px;text-align:left}
+.otp-form .form-control{min-height:48px;font-size:1rem}
+.otp-form label{font-weight:600;margin-top:12px}
+.otp-progress{font-size:.9rem;color:var(--ink-muted);margin:0 0 12px}
+.login-logo{width:144px;height:144px;object-fit:contain;border-radius:0;filter:none;margin:0 auto 16px}
+.login-logo-emoji{margin:0 auto 16px}
+.header-logo-img{object-fit:contain;border-radius:0}
+.teacher-logo{width:44px;height:44px;background:transparent}
+.teacher-logo .header-logo-img{width:44px;height:44px}
+#levelCard{display:grid;grid-template-columns:minmax(112px,.42fr) minmax(0,.58fr);gap:0 12px}
+#levelCard>.text-center{width:100%;min-height:232px}
+#levelCard .pet-hero{position:relative;top:auto;right:auto;width:100%;min-width:0;min-height:232px;grid-column:2;grid-row:1}
+#levelCard>.student-identity,#levelCard>.px-2,#levelCard>.trophy-row{grid-column:1/-1}
+#levelCard>.student-identity{padding:10px 0;text-align:center;min-width:0}
+#levelCard #sNameDisp,#levelCard #sGradeDisp{max-width:none;overflow-wrap:anywhere}
+#levelCard #sNameDisp{font-size:1rem!important;line-height:1.4}
+#teacherSection .s-tbl th,#teacherSection .s-tbl td{font-family:'Sarabun',sans-serif}
+#teacherSection .s-tbl{min-width:640px}
+#teacherSection .s-tbl th:nth-child(6),#teacherSection .s-tbl td:nth-child(6){display:table-cell}
+.teacher-settings:focus-visible,.teacher-subnav button:focus-visible,.tn:focus-visible{outline:3px solid var(--pri);outline-offset:3px}
+@media(max-width:1023px){
+  .teacher-workspace{display:block;padding:16px;max-width:1100px}
+  .teacher-workspace>.t-nav{position:static;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:20px}
+  .teacher-workspace>.t-nav .tn{justify-content:center;padding:10px 8px;gap:6px}
+  .teacher-workspace>.teacher-subnav{margin-bottom:20px}
+  .semester-fields{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .teacher-workspace{padding:16px 12px 28px}
+  .teacher-workspace>.t-nav .tn{flex-direction:column;min-height:64px;font-size:.9rem;position:relative;gap:4px}
+  .teacher-workspace>.t-nav .tn-badge{position:absolute;top:3px;right:3px;font-size:.7rem}
+  .teacher-header-actions{gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .term-label{font-size:.8rem}
+  .t-hdr{gap:10px;align-items:center}
+  .t-hdr>div:first-child{min-width:0}
+  .t-hdr h4{font-size:1rem;overflow-wrap:anywhere}
+  .teacher-name{font-size:1rem;overflow-wrap:anywhere}
+  .teacher-subnav button{flex:1 1 130px;padding:8px 10px;font-size:.95rem}
+  .workspace-heading{align-items:flex-start;flex-wrap:wrap}
+  .semester-fields{gap:12px}
+  .semester-reset button{width:100%;white-space:normal}
+  #teacherSection .bulk-step{padding:16px 0;border-left:0;border-right:0;border-bottom:1px solid var(--border-soft)}
+  #teacherSection .bulk-step:last-child{border-bottom:0}
+  #teacherSection .man-form{padding:0!important}
+  .manual-modes button{flex-basis:90px}
+  .login-logo{width:112px;height:112px}
+}
+@media(max-width:360px){
+  .term-label{flex-basis:100%;text-align:right}
+  .semester-fields{grid-template-columns:minmax(0,1fr)}
+  .teacher-workspace>.t-nav .tn{font-size:.85rem}
+}
