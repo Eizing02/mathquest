@@ -12,6 +12,9 @@ async function schoolRpc(name, args) {
     return await runQuery(getSupabase().rpc(name, args || {}));
   } catch (error) {
     if (error.code === 'PGRST202' || /Could not find the function/.test(error.message || '')) {
+      if (name === 'reset_school_progress') {
+        throw new Error('ยังไม่ได้อัปเดตการล้างข้อมูล กรุณารันไฟล์ 20261010_02_reset_progress_without_dates.sql ก่อน');
+      }
       throw new Error('ยังไม่ได้อัปเดตฐานข้อมูล กรุณารันไฟล์ 20261010_01_school_term_reset_otp.sql ก่อน');
     }
     throw error;
@@ -99,56 +102,49 @@ async function saveSemester() {
 async function openSemesterReset() {
   if (schoolResetBusy) return;
   if (typeof reportExportBusy !== 'undefined' && reportExportBusy) {
-    return onErr(new Error('รอให้ส่งออกรายงานเสร็จก่อนเริ่มเทอมใหม่'));
+    return onErr(new Error('รอให้ส่งออกรายงานเสร็จก่อนล้างข้อมูลนักเรียน'));
   }
   schoolResetBusy = true;
   try {
     var preview = await schoolRpc('preview_school_reset', teacherTokenArgs());
     if (preview.active_session) throw new Error('ยังมีคาบเปิดอยู่ กรุณาปิดหรือยกเลิกคาบก่อน');
-    if (preview.pending_orders) throw new Error('มีออเดอร์รอดำเนินการ ' + preview.pending_orders + ' รายการ กรุณาอนุมัติหรือปฏิเสธก่อนเริ่มเทอมใหม่');
-    var nextNumber = schoolSemester.number === '1' ? '2' : '1';
-    var nextYear = Number(schoolSemester.year || new Date().getFullYear() + 543) + (schoolSemester.number === '2' ? 1 : 0);
-    var oldLabel = semesterLabel(schoolSemester) || 'ข้อมูลเดิม';
+    if (preview.pending_orders) throw new Error('มีออเดอร์รอดำเนินการ ' + preview.pending_orders + ' รายการ กรุณาอนุมัติหรือปฏิเสธก่อนล้างข้อมูล');
     var result = await Swal.fire({
-      title: 'ลบข้อมูลเดิมและเริ่มเทอมใหม่',
+      title: 'ล้างข้อมูลนักเรียนทั้งหมด',
       html: '<div class="reset-summary"><strong>นักเรียน ' + preview.students + ' คน</strong>'
         + '<dl><dt>ประวัติเข้าเรียน</dt><dd>' + preview.attendance + ' รายการ</dd>'
         + '<dt>รายการร้านค้า / ของฟรี</dt><dd>' + preview.orders + ' รายการ</dd>'
         + '<dt>สัตว์เลี้ยง</dt><dd>' + preview.pets + ' คน</dd>'
         + '<dt>ประวัติสัตว์เลี้ยง</dt><dd>' + preview.pet_events + ' รายการ</dd></dl>'
-        + '<p class="reset-warning">ข้อมูลจะถูกลบถาวรและพิมพ์รายงานย้อนหลังไม่ได้ กรุณาส่งออกรายงานที่ต้องการก่อน</p></div>'
-        + '<div class="reset-term-fields"><div><label for="nextNumber">ภาคเรียนใหม่</label><select id="nextNumber" class="form-select"><option value="1">1</option><option value="2">2</option></select></div>'
-        + '<div><label for="nextYear">ปีการศึกษา (พ.ศ.)</label><input id="nextYear" type="number" min="2500" max="2800" class="form-control" value="' + nextYear + '"></div>'
-        + '<div><label for="nextStart">วันเริ่ม</label><input id="nextStart" type="date" class="form-control"></div>'
-        + '<div><label for="nextEnd">วันสิ้นสุด</label><input id="nextEnd" type="date" class="form-control"></div></div>'
+        + '<p class="reset-warning">ข้อมูลทุกวันที่บันทึกไว้จะถูกลบถาวรและพิมพ์รายงานย้อนหลังไม่ได้ กรุณาส่งออกรายงานที่ต้องการก่อน</p>'
+        + '<p>ชื่อภาคเรียนและวันที่ที่ตั้งไว้จะไม่เปลี่ยน</p></div>'
         + '<label class="reset-ack"><input id="resetAck" type="checkbox"> เข้าใจว่าคะแนน เหรียญ แต้มพิเศษ สัตว์เลี้ยง และประวัติจะถูกลบ โดยคงบัญชีและรูปโปรไฟล์ไว้</label>'
-        + '<label for="resetPhrase" class="form-label">พิมพ์ ลบ ' + escHtml(oldLabel) + ' เพื่อยืนยัน</label>'
+        + '<label for="resetPhrase" class="form-label">พิมพ์ ลบทั้งหมด เพื่อยืนยัน</label>'
         + '<input id="resetPhrase" class="form-control" autocomplete="off">'
         + '<label for="resetTeacherPassword" class="form-label mt-3">รหัสผ่านครูปัจจุบัน</label>'
         + '<input id="resetTeacherPassword" type="password" class="form-control" autocomplete="current-password">',
-      width: 600, showCancelButton: true, confirmButtonText: 'ลบข้อมูลและเริ่มเทอมใหม่',
+      width: 600, showCancelButton: true, confirmButtonText: 'ลบข้อมูลนักเรียนถาวร',
+      customClass: { title: 'reset-dialog-title', htmlContainer: 'reset-dialog-body', confirmButton: 'reset-confirm-button' },
       cancelButtonText: 'ยกเลิก', confirmButtonColor: UI_COLOR_DANGER,
       focusConfirm: false, showLoaderOnConfirm: true,
-      didOpen: function() { document.getElementById('nextNumber').value = nextNumber; },
       allowOutsideClick: function() { return !Swal.isLoading(); },
+      allowEscapeKey: function() { return !Swal.isLoading(); },
       preConfirm: async function() {
         try {
-          var term = readSemesterFields('next', true);
-          if (!document.getElementById('resetAck').checked || document.getElementById('resetPhrase').value.trim() !== 'ลบ ' + oldLabel) {
+          if (!document.getElementById('resetAck').checked || document.getElementById('resetPhrase').value.trim() !== 'ลบทั้งหมด') {
             throw new Error('ยืนยันผลกระทบและพิมพ์ข้อความยืนยันให้ตรงก่อนลบ');
           }
           var password = document.getElementById('resetTeacherPassword').value;
           if (!password) throw new Error('กรอกรหัสผ่านครูเพื่อยืนยันตัวตน');
-          return await schoolRpc('reset_school_for_new_semester', Object.assign(teacherTokenArgs(), {
-            p_password: password, p_expected_version: preview.version,
-            p_number: Number(term.number), p_year: Number(term.year), p_start: term.start, p_end: term.end
+          return await schoolRpc('reset_school_progress', Object.assign(teacherTokenArgs(), {
+            p_password: password, p_expected_version: preview.version
           }));
         } catch (error) { Swal.showValidationMessage(error.message); return false; }
       }
     });
     if (!result.isConfirmed) return;
     stopSchoolSync();
-    await Swal.fire({ icon: 'success', title: 'เริ่มภาคเรียนใหม่แล้ว', text: 'ลบข้อมูลเดิมเรียบร้อย บัญชีและรูปโปรไฟล์ยังอยู่ กรุณาเข้าสู่ระบบอีกครั้ง', confirmButtonText: 'เข้าสู่ระบบใหม่' });
+    await Swal.fire({ icon: 'success', title: 'ล้างข้อมูลนักเรียนแล้ว', text: 'ลบความคืบหน้าเดิมทั้งหมดแล้ว บัญชี รหัสผ่าน รูปโปรไฟล์ และการตั้งค่าภาคเรียนยังอยู่ กรุณาเข้าสู่ระบบอีกครั้ง', confirmButtonText: 'เข้าสู่ระบบใหม่' });
     logout();
   } catch (error) { onErr(error); }
   finally { schoolResetBusy = false; }

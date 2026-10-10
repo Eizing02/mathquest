@@ -48,10 +48,13 @@
 .reset-summary dt{font-weight:400}
 .reset-summary dd{text-align:right;margin:0;font-variant-numeric:tabular-nums}
 .reset-warning{color:var(--danger);font-weight:600}
-.reset-term-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin-bottom:16px}
-.reset-term-fields label{display:block;margin-bottom:6px}
 .reset-ack{display:flex;align-items:flex-start;gap:10px;margin:16px 0;text-align:left}
 .reset-ack input{flex:none;width:22px;height:22px;margin-top:2px}
+.swal2-popup .reset-dialog-title{font-family:'Sarabun',sans-serif;font-size:1.5rem;line-height:1.4}
+.reset-dialog-body .form-label{font-size:1rem;font-weight:600;text-align:left;margin-bottom:8px}
+.reset-dialog-body .form-control{min-height:44px;font-size:1rem}
+.swal2-popup .swal2-confirm.reset-confirm-button{background:var(--danger)!important;color:var(--white)!important;min-height:44px;white-space:normal}
+.swal2-popup .swal2-confirm.reset-confirm-button:focus-visible{outline:3px solid var(--danger);outline-offset:3px}
 .otp-form{display:grid;gap:8px;text-align:left}
 .otp-form .form-control{min-height:48px;font-size:1rem}
 .otp-form label{font-weight:600;margin-top:12px}

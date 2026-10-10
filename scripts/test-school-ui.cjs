@@ -43,6 +43,7 @@ async function main() {
           if(name==='complete_student_password_reset') data={status:'success',studentId:args.p_student_id};
           if(name==='request_student_password_reset') data={status:'success',studentId:args.p_student_id,studentName:'นักเรียน ทดสอบ',grade:'ม.2/1',expiresAt:new Date(Date.now()+900000).toISOString()};
           if(name==='preview_school_reset') data={students:4,attendance:80,orders:12,pets:4,pet_events:8,pending_orders:0,active_session:false,version:'fixture-v1'};
+          if(name==='reset_school_progress' && window.fixtureResetError) return Promise.resolve({data:null,error:window.fixtureResetError});
           return Promise.resolve({data,error:null});
         }
       });
@@ -117,10 +118,36 @@ async function main() {
     await page.evaluate(()=>{switchTab('settings');openSemesterReset();});
     await page.waitForSelector('#resetPhrase');
     assert.match(await page.locator('.reset-summary').textContent(),/ลบถาวร/);
+    assert.match(await page.locator('.reset-summary').textContent(),/ทุกวันที่/);
+    assert.equal(await page.locator('#nextNumber, #nextYear, #nextStart, #nextEnd').count(),0,'reset does not ask for semester or dates');
+    assert.equal(await page.locator('.reset-confirm-button').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(185, 28, 28)','destructive action uses existing danger color');
     await page.locator('.swal2-confirm').click();await page.waitForSelector('.swal2-validation-message');
-    assert.equal(await page.evaluate(()=>fixtureCalls.some(call=>call.name==='reset_school_for_new_semester')),false,'no destructive RPC without acknowledgement');
-    await capture({path:path.join(output,'reset-confirm-390.png')});
-    await page.locator('.swal2-cancel').click();
+    assert.equal(await page.evaluate(()=>fixtureCalls.some(call=>call.name==='reset_school_progress')),false,'no destructive RPC without acknowledgement');
+    for (const width of [320,390,768,1280]) {
+      await page.setViewportSize({width,height:900});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'reset dialog overflow '+width);
+      const popup=await page.locator('.swal2-popup').boundingBox();
+      assert.ok(popup.x>=0 && popup.x+popup.width<=width+1,'reset popup fits '+width);
+      await capture({path:path.join(output,'reset-confirm-'+width+'.png')});
+    }
+    await page.locator('#resetAck').check();
+    await page.locator('#resetPhrase').fill('ลบทั้งหมด');
+    await page.locator('.swal2-confirm').click();await page.waitForSelector('.swal2-validation-message');
+    assert.equal(await page.evaluate(()=>fixtureCalls.some(call=>call.name==='reset_school_progress')),false,'no RPC without teacher password');
+    await page.locator('#resetTeacherPassword').fill('fixture-teacher-password');
+    await page.evaluate(()=>window.fixtureResetError={code:'PGRST202',message:'Could not find the function'});
+    await page.locator('.swal2-confirm').click();
+    await page.waitForFunction(()=>document.querySelector('.swal2-validation-message')?.textContent.includes('20261010_02_reset_progress_without_dates.sql'));
+    assert.ok(await page.locator('.swal2-confirm').isEnabled(),'confirmation recovers after RPC failure');
+    await page.evaluate(()=>{window.fixtureResetError=null;window.fixtureLogoutCount=0;logout=()=>{fixtureLogoutCount++;};});
+    await page.locator('.swal2-confirm').click();
+    await page.waitForFunction(()=>document.querySelector('.swal2-title')?.textContent==='ล้างข้อมูลนักเรียนแล้ว');
+    const resetCall=await page.evaluate(()=>fixtureCalls.filter(call=>call.name==='reset_school_progress').at(-1));
+    assert.deepEqual(Object.keys(resetCall.args).sort(),['p_expected_version','p_password','p_teacher_token']);
+    assert.equal(resetCall.args.p_expected_version,'fixture-v1');
+    assert.equal(await page.evaluate(()=>semesterLabel(schoolSemester)),'1/2569','reset does not change semester label');
+    await page.locator('.swal2-confirm').click();
+    await page.waitForFunction(()=>fixtureLogoutCount===1);
     await page.evaluate(async()=>{
       document.getElementById('teacherSection').classList.add('hidden');
       document.getElementById('studentSection').classList.remove('hidden');

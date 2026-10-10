@@ -129,8 +129,8 @@ begin
 end;
 $$;
 
-create or replace function public.reset_school_for_new_semester(p_teacher_token text, p_password text,
-  p_expected_version text, p_number integer, p_year integer, p_start date, p_end date)
+create or replace function public.reset_school_progress(p_teacher_token text, p_password text,
+  p_expected_version text)
 returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_teacher text; v_preview jsonb; v_version text;
 begin
@@ -138,8 +138,6 @@ begin
   if not exists(select 1 from public.students where id=v_teacher and role='TEACHER' and password=p_password) then
     raise exception 'รหัสผ่านครูไม่ถูกต้อง';
   end if;
-  perform mathquest_private.validate_semester(p_number,p_year,p_start,p_end);
-  if p_start is null or p_end is null then raise exception 'ระบุวันเริ่มและวันสิ้นสุดเทอมใหม่ให้ครบ'; end if;
   perform pg_advisory_xact_lock(6101001);
   -- Hold writes while checking preconditions and deleting all progress in one transaction.
   lock table public.students, public.system_settings, public.attendance_logs,
@@ -160,14 +158,29 @@ begin
   end if;
   delete from public.password_reset_requests r using public.students s where r.student_id=s.id and s.role='STUDENT';
   delete from public.student_free_item_notification_state n using public.students s where n.student_id=s.id and s.role='STUDENT';
-  perform public.set_school_semester(p_teacher_token,p_number,p_year,p_start,p_end,p_expected_version);
   v_version := gen_random_uuid()::text;
   insert into public.system_settings(key,value) values
     ('pin',''),('pin_expiry',''),('current_grade',''),('session_start',''),('active_session_id',''),
     ('school_data_version',v_version),('school_reset_at',now()::text)
   on conflict(key) do update set value=excluded.value;
-  delete from mathquest_private.teacher_sessions;
+  delete from mathquest_private.teacher_sessions ts using public.students s where ts.teacher_id=s.id;
   return jsonb_build_object('status','success','deleted',v_preview,'version',v_version);
+end;
+$$;
+
+-- Compatibility for a browser using the previous reset form; dates are optional.
+create or replace function public.reset_school_for_new_semester(p_teacher_token text, p_password text,
+  p_expected_version text, p_number integer, p_year integer, p_start date, p_end date)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_result jsonb;
+begin
+  perform mathquest_private.validate_semester(p_number,p_year,p_start,p_end);
+  v_result := public.reset_school_progress(p_teacher_token,p_password,p_expected_version);
+  insert into public.system_settings(key,value) values
+    ('semester_number',p_number::text),('semester_year',p_year::text),
+    ('semester_start',coalesce(p_start::text,'')),('semester_end',coalesce(p_end::text,''))
+  on conflict(key) do update set value=excluded.value;
+  return v_result;
 end;
 $$;
 
@@ -264,6 +277,7 @@ revoke all on function public.open_school_attendance_session(text,text,text) fro
 revoke all on function public.open_teacher_admin_session(text,text) from public;
 revoke all on function public.set_school_semester(text,integer,integer,date,date,text) from public;
 revoke all on function public.preview_school_reset(text) from public;
+revoke all on function public.reset_school_progress(text,text,text) from public;
 revoke all on function public.reset_school_for_new_semester(text,text,text,integer,integer,date,date) from public;
 revoke all on function public.request_student_password_reset(text) from public;
 revoke all on function public.verify_student_reset_otp(text,text) from public;
@@ -273,6 +287,7 @@ revoke all on function public.cancel_student_password_reset(text,bigint) from pu
 grant execute on function public.open_teacher_admin_session(text,text),
   public.open_school_attendance_session(text,text,text),
   public.set_school_semester(text,integer,integer,date,date,text), public.preview_school_reset(text),
+  public.reset_school_progress(text,text,text),
   public.reset_school_for_new_semester(text,text,text,integer,integer,date,date),
   public.request_student_password_reset(text), public.verify_student_reset_otp(text,text),
   public.complete_student_password_reset(text,text,text), public.teacher_password_reset_requests(text),
