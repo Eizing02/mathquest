@@ -16,10 +16,14 @@ function event(connection,workspace,exam=uid(),revision=1,code='00001') {
     exam:{title:'ข้อสอบจำลอง',subject:'คณิตศาสตร์',exam_type:'เก็บคะแนน',classroom:'ม.2',academic_year:2569,term:1},
     results:[{source_scan_id:uid(),source_exam_version_id:uid(),student_code:code,score:17.5,max_score:25,percent:70,passed:true,confirmed_at:'2026-10-15T00:00:00.000Z'}]};
 }
-async function setup(db) {
+async function setup(db, { upgrade = true } = {}) {
   await db.exec(fixture);
   for(const file of ['20261010_01_school_term_reset_otp.sql','20261010_02_reset_progress_without_dates.sql','20260915_01_report_bonus_points.sql','20261015_01_google_login_student_links.sql','20261015_02_scansob_receiver.sql'])await db.exec(read(file));
   await db.exec(read('20261015_02_scansob_receiver.sql'));
+  if (upgrade) {
+    await db.exec(read('20261015_03_scansob_recovery_hardening.sql'));
+    await db.exec(read('20261015_03_scansob_recovery_hardening.sql'));
+  }
   const teacher=uid(),student=uid(),other=uid(),teacherSession=uid();
   for(const [id,email,session] of [[teacher,'piyawatpiwsiri@gmail.com',teacherSession],[student,'s@fixture.invalid',uid()],[other,'other@fixture.invalid',uid()]]){
     await db.query("insert into auth.users values($1,$2,now(),'{\"provider\":\"google\"}')",[id,email]);

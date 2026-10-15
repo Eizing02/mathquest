@@ -51,11 +51,58 @@ async function main(){
     }while(cursor);
     assert.equal(seen.size,1006,'teacher pagination includes all rows beyond 1,000');
     await owner.query('reset role');
+    const {createScanSobHandler}=await import(pathToFileURL(path.resolve(__dirname,'../supabase/functions/_shared/scansob-http.mjs')));
+    let adminToken=token;
+    const admin=async(action,args={})=>{await actor(teacher);return (await owner.query('select mq_scansob_admin($1,$2,$3) as value',[adminToken,action,args])).rows[0].value;};
+    const pair=async(client,body)=>{
+      const handler=createScanSobHandler('pair',{pairingKey:'real-postgres-fixture-key-never-use-live',rpc:async(name,args)=>
+        (await client.query('select '+name+'('+Object.keys(args).map((k,i)=>k+'=>$'+(i+1)).join(',')+') as value',Object.values(args))).rows[0].value});
+      const response=await handler(new Request('https://fixture.invalid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
+      return {status:response.status,body:await response.json()};
+    };
+    const makeRequest=async(workspaceId=crypto.randomUUID())=>{
+      const code=await admin('create_code');
+      return {schema_version:'1.0',action:'request',request_id:crypto.randomUUID(),source_workspace_id:workspaceId,
+        workspace_label:'Concurrency fixture',request_secret:crypto.randomBytes(32).toString('base64url'),pairing_code:code.code};
+    };
+    const statusOf=r=>({schema_version:'1.0',action:'status',request_id:r.request_id,source_workspace_id:r.source_workspace_id,request_secret:r.request_secret});
+    for(let attempt=0;attempt<3;attempt++){
+      const request=await makeRequest();assert.equal((await pair(clients[1],request)).status,200);
+      const race=await Promise.allSettled([admin('approve',{request_id:request.request_id}),pair(clients[2],{...statusOf(request),action:'revoke'})]);
+      assert.equal(race[1].status,'fulfilled');assert.equal(race[1].value.body.status,'revoked');
+      await owner.query('reset role');
+      assert.equal((await owner.query('select status from mathquest_private.scansob_requests where id=$1',[request.request_id])).rows[0].status,'revoked');
+      assert.equal((await owner.query("select count(*)::int as n from mathquest_private.scansob_connections where workspace_id=$1 and status='active'",[request.source_workspace_id])).rows[0].n,0);
+    }
+    const unknown=await makeRequest();
+    const registration=await Promise.all([pair(clients[1],unknown),pair(clients[2],statusOf(unknown))]);
+    assert.ok(registration.every(r=>r.status===200));
+    const cancelUnknown={...statusOf(unknown),action:'revoke'};
+    const revoked=await Promise.all([pair(clients[1],cancelUnknown),pair(clients[2],cancelUnknown)]);
+    assert.deepEqual(revoked[0],revoked[1]);assert.equal(revoked[0].body.status,'revoked');
+    assert.notEqual((await pair(clients[1],unknown)).body.status,'active','late request cannot escape cancellation');
+    await owner.query('reset role');
     // A deliberately failing late write rolls back exam, score, batch and receipt together.
     await owner.query("create function mathquest_private.fixture_fail_receipt() returns trigger language plpgsql as $$ begin raise exception 'fixture receipt failure'; end $$; create trigger fixture_fail_receipt before insert on mathquest_private.scansob_events for each row execute function mathquest_private.fixture_fail_receipt()");
     const fail=event(connection,workspace);await assert.rejects(()=>ingest(clients[1],fail),/fixture receipt failure/);
     assert.equal((await owner.query('select count(*)::int as n from mathquest_private.scansob_exams where source_exam_id=$1',[fail.source_exam_id])).rows[0].n,0);
-    console.log('PASS real PostgreSQL: simultaneous duplicates, revision races, withdrawal races, 1,005 scores/reverse batches, late-failure transaction rollback');
+    await owner.query('drop trigger fixture_fail_receipt on mathquest_private.scansob_events');
+    await admin('revoke',{connection_id:connection});
+    await actor(teacher);await owner.query('select mq_reset_student_progress($1,$2)',[adminToken,'fixture-v1']);
+    adminToken=(await owner.query('select mq_open_teacher_session() as value')).rows[0].value;
+    const nextRequest=await makeRequest(workspace);await pair(clients[1],nextRequest);await admin('approve',{request_id:nextRequest.request_id});
+    const nextConnection=(await pair(clients[1],statusOf(nextRequest))).body.connection;
+    await admin('configure',{enabled:true,student_view_enabled:false,accept_self_claim_risk:false});
+    const proof={...first,event_id:crypto.randomUUID(),connection_id:nextConnection.id,publication_revision:2,action:'withdraw_exam',results:[]};
+    const deliver=(client,payload)=>client.query('select mq_scansob_ingest($1,$2,$3) as value',[payload,hash(JSON.stringify(payload)),hash(nextConnection.token)]).then(r=>r.rows[0].value);
+    const proofResults=await Promise.all([deliver(clients[1],proof),deliver(clients[2],proof)]);
+    assert.ok(proofResults.every(r=>r.http_status===200&&r.body.status==='processed'));
+    assert.deepEqual(proofResults[0],proofResults[1]);
+    assert.equal((await deliver(clients[1],{...first,event_id:crypto.randomUUID(),connection_id:nextConnection.id,publication_revision:3})).body.error,'TERM_CLOSED');
+    await owner.query('reset role');
+    assert.equal((await owner.query("select count(*)::int as n from mathquest_private.scansob_audit where action='ack_purged_withdrawal'")).rows[0].n,1);
+    assert.equal((await owner.query('select count(*)::int as n from mathquest_private.scansob_scores')).rows[0].n,0);
+    console.log('PASS real PostgreSQL: duplicate/revision/withdrawal races, approval/cancel and registration races, purge ACK replay, 1,005 scores, late-failure rollback');
   }finally{for(const c of clients.reverse())await c.end().catch(()=>{});await cluster.stop().catch(()=>{});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -19,9 +19,12 @@
 .scansob-table th{background:var(--surface-soft);font-weight:700;white-space:nowrap}
 .scansob-table th,.scansob-table td{padding:12px 14px;border-bottom:1px solid var(--border-soft);vertical-align:top}
 .scansob-table td{overflow-wrap:anywhere;max-width:300px}
+.scansob-table td:nth-child(6){white-space:nowrap}
 .scansob-table tr:last-child td{border-bottom:0}
 .scansob-table .score-number{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
 .scansob-table small{display:block;color:var(--ink-muted);margin-top:4px}
+.scansob-visibility{display:inline-flex;align-items:baseline;gap:6px;min-width:100px;font-size:.875rem;font-weight:600;color:var(--success)}
+.scansob-visibility.is-held{color:var(--ink-muted)}
 .scansob-modes{display:flex;flex-wrap:wrap;gap:12px;border:0;padding:0;margin:0}
 .scansob-modes label{display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer}
 .scansob-modes input{width:20px;height:20px;accent-color:var(--pri)}

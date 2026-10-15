@@ -10,7 +10,13 @@ var scanSobStudentLoading = false;
 var scanSobStudentVersion = 0;
 
 async function scanSobRpc(name, args) {
-  try { return await runQuery(getSupabase().rpc(name, args || {})); }
+  try {
+    var result = await runQuery(getSupabase().rpc(name, args || {}));
+    if ((name === 'mq_scansob_read' || (name === 'mq_scansob_admin' && (args || {}).p_action !== 'create_code')) && (!result || result.receiver_profile !== '1.1')) {
+      throw new Error(CU.role === 'TEACHER' ? 'กรุณาติดตั้ง 20261015_03_scansob_recovery_hardening.sql ก่อนใช้คะแนนสอบ' : 'คะแนนสอบยังไม่พร้อมใช้งาน กรุณาติดต่อครู');
+    }
+    return result;
+  }
   catch (error) {
     if (error.code === 'PGRST202' || /Could not find the function/.test(error.message || '')) throw new Error(CU.role === 'TEACHER' ? 'ยังไม่ได้ติดตั้งระบบคะแนนสอบ กรุณารัน 20261015_02_scansob_receiver.sql' : 'คะแนนสอบยังไม่พร้อมใช้งาน กรุณาติดต่อครู');
     throw error;
@@ -32,7 +38,7 @@ async function loadScanSobSettings() {
     scanSobState = await scanSobAdmin('status');
     document.getElementById('scansobIngestToggle').checked = scanSobState.enabled;
     document.getElementById('scansobViewToggle').checked = scanSobState.student_view_enabled;
-    scanSobStatus('scansobSettingsStatus', (scanSobState.enabled ? 'เปิดรับคะแนน' : 'ปิดรับคะแนน') + ' · ' + (scanSobState.student_view_enabled ? 'นักเรียนดูคะแนนได้' : 'ยังไม่เปิดให้นักเรียนดู') + ' · คะแนนสอบ ' + scanSobState.score_count + ' รายการ');
+    scanSobStatus('scansobSettingsStatus', (scanSobState.enabled ? 'เปิดรับคะแนน' : 'ปิดรับคะแนน') + ' · ' + (scanSobState.student_view_enabled ? 'นักเรียนดูคะแนนได้' : 'ยังไม่เปิดให้นักเรียนดู') + ' · คะแนนสอบ ' + scanSobState.score_count + ' รายการ' + (scanSobState.held_score_count ? ' · ซ่อนจากรอบเผยแพร่ ' + scanSobState.held_score_count + ' รายการ' : ''));
     var pending = scanSobState.requests.filter(function(row) { return row.status === 'pending_approval'; });
     document.getElementById('scansobRequests').innerHTML = pending.length ? pending.map(function(row) {
       return '<div class="scansob-connection"><div class="scansob-connection-copy"><strong>' + escHtml(row.workspace_label) + '</strong><small>Workspace ' + escHtml(row.workspace_id)
@@ -72,7 +78,7 @@ async function decideScanSobRequest(id, approve) {
   if (scanSobBusy) return;
   var request = scanSobState.requests.find(function(row) { return row.id === id; });
   if (!request) return;
-  var answer = await Swal.fire({ icon: 'question', title: approve ? 'อนุมัติ Workspace นี้?' : 'ปฏิเสธคำขอนี้?', text: request.workspace_label + ' · ' + request.workspace_id, showCancelButton: true, confirmButtonText: approve ? 'อนุมัติ' : 'ปฏิเสธ', cancelButtonText: 'ยกเลิก' });
+  var answer = await Swal.fire({ icon: 'question', title: approve ? 'อนุมัติ Workspace นี้?' : 'ปฏิเสธคำขอนี้?', text: request.workspace_label + ' · ' + request.workspace_id + (approve && request.held_score_count ? ' มีคะแนนค้าง ' + request.held_score_count + ' รายการ คะแนนจากการเชื่อมต่อเดิมจะยังถูกซ่อนไว้' : ''), showCancelButton: true, confirmButtonText: approve ? 'อนุมัติ' : 'ปฏิเสธ', cancelButtonText: 'ยกเลิก' });
   if (!answer.isConfirmed) return;
   scanSobSetBusy(true);
   try { await scanSobAdmin(approve ? 'approve' : 'reject', { request_id: id }); } catch (error) { onErr(error); }
@@ -80,7 +86,7 @@ async function decideScanSobRequest(id, approve) {
 }
 async function revokeScanSobConnection(id) {
   if (scanSobBusy) return;
-  var answer = await Swal.fire({ icon: 'warning', title: 'เพิกถอนการเชื่อมต่อ?', text: 'ควรถอนการเผยแพร่จาก ScanSob ให้สำเร็จก่อน หากเพิกถอนทันที Workspace จะส่งคะแนนไม่ได้ นักเรียนจะไม่เห็นคะแนน และอาจต้องให้ผู้ดูแล ScanSob กู้สถานะก่อนเชื่อมใหม่', showCancelButton: true, confirmButtonText: 'เพิกถอน', cancelButtonText: 'ยกเลิก', confirmButtonColor: UI_COLOR_DANGER });
+  var answer = await Swal.fire({ icon: 'warning', title: 'เพิกถอนการเชื่อมต่อ?', text: 'Workspace นี้จะส่งคะแนนไม่ได้ และคะแนนจากรอบนี้จะถูกซ่อนจากนักเรียน การจับคู่ใหม่จะไม่เปิดคะแนนเก่าคืน ต้องกู้คืนและถอนคะแนนเดิมใน ScanSob ก่อนเผยแพร่ใหม่', showCancelButton: true, confirmButtonText: 'เพิกถอน', cancelButtonText: 'ยกเลิก', confirmButtonColor: UI_COLOR_DANGER });
   if (!answer.isConfirmed) return;
   scanSobSetBusy(true);
   try { await scanSobAdmin('revoke', { connection_id: id }); } catch (error) { onErr(error); }
@@ -99,7 +105,7 @@ async function loadTeacherExams() {
     } while (after);
     select.innerHTML = '<option value="">ทุกข้อสอบ</option>' + rows.map(function(row) {
       return '<option value="' + row.id + '">' + escHtml(row.metadata.subject + ' · ' + row.metadata.title + ' · ' + row.metadata.term + '/' + row.metadata.academic_year + (row.source_workspace_id ? ' · Workspace ' + row.source_workspace_id : '')
-        + (row.withdrawn ? ' (ถอนคะแนน)' : row.received_batches < row.batch_count ? ' (รับ ' + row.received_batches + '/' + row.batch_count + ' ชุด)' : '')) + '</option>';
+        + (row.withdrawn ? ' (ถอนคะแนน)' : row.received_batches < row.batch_count ? ' (รับ ' + row.received_batches + '/' + row.batch_count + ' ชุด)' : row.student_count > row.visible_student_count ? ' (มีคะแนนซ่อนไว้)' : '')) + '</option>';
     }).join('');
     if (rows.some(function(row) { return String(row.id) === previous; })) select.value = previous;
     await loadTeacherExamRows(false);
@@ -126,12 +132,17 @@ async function loadTeacherExamRows(more) {
 }
 function renderTeacherExamRows(rows, mode) {
   if (!rows.length) return scanSobEmpty(mode === 'issues' ? 'ไม่มีรหัสที่ต้องตรวจสอบ' : 'ยังไม่มีคะแนนสอบ');
-  var heads = mode === 'issues' ? ['รหัสนักเรียน','ข้อสอบ','สาเหตุ','Revision'] : ['รหัส / ชื่อ–นามสกุล','วิชา / ข้อสอบ','ภาคเรียน','คะแนน','ร้อยละ','ผล'];
+  var heads = mode === 'issues' ? ['รหัสนักเรียน','ข้อสอบ','สาเหตุ','Revision'] : ['รหัส / ชื่อ–นามสกุล','วิชา / ข้อสอบ','ภาคเรียน','คะแนน','ร้อยละ','ผล','การเผยแพร่'];
   var reasons = { STUDENT_NOT_FOUND: 'ไม่พบรหัสในทะเบียน', STUDENT_NOT_ELIGIBLE: 'รหัสไม่อยู่ในขอบเขตโรงเรียน', INVALID_SCORE: 'คะแนนไม่ถูกต้อง', IDENTITY_MAPPING_REQUIRED: 'ต้องตรวจสอบการจับคู่รหัส' };
   return '<div class="scansob-table-wrap" tabindex="0" role="region" aria-label="ตารางคะแนนสอบ"><table class="scansob-table"><thead><tr>' + heads.map(function(h) { return '<th scope="col">' + h + '</th>'; }).join('') + '</tr></thead><tbody>'
     + rows.map(function(row) { var cells = mode === 'issues' ? [escHtml(row.student_code),escHtml(row.metadata.title),escHtml(reasons[row.reason] || row.reason),row.revision]
-      : [escHtml(row.student_code) + '<small>' + escHtml(row.student_name || '') + ' · ' + escHtml(row.grade || '') + '</small>',escHtml(row.metadata.subject) + '<small>' + escHtml(row.metadata.title) + '</small>' + (row.source_workspace_id ? '<small>Workspace ' + escHtml(row.source_workspace_id) + '</small>' : ''),escHtml(row.metadata.term + '/' + row.metadata.academic_year),escHtml(row.result.score + ' / ' + row.result.max_score),escHtml(row.result.percent + '%'),row.result.passed ? 'ผ่าน' : 'ไม่ผ่าน'];
+      : [escHtml(row.student_code) + '<small>' + escHtml(row.student_name || '') + ' · ' + escHtml(row.grade || '') + '</small>',escHtml(row.metadata.subject) + '<small>' + escHtml(row.metadata.title) + '</small>' + (row.source_workspace_id ? '<small>Workspace ' + escHtml(row.source_workspace_id) + '</small>' : ''),escHtml(row.metadata.term + '/' + row.metadata.academic_year),escHtml(row.result.score + ' / ' + row.result.max_score),escHtml(row.result.percent + '%'),row.result.passed ? 'ผ่าน' : 'ไม่ผ่าน',
+        '<span class="scansob-visibility' + (row.student_visible ? '' : ' is-held') + '"><i class="fa-solid ' + (row.student_visible ? 'fa-eye' : 'fa-eye-slash') + '" aria-hidden="true"></i>' + escHtml(scanSobVisibilityLabel(row)) + '</span>'];
       return '<tr>' + cells.map(function(value, index) { return '<td' + (mode !== 'issues' && [3,4].includes(index) ? ' class="score-number"' : '') + '>' + value + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+}
+function scanSobVisibilityLabel(row) {
+  if (row.student_visible) return 'พร้อมแสดง';
+  return { connection_revoked: 'เพิกถอนแล้ว', previous_connection: 'รอเผยแพร่ใหม่', unverified_origin: 'รอตรวจประวัติ', incomplete: 'รอรับข้อมูลครบ', withdrawn: 'ถอนคะแนนแล้ว' }[row.visibility_reason] || 'ซ่อนไว้';
 }
 async function openStudentExamScores() {
   if (!isGoogleLoginActive() || CU.role !== 'STUDENT') return;
@@ -146,7 +157,7 @@ async function loadStudentExamScores(more) {
   try {
     var result = await scanSobRpc('mq_scansob_read', { p_kind: 'scores', p_after: more ? scanSobStudentCursor : 0, p_limit: 30 });
     if (version !== scanSobStudentVersion || identity !== scanSobIdentity() || !document.getElementById('studentExamScores')) return;
-    scanSobStudentRows = scanSobStudentRows.concat(result.rows); scanSobStudentCursor = result.next_cursor;
+    scanSobStudentRows = result.enabled ? scanSobStudentRows.concat(result.rows) : []; scanSobStudentCursor = result.enabled ? result.next_cursor : null;
     scanSobStatus('studentExamStatus', result.enabled ? (scanSobStudentRows.length ? 'แสดง ' + scanSobStudentRows.length + ' รายการ' : 'ยังไม่มีคะแนนที่เผยแพร่ถึงคุณ') : 'ครูยังไม่เปิดให้ดูคะแนนสอบ');
     document.getElementById('studentExamScores').innerHTML = scanSobStudentRows.map(function(row) {
       return '<article class="scansob-student-result"><h3>' + escHtml(row.metadata.title) + '</h3><p>' + escHtml(row.metadata.subject + ' · ' + row.metadata.exam_type + ' · ภาคเรียน ' + row.metadata.term + '/' + row.metadata.academic_year)
@@ -173,7 +184,7 @@ async function exportExternalScores() {
     } while (after);
     var latest = await scanSobRpc('mq_scansob_read', { p_kind: 'scores', p_exam_id: exam ? Number(exam) : null, p_after: 0, p_limit: 1 });
     if (latest.version !== version || identity !== scanSobIdentity()) throw new Error('ข้อมูลเปลี่ยนแล้ว กรุณาลองส่งออกใหม่');
-    var data = [['รหัสนักเรียน','ชื่อ–นามสกุล','ห้อง','วิชา','ข้อสอบ','ภาคเรียน','ปีการศึกษา','คะแนน','คะแนนเต็ม','ร้อยละ','ผล','Workspace']].concat(rows.map(function(r) { return [r.student_code,r.student_name,r.grade,r.metadata.subject,r.metadata.title,r.metadata.term,r.metadata.academic_year,r.result.score,r.result.max_score,r.result.percent,r.result.passed ? 'ผ่าน' : 'ไม่ผ่าน',r.source_workspace_id || '']; }));
+    var data = [['รหัสนักเรียน','ชื่อ–นามสกุล','ห้อง','วิชา','ข้อสอบ','ภาคเรียน','ปีการศึกษา','คะแนน','คะแนนเต็ม','ร้อยละ','ผล','การเผยแพร่','Workspace']].concat(rows.map(function(r) { return [r.student_code,r.student_name,r.grade,r.metadata.subject,r.metadata.title,r.metadata.term,r.metadata.academic_year,r.result.score,r.result.max_score,r.result.percent,r.result.passed ? 'ผ่าน' : 'ไม่ผ่าน',scanSobVisibilityLabel(r),r.source_workspace_id || '']; }));
     var url = URL.createObjectURL(new Blob(['\uFEFF' + data.map(function(row) { return row.map(reportCsvCell).join(','); }).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     var link = document.createElement('a'); link.href = url; link.download = 'ScanSob_scores_' + dateKeyBangkok(new Date()) + '.csv'; link.click(); setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
   } catch (error) { onErr(error); }
