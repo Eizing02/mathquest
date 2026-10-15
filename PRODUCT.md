@@ -6,6 +6,8 @@ MathQuest is a Thai classroom attendance and rewards app for teachers and studen
 ## Primary Users
 - Teachers who need fast, reliable classroom operations during class time.
 - Students who need a simple mobile experience for check-ins, rewards, and progress.
+- Users sign in with Google; students self-link an existing five-digit roster code after checking their name and class. This is not proof of code ownership.
+- Teacher dashboard access is restricted to the verified Google account configured by the school, enforced by the database.
 - School staff who review exported attendance and reward summaries.
 
 ## Core Jobs

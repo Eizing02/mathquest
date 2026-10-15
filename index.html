@@ -16,6 +16,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" rel="stylesheet">
   <link href="./style.css" rel="stylesheet">
   <link href="./school-admin.css" rel="stylesheet">
+  <link href="./google-auth.css" rel="stylesheet">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -32,19 +33,11 @@
     <div id="loginLogoWrap" class="login-logo-emoji">🏫</div>
     <h1 id="loginAppName">ระบบเช็คชื่อนักเรียน</h1>
     <p id="loginSchoolName" aria-live="polite">กำลังโหลด...</p>
-    <div class="login-field">
-      <label for="username">รหัสผู้ใช้งาน</label>
-      <input type="text" id="username" class="form-control" placeholder="รหัสประจำตัวนักเรียน"
-             autocomplete="username" onkeydown="if(event.key==='Enter')login()">
-    </div>
-    <div class="login-field login-field-password">
-      <label for="password">รหัสผ่าน</label>
-      <input type="password" id="password" class="form-control" placeholder="รหัสประจำตัวนักเรียนสำหรับการเข้าใช้ครั้งแรก"
-             autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
-    </div>
-    <button class="btn-login" onclick="login()">
-      <i class="fa-solid fa-right-to-bracket me-2"></i>เข้าสู่ระบบ
+    <button id="googleLoginBtn" type="button" class="google-login-button" onclick="signInWithGoogle()">
+      <i class="fa-brands fa-google" aria-hidden="true"></i><span>เข้าสู่ระบบด้วย Google</span>
     </button>
+    <p id="googleLoginStatus" class="google-login-status" role="status" aria-live="polite" hidden></p>
+    <button id="googleSignedOutAction" type="button" class="google-link-signout" onclick="logout()" hidden>ออกจากบัญชีปัจจุบัน</button>
     <button type="button" class="btn-guest-login" onclick="startGuestLogin()">
       <span class="guest-icon"><i class="fa-solid fa-flask"></i></span>
       <span>
@@ -52,16 +45,37 @@
         <small>ข้อมูลจำลอง ลบอัตโนมัติใน 10 นาที</small>
       </span>
     </button>
-    <div class="login-reset-actions" aria-label="ตัวช่วยรหัสผ่าน">
-      <button type="button" class="login-reset-link" onclick="openPasswordResetRequestModal()">
-        <i class="fa-solid fa-key"></i> ลืมรหัสผ่าน / ขอรหัสรีเซ็ต
-      </button>
-      <button type="button" class="login-reset-link muted" onclick="openPasswordResetConfirmModal()">
-        <i class="fa-solid fa-shield-halved"></i> มีรหัส 6 หลักแล้ว
-      </button>
-    </div>
   </div>
   </div>
+</main>
+
+<main id="googleLinkSection" class="hidden" aria-labelledby="googleLinkTitle">
+  <section class="google-link-shell">
+    <h1 id="googleLinkTitle">เชื่อมรหัสนักเรียน</h1>
+    <p id="googleAccountEmail" class="google-link-email"></p>
+    <form id="googleLinkForm" onsubmit="submitGoogleStudentLink(event)">
+      <div id="googleLinkInput">
+        <label for="googleStudentCode">รหัสประจำตัวนักเรียน</label>
+        <input id="googleStudentCode" type="text" class="form-control" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="เช่น 01234" aria-describedby="googleLinkError">
+      </div>
+      <div id="googleLinkPreview" hidden aria-live="polite">
+        <h2>ตรวจสอบว่าเป็นข้อมูลของคุณ</h2>
+        <dl class="google-link-details">
+          <div><dt>รหัสนักเรียน</dt><dd id="googlePreviewCode"></dd></div>
+          <div><dt>ชื่อ–นามสกุล</dt><dd id="googlePreviewName"></dd></div>
+          <div><dt>ชั้น / ห้อง</dt><dd id="googlePreviewGrade"></dd></div>
+        </dl>
+        <button type="button" class="btn btn-outline-secondary" onclick="editGoogleStudentCode()"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>แก้ไขรหัส</button>
+      </div>
+      <p id="googleLinkError" class="google-link-error" role="alert" hidden></p>
+      <p id="googleLinkChangeNote" class="google-link-note" hidden>ประวัติและคะแนนยังอยู่กับรหัสเดิม เปลี่ยนได้ไม่เกิน 2 ครั้งใน 24 ชั่วโมง และไม่ได้ระหว่างมีคาบเปิดสำหรับรหัสที่เกี่ยวข้อง</p>
+      <div class="google-link-actions">
+        <button id="googleLinkSubmit" type="submit" class="btn btn-primary-action"><i class="fa-solid fa-check me-1" aria-hidden="true"></i><span id="googleLinkSubmitText">ตรวจสอบรหัส</span></button>
+        <button id="googleLinkCancel" type="button" class="btn btn-outline-secondary" onclick="location.reload()" hidden>ยกเลิก</button>
+      </div>
+    </form>
+    <button type="button" class="google-link-signout" onclick="logout()">ออกจากระบบ / เปลี่ยนบัญชี Google</button>
+  </section>
 </main>
 
 <!-- ════════ STUDENT ════════ -->
@@ -69,6 +83,7 @@
   <h1 class="visually-hidden">หน้าหลักนักเรียน</h1>
   <div class="container student-shell">
     <div class="d-flex justify-content-end mb-2">
+      <button id="googleStudentAccountButton" type="button" class="google-student-account me-2" onclick="openGoogleAccount()" hidden><i class="fa-solid fa-user me-1" aria-hidden="true"></i>บัญชี</button>
       <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()" aria-label="รีเฟรชข้อมูลนักเรียน">
         <i class="fa-solid fa-rotate-right" id="refreshIcon" aria-hidden="true"></i>
         <span id="refreshLabel">รีเฟรช</span>
@@ -1035,5 +1050,6 @@
 <script defer src="./reports.js"></script>
 <script defer src="./app.js"></script>
 <script defer src="./school-admin.js"></script>
+<script defer src="./google-auth.js"></script>
 </body>
 </html>

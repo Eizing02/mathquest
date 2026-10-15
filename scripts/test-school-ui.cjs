@@ -29,6 +29,7 @@ async function main() {
       const settings={semester_number:'1',semester_year:'2569',semester_start:'2026-05-16',semester_end:'2026-10-15',school_data_version:'fixture-v1',school_name:'โรงเรียนทดสอบ',app_name:'MathQuest'};
       window.fixtureCalls=[];
       getSupabase=()=>({
+        auth:{getSession:async()=>({data:{session:null},error:null}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
         from(table){
           let filters=[],cursor=null,one=false;
           const q={select(){return q},eq(k,v){filters.push(row=>row[k]===v);return q},or(value){const grade=value.split(',')[0].split('.').slice(2).join('.');filters.push(row=>row.grade===grade||row.grade.startsWith(grade+'/'));return q},
@@ -99,22 +100,7 @@ async function main() {
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'200% text zoom teacher');
     await page.evaluate(()=>document.documentElement.style.fontSize='');
     await page.setViewportSize({width:390,height:844});
-    await page.evaluate(()=>{openPasswordResetConfirmModal('02001');});
-    await page.waitForSelector('#resetCode');
-    assert.equal(await page.locator('#resetNewPassword').count(),0,'OTP screen contains no new-password fields');
-    await page.locator('#resetCode').fill('111111');await page.locator('.swal2-confirm').click();
-    await page.waitForSelector('.swal2-validation-message');
-    assert.equal(await page.locator('#resetNewPassword').count(),0,'wrong OTP stays on OTP step');
-    await page.locator('#resetCode').fill('123456');await page.locator('.swal2-confirm').click();
-    await page.waitForSelector('#resetNewPassword');
-    assert.equal(await page.locator('#resetCode').count(),0);
-    await capture({path:path.join(output,'otp-new-password-390.png')});
-    await page.locator('#resetNewPassword').fill('new-password');
-    await page.locator('#resetNewPassword2').fill('new-password');await page.locator('.swal2-confirm').click();
-    await page.waitForFunction(()=>document.querySelector('.swal2-title')?.textContent==='เปลี่ยนรหัสผ่านแล้ว');
-    const completed=await page.evaluate(()=>fixtureCalls.find(call=>call.name==='complete_student_password_reset'));
-    assert.equal(completed.args.p_reset_token,'proof-token');
-    await page.locator('.swal2-confirm').click();
+    assert.equal(await page.locator('#username,#password,.login-reset-actions').count(),0,'Google login replaces password/OTP login');
     await page.evaluate(()=>{switchTab('settings');openSemesterReset();});
     await page.waitForSelector('#resetPhrase');
     assert.match(await page.locator('.reset-summary').textContent(),/ลบถาวร/);
@@ -170,7 +156,7 @@ async function main() {
       await capture({path:path.join(output,'login-'+width+'.png'),fullPage:true});
     }
     assert.deepEqual(errors,[],'no uncaught browser exceptions');
-    console.log('PASS browser: all teacher views at 320/390/768/1024/1280/1440; actual rooms; bulk selection; keyboard tabs; separate OTP/password steps; guarded permanent reset; student/login layouts and logo; no production DB calls');
+    console.log('PASS browser: all teacher views at 320/390/768/1024/1280/1440; actual rooms; bulk selection; keyboard tabs; guarded permanent reset; student/Google-login layouts and logo; no production DB calls');
   } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

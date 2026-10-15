@@ -106,6 +106,8 @@ async function openSemesterReset() {
   }
   schoolResetBusy = true;
   try {
+    var googleReset = typeof isGoogleLoginActive === 'function' && isGoogleLoginActive();
+    if (googleReset && !(await ensureGoogleResetAuth())) return;
     var preview = await schoolRpc('preview_school_reset', teacherTokenArgs());
     if (preview.active_session) throw new Error('ยังมีคาบเปิดอยู่ กรุณาปิดหรือยกเลิกคาบก่อน');
     if (preview.pending_orders) throw new Error('มีออเดอร์รอดำเนินการ ' + preview.pending_orders + ' รายการ กรุณาอนุมัติหรือปฏิเสธก่อนล้างข้อมูล');
@@ -121,8 +123,8 @@ async function openSemesterReset() {
         + '<label class="reset-ack"><input id="resetAck" type="checkbox"> เข้าใจว่าคะแนน เหรียญ แต้มพิเศษ สัตว์เลี้ยง และประวัติจะถูกลบ โดยคงบัญชีและรูปโปรไฟล์ไว้</label>'
         + '<label for="resetPhrase" class="form-label">พิมพ์ ลบทั้งหมด เพื่อยืนยัน</label>'
         + '<input id="resetPhrase" class="form-control" autocomplete="off">'
-        + '<label for="resetTeacherPassword" class="form-label mt-3">รหัสผ่านครูปัจจุบัน</label>'
-        + '<input id="resetTeacherPassword" type="password" class="form-control" autocomplete="current-password">',
+        + (googleReset ? '' : '<label for="resetTeacherPassword" class="form-label mt-3">รหัสผ่านครูปัจจุบัน</label>'
+        + '<input id="resetTeacherPassword" type="password" class="form-control" autocomplete="current-password">'),
       width: 600, showCancelButton: true, confirmButtonText: 'ลบข้อมูลนักเรียนถาวร',
       customClass: { title: 'reset-dialog-title', htmlContainer: 'reset-dialog-body', confirmButton: 'reset-confirm-button' },
       cancelButtonText: 'ยกเลิก', confirmButtonColor: UI_COLOR_DANGER,
@@ -134,6 +136,9 @@ async function openSemesterReset() {
           if (!document.getElementById('resetAck').checked || document.getElementById('resetPhrase').value.trim() !== 'ลบทั้งหมด') {
             throw new Error('ยืนยันผลกระทบและพิมพ์ข้อความยืนยันให้ตรงก่อนลบ');
           }
+          if (googleReset) return await googleRpc('mq_reset_student_progress', Object.assign(teacherTokenArgs(), {
+            p_expected_version: preview.version
+          }));
           var password = document.getElementById('resetTeacherPassword').value;
           if (!password) throw new Error('กรอกรหัสผ่านครูเพื่อยืนยันตัวตน');
           return await schoolRpc('reset_school_progress', Object.assign(teacherTokenArgs(), {

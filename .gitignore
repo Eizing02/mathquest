@@ -1,6 +1,7 @@
 # Generated report verification artifacts
 /tmp/pdfs/
 /tmp/school-ui/
+/tmp/google-auth/
 
 # Impeccable downloads a platform-specific engine through its launcher.
 /.agents/skills/impeccable/scripts/bin/

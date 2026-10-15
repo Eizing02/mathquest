@@ -1,0 +1,26 @@
+.google-login-button{display:flex;align-items:center;justify-content:center;gap:12px;min-height:52px;width:100%;padding:12px 18px;border:1px solid var(--border-soft);border-radius:8px;background:var(--white);color:var(--ink);font-family:'Sarabun',sans-serif;font-size:1rem;font-weight:700}
+.google-login-button:hover{background:var(--surface-brand);border-color:var(--pri)}
+.google-login-button .fa-google{color:#4285f4;font-size:1.25rem}
+.google-login-button:focus-visible,.google-link-shell button:focus-visible{outline:3px solid var(--pri);outline-offset:3px}
+.google-login-button:disabled{opacity:.6;cursor:wait}
+.google-login-status{font-size:1rem;color:var(--ink-muted);margin:16px 0 0;overflow-wrap:anywhere}
+.google-login-status.is-error{color:var(--danger)}
+.google-link-shell{width:min(100% - 32px,480px);margin:40px auto;padding:28px;background:var(--white);border:1px solid var(--border-soft);border-radius:8px}
+.google-link-shell h1{font-family:'Sarabun',sans-serif;font-size:1.5rem;font-weight:700;line-height:1.4;margin:0 0 12px;color:var(--ink)}
+.google-link-email{font-size:1rem;color:var(--ink-muted);overflow-wrap:anywhere;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border-soft)}
+.google-link-shell label{display:block;font-size:1rem;font-weight:600;margin-bottom:8px;color:var(--ink)}
+.google-link-shell input{min-height:48px;font-size:1.125rem;font-variant-numeric:tabular-nums}
+.google-link-shell h2{font-size:1.125rem;font-weight:700;font-family:'Sarabun',sans-serif;line-height:1.4;margin-bottom:16px}
+.google-link-details{margin:0 0 20px;display:grid;gap:12px}
+.google-link-details>div{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px}
+.google-link-details dt{font-weight:400;color:var(--ink-muted)}
+.google-link-details dd{margin:0;color:var(--ink);overflow-wrap:anywhere;font-weight:600}
+.google-link-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.google-link-actions button{min-height:48px;white-space:normal}
+.google-link-actions .btn-primary-action{flex:1;background:var(--pri);color:var(--white)}
+.google-link-error{color:var(--danger);font-size:1rem;overflow-wrap:anywhere;margin:16px 0 0}
+.google-link-note{font-size:.95rem;color:var(--ink-muted);line-height:1.6;margin-top:16px}
+.google-link-signout{display:block;margin:24px auto 0;min-height:44px;background:transparent;border:0;color:var(--ink-muted);text-decoration:underline;text-underline-offset:4px}
+.google-student-account{min-height:44px;padding:8px 12px;background:var(--white);border:1px solid var(--border-soft);border-radius:8px;color:var(--ink-muted);font-family:'Sarabun',sans-serif;font-size:1rem}
+.google-account-details{overflow-wrap:anywhere;text-align:left}
+@media(max-width:390px){.google-link-shell{padding:24px 20px;margin:24px auto}.google-link-details>div{grid-template-columns:minmax(0,1fr);gap:4px}.google-link-actions button{flex-basis:100%}}

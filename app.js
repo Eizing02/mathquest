@@ -164,6 +164,8 @@ function createSupabaseClient() {
     throw new Error('โหลดไลบรารี Supabase ไม่สำเร็จ');
   }
   return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true,
+      detectSessionInUrl: true, storageKey: 'mathquest-google-auth-v1' },
     global: { fetch: function(url, options) {
       var headers = new Headers(options && options.headers);
       if (typeof schoolSemester !== 'undefined' && schoolSemester.version) {
@@ -679,7 +681,7 @@ async function enterStudentApp(res) {
   document.getElementById('sGradeDisp').textContent = '\u0e0a\u0e31\u0e49\u0e19 ' + res.grade;
   if (res.isGuest) startGuestSessionClock();
   else stopGuestSessionClock();
-  if (res.isFirstLogin) await forceChangePassword(res.id);
+  if (res.isFirstLogin && res.authMode !== 'google') await forceChangePassword(res.id);
   await loadStudentProfile();
   shopWallet = await getWalletBalanceDb(CU.id);
   updateShopCoinsBadge(shopWallet.mathCoins);
@@ -1112,37 +1114,13 @@ async function saveAppSettingsDb(settings) {
   return { status: 'success' };
 }
 
-async function verifyLoginDb(username, password) {
-  var client = getSupabase();
-  var u = String(username || '').trim();
-  var p = String(password || '').trim();
-  var row = await runQuery(client.from('students')
-    .select('id,name,grade,role,is_first_login')
-    .eq('id', u)
-    .eq('password', p)
-    .maybeSingle());
-  if (!row) {
-    return { status: 'fail', message: 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง' };
-  }
-  return {
-    status: 'success',
-    role: row.role === 'TEACHER' ? 'TEACHER' : 'STUDENT',
-    name: row.name || '',
-    grade: row.grade || '',
-    id: row.id,
-    isFirstLogin: row.is_first_login === true
-  };
+async function verifyLoginDb() {
+  throw new Error('ระบบเปลี่ยนเป็นการเข้าสู่ระบบด้วย Google แล้ว');
 }
 
 /* ══ First-Time Password Change ═════════════════════ */
-async function changeFirstTimePasswordDb(studentId, newPassword) {
-  var client = getSupabase();
-  var cid = String(studentId).trim();
-  await runQuery(client.from('students')
-    .update({ password: newPassword, is_first_login: false })
-    .eq('id', cid)
-    .select('id'));
-  return { status: 'success' };
+async function changeFirstTimePasswordDb() {
+  throw new Error('จัดการรหัสผ่านผ่านบัญชี Google ของคุณ');
 }
 
 /**
@@ -1791,6 +1769,9 @@ async function generateNewPINDb(targetGrade) {
 }
 
 async function submitCheckInDb(studentId, pinCode) {
+  if (isGoogleLoginActive()) return googleRpc('mq_student_check_in', {
+    p_pin: String(pinCode || '').trim(), p_expected_version: schoolSemester.version
+  });
   if (isGuestStudentId(studentId)) {
     var session = getActiveGuestSession();
     if (!session) {
@@ -2064,6 +2045,14 @@ async function logStudentPetEventDb(payload) {
 
 async function selectStudentPetDb(studentId, petId, petName) {
   await loadPetCatalog();
+  if (isGoogleLoginActive()) {
+    var googlePet = findPetById(petId);
+    if (!googlePet) return { status: 'fail', msg: 'ไม่พบสัตว์เลี้ยง' };
+    var googleSelected = await googleRpc('mq_student_pet', { p_action: 'select', p_pet_id: googlePet.id,
+      p_name: sanitizePetName(petName, googlePet.defaultName), p_expected_version: schoolSemester.version });
+    googleSelected.petMeta = googlePet;
+    return googleSelected;
+  }
   if (isGuestStudentId(studentId)) {
     var session = getActiveGuestSession();
     var guestPetMeta = findPetById(petId);
@@ -2172,6 +2161,8 @@ async function selectStudentPetDb(studentId, petId, petName) {
 
 async function renameStudentPetDb(studentId, petName) {
   await loadPetCatalog();
+  if (isGoogleLoginActive()) return googleRpc('mq_student_pet', { p_action: 'rename', p_pet_id: null,
+    p_name: sanitizePetName(petName, 'Buddy'), p_expected_version: schoolSemester.version });
   if (isGuestStudentId(studentId)) {
     var session = getActiveGuestSession();
     if (!session || !session.pet) {
@@ -2374,6 +2365,9 @@ async function toggleShopItemActiveDb(itemId) {
 }
 
 async function buyItemDb(studentId, itemId, itemName, cost) {
+  if (isGoogleLoginActive()) return googleRpc('mq_student_buy_item', {
+    p_item_id: String(itemId || '').trim(), p_expected_version: schoolSemester.version
+  });
   var cid = String(studentId).trim();
   var iid = String(itemId).trim();
   if (isGuestStudentId(cid)) {
@@ -2840,7 +2834,7 @@ window.addEventListener('load', async function() {
   } catch (e) {
     console.warn(e);
   } finally {
-    await restoreGuestSessionIfActive();
+    if (!(await restoreGuestSessionIfActive())) await bootstrapGoogleLogin();
   }
 });
 
@@ -2925,43 +2919,7 @@ function applyAppSettings(s) {
 
 /* ══ Login ═══════════════════════════════════════════ */
 async function login() {
-  var u = document.getElementById('username').value.trim();
-  var p = document.getElementById('password').value.trim();
-  if (!u || !p) {
-    return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonColor: UI_COLOR_PRIMARY });
-  }
-  loading('กำลังตรวจสอบ...');
-  try {
-    var res = await verifyLoginDb(u, p);
-    Swal.close();
-    if (res.status === 'success') {
-      CU = res;
-      applyAppSettings(await getAppSettingsDb());
-      startSchoolSync();
-      document.getElementById('loginSection').classList.add('hidden');
-      if (res.role === 'TEACHER') {
-        try { await openTeacherAdminSession(u, p); }
-        catch (adminError) { console.warn(adminError.message); }
-        await refreshSchoolRooms();
-        document.getElementById('teacherSection').classList.remove('hidden');
-        document.getElementById('tNameDisp').textContent = res.name;
-        if (document.getElementById('printTeacher')) document.getElementById('printTeacher').textContent = res.name;
-        document.getElementById('printSchoolName').textContent = appSettings.schoolName || 'โรงเรียนกุงแก้ววิทยาคาร';
-        applyAppSettings(appSettings);
-        await loadCurrentSession();
-        await loadSettings();
-        await loadTeacherShopItems();
-        startPasswordResetDashboard();
-        startShopOrderNotifications();
-      } else {
-        await enterStudentApp(res);
-      }
-    } else {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res.message, confirmButtonColor: UI_COLOR_PRIMARY });
-    }
-  } catch (e) {
-    onErr(e);
-  }
+  return signInWithGoogle();
 }
 
 /* ══ Student Profile + Gamification ═════════════════ */
@@ -5145,7 +5103,9 @@ async function saveSettings() {
 }
 
 /* ══ Logout ══════════════════════════════════════════ */
-function logout() {
+async function logout() {
+  var googleLogout = !isGuestMode() || !!googleAccount;
+  stopGoogleAccountGuard();
   stopSchoolSync();
   teacherAdminToken = '';
   if (isGuestMode()) clearGuestSession();
@@ -5159,7 +5119,10 @@ function logout() {
   studentPet = null;
   stopPasswordResetDashboard();
   stopShopOrderNotifications();
-  location.reload();
+  if (googleLogout) {
+    try { await signOutGoogleAccount(); } catch (error) { /* Local auth cache is cleared in finally. */ }
+  }
+  location.replace(location.origin + location.pathname);
 }
 
 async function loadRewardReport() {
