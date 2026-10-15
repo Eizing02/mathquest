@@ -1,0 +1,9 @@
+# Only these server-to-server endpoints use opaque tokens, not Supabase JWTs.
+# Their database RPCs are executable by service_role only.
+project_id = "mathquest"
+
+[functions.ingest-scansob-results]
+verify_jwt = false
+
+[functions.pair-scansob-workspace]
+verify_jwt = false

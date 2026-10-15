@@ -1,0 +1,17 @@
+# Handoff back to ScanSob
+
+Receiver code is implemented locally against OMRScanner main c9b14e0fc0dcaa7fca086e965b86ee0b53c173d3. This document is not authorization to deploy or enable production scheduling.
+
+Endpoints: POST /functions/v1/pair-scansob-workspace and POST /functions/v1/ingest-scansob-results on the MathQuest Supabase origin. Receiver deployment/configuration still required. No secrets are in this document.
+
+Wire profile: schema_version 1.0, strict source score schema, 256 KiB max, 100 results/batch and 100 batches, processed/stale_ignored ACK with exact issue accounting. Matching uses text student codes and destination roster only. Revisions remain scoped by school/Workspace/exam across re-pairing. Exact-byte hashes, frozen ACKs, manifest conflicts and transactional commit-before-200 are enforced. No XP/coin side effects.
+
+Pairing: 16 uppercase hexadecimal characters, single-use, 10-minute expiry. Pending request expires after 24 hours. Teacher approval is required. Approved delivery is recoverable for 24 hours. Stable per-request HMAC-derived token is reconstructed under authenticated status requests; DB stores hashes only. This avoids both stored plaintext and rotating a token on each status retry. Review this delivery choice jointly before enabling. Active bearer revoke returns the specified revoked acknowledgment and is safely retryable, including after teacher revocation. A dedicated rotate handshake remains unimplemented; use revoke/re-pair.
+
+Visibility: teacher can inspect partial batches; student visibility waits for all current revision batches. Omitted student rows remain unchanged. A lost ACK retry never duplicates results. Fixing unmatched roster codes requires a NEW source publication revision. Original ACKs stay immutable.
+
+Term reset: imported scores and student-bearing receipts are permanently deleted, all connections revoked, control watermarks retained, and imported/current terms closed. Re-pair for the next term; sending a closed term receives HTTP403 TERM_CLOSED. Source must surface the blocked old publication instead of retrying it as a transient problem. Source's current HTTP adapter already categorizes 403 as CONNECTION_DENIED; a more specific teacher-facing explanation would require a separately agreed source change.
+
+The source SQL at supabase/migrations/202610150010_score_integrations.sql:415 blocks revoke while publications are unwithdrawn. Accordingly, routine receiver reset now requires active Workspaces to finish their withdrawals first. After reset, source bearer revoke can still obtain the specified revoked ACK and complete its normal cleanup, then re-pair. Emergency receiver admin revocation must remain immediate: if publications are still active, current source preflight blocks recovery. Please agree a source-side remote-revocation reconciliation path before production incidents; do not bypass receiver authorization or reopen the revoked token. MathQuest has not edited the source repository.
+
+Release checks outstanding: deployed Edge Functions, staging secrets, actual Supabase Auth/RLS and a two-project test with two authorized Workspaces, an unauthorized Workspace, reversed and simultaneous events, lost ACKs, withdrawal, revoke/re-pair, unmatched/new revision, >1000 scores, student isolation and end-of-term reset. Source flags and scheduler must remain disabled in production until these checks pass and both releases are approved.

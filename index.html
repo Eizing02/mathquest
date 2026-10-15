@@ -17,6 +17,7 @@
   <link href="./style.css" rel="stylesheet">
   <link href="./school-admin.css" rel="stylesheet">
   <link href="./google-auth.css" rel="stylesheet">
+  <link href="./scansob.css" rel="stylesheet">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -181,6 +182,7 @@
     </div>
 
     <div class="student-actions">
+      <button id="studentExamButton" class="btn btn-outline-secondary" type="button" onclick="openStudentExamScores()" hidden><i class="fa-solid fa-file-circle-check me-1" aria-hidden="true"></i>คะแนนสอบ</button>
       <button class="btn-shop" id="studentShopButton" onclick="openShop()" aria-label="เปิด Magic Shop ไม่มีของขวัญใหม่">
         <i class="fa-solid fa-store" aria-hidden="true"></i>
         <span>Magic Shop</span>
@@ -231,11 +233,22 @@
       <button id="teacher-tab-reset" role="tab" aria-selected="false" aria-controls="tab-reset" tabindex="-1" onclick="switchTab('reset')">คำขอเปลี่ยนรหัสผ่าน <span class="tn-badge hidden" id="resetNavCount">0</span></button>
     </div>
     <div class="teacher-subnav hidden" id="reportSubnav" role="tablist" aria-label="ประเภทรายงาน">
+      <button id="teacher-tab-exams" role="tab" aria-selected="false" aria-controls="tab-exams" tabindex="-1" onclick="switchTab('exams')">คะแนนสอบ</button>
       <button id="attendance-report-tab" role="tab" aria-selected="true" aria-controls="tab-stats" onclick="switchTab('stats')">เข้าเรียนและสถิติ</button>
       <button id="teacher-tab-reward-report" role="tab" aria-selected="false" aria-controls="tab-reward-report" tabindex="-1" onclick="switchTab('reward-report')">ร้านค้าและแต้มพิเศษ</button>
     </div>
 
     <!-- ── TAB: PIN ── -->
+    <section class="t-pane" id="tab-exams" role="tabpanel" aria-labelledby="teacher-tab-exams" hidden>
+      <div class="scansob-heading"><h2 class="teacher-section-title">คะแนนสอบจาก ScanSob</h2><button class="btn btn-outline-secondary" type="button" onclick="loadTeacherExams()" title="รีเฟรชคะแนนสอบ"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span class="visually-hidden">รีเฟรชคะแนนสอบ</span></button></div>
+      <div class="scansob-toolbar">
+        <div class="scansob-field"><label for="externalExamSelect">ข้อสอบ</label><select id="externalExamSelect" class="form-select" onchange="loadTeacherExamRows(false)"><option value="">ทุกข้อสอบ</option></select></div>
+        <fieldset class="scansob-modes"><legend class="visually-hidden">ข้อมูลที่แสดง</legend><label><input type="radio" name="externalExamMode" value="scores" checked onchange="loadTeacherExamRows(false)"> คะแนน</label><label><input type="radio" name="externalExamMode" value="issues" onchange="loadTeacherExamRows(false)"> รหัสที่ต้องตรวจสอบ</label></fieldset>
+        <button id="externalScoreExport" class="btn btn-outline-secondary" type="button" onclick="exportExternalScores()"><i class="fa-solid fa-file-csv me-1" aria-hidden="true"></i>CSV</button>
+      </div>
+      <p id="externalExamStatus" role="status" aria-live="polite"></p><div id="externalExamRows"></div>
+      <button id="externalExamMore" class="btn btn-outline-secondary mt-3" type="button" onclick="loadTeacherExamRows(true)" hidden>โหลดเพิ่ม</button>
+    </section>
     <div class="t-pane active" id="tab-pin" role="region" aria-labelledby="teacher-tab-pin">
       <div id="sessBar" class="sess-bar closed">
         <span id="sessDot"></span><span id="sessText">ยังไม่มีคาบเรียน</span>
@@ -652,6 +665,18 @@
 
     <!-- ── TAB: SETTINGS ── -->
     <div class="t-pane" id="tab-settings" role="region" aria-labelledby="teacher-tab-settings" hidden>
+      <section class="scansob-settings" aria-labelledby="scansobSettingsTitle">
+        <div class="scansob-heading"><h2 id="scansobSettingsTitle" class="teacher-section-title">เชื่อมต่อ ScanSob</h2><button type="button" class="btn btn-outline-secondary" onclick="loadScanSobSettings()" aria-label="รีเฟรชการเชื่อมต่อ"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button></div>
+        <p id="scansobSettingsStatus" role="status" aria-live="polite">ยังไม่ได้โหลดการเชื่อมต่อ</p>
+        <div class="scansob-toolbar">
+          <label class="scansob-switch"><input id="scansobIngestToggle" type="checkbox" role="switch" disabled>รับคะแนนจาก ScanSob</label>
+          <label class="scansob-switch"><input id="scansobViewToggle" type="checkbox" role="switch" disabled>ให้นักเรียนดูคะแนน</label>
+          <button id="scansobSave" type="button" class="btn btn-primary-action" onclick="saveScanSobSettings()" disabled><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึก</button>
+          <button id="scansobCreate" type="button" class="btn btn-outline-secondary" onclick="createScanSobCode()" disabled><i class="fa-solid fa-link me-1" aria-hidden="true"></i>สร้างรหัสจับคู่</button>
+        </div>
+        <h3 class="scansob-subheading">คำขอเชื่อมต่อ</h3><div id="scansobRequests"></div>
+        <h3 class="scansob-subheading">Workspace ที่เชื่อมไว้</h3><div id="scansobConnections"></div>
+      </section>
       <section class="semester-settings" aria-labelledby="semesterTitle">
         <div class="workspace-heading"><h2 id="semesterTitle">ภาคเรียน</h2><span id="semesterStatus" role="status"></span></div>
         <form id="semesterForm" onsubmit="event.preventDefault(); saveSemester()">
@@ -1051,5 +1076,6 @@
 <script defer src="./app.js"></script>
 <script defer src="./school-admin.js"></script>
 <script defer src="./google-auth.js"></script>
+<script defer src="./scansob.js"></script>
 </body>
 </html>

@@ -189,6 +189,7 @@ async function enterGoogleAccount(account) {
     startShopOrderNotifications();
   } else {
     document.getElementById('googleStudentAccountButton').hidden = false;
+    document.getElementById('studentExamButton').hidden = false;
     await enterStudentApp(CU);
   }
   startGoogleAccountGuard();

@@ -146,4 +146,5 @@ async function main() {
     console.log('PASS Google SQL: Gmail-only teacher, verified Google session, self-claim/unique links, rate limits, RLS isolation, password denial, owned images, server-side PIN/shop/pets, bonus snapshots, fresh-auth reset and persistent links');
   } finally { await db.close(); }
 }
-main().catch(error=>{console.error(error.message);if(error.where)console.error(error.where);process.exitCode=1;});
+module.exports = { fixture };
+if (require.main === module) main().catch(error=>{console.error(error.message);if(error.where)console.error(error.where);process.exitCode=1;});

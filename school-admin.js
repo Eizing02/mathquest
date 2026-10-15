@@ -129,6 +129,11 @@ async function openSemesterReset() {
       customClass: { title: 'reset-dialog-title', htmlContainer: 'reset-dialog-body', confirmButton: 'reset-confirm-button' },
       cancelButtonText: 'ยกเลิก', confirmButtonColor: UI_COLOR_DANGER,
       focusConfirm: false, showLoaderOnConfirm: true,
+      didOpen: function() {
+        var note = document.createElement('p');
+        note.textContent = 'คะแนนสอบ ScanSob จะถูกลบด้วย และต้องจับคู่ Workspace ใหม่สำหรับเทอมถัดไป';
+        document.querySelector('.reset-summary').appendChild(note);
+      },
       allowOutsideClick: function() { return !Swal.isLoading(); },
       allowEscapeKey: function() { return !Swal.isLoading(); },
       preConfirm: async function() {
@@ -216,7 +221,7 @@ function setManualMode(mode) {
 }
 
 function updateTeacherNavigation(name) {
-  var parent = name === 'reset' ? 'manual' : name === 'reward-report' ? 'stats' : name;
+  var parent = name === 'reset' ? 'manual' : ['reward-report', 'exams'].includes(name) ? 'stats' : name;
   document.querySelectorAll('.tn').forEach(function(button) {
     var active = button.dataset.tab === parent;
     button.classList.toggle('active', active);

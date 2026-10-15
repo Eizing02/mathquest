@@ -2,6 +2,11 @@
 /tmp/pdfs/
 /tmp/school-ui/
 /tmp/google-auth/
+/tmp/scansob/
+/.env*
+/supabase/.env*
+/supabase/functions/.env*
+/supabase/.temp/
 
 # Impeccable downloads a platform-specific engine through its launcher.
 /.agents/skills/impeccable/scripts/bin/

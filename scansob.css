@@ -1,0 +1,38 @@
+.scansob-settings{padding:0 0 28px;margin:0 0 28px;border-bottom:1px solid var(--border-soft)}
+.scansob-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.scansob-heading h2{margin:0;font-size:1.25rem}
+.scansob-toolbar{display:flex;align-items:end;flex-wrap:wrap;gap:16px;margin-bottom:20px}
+.scansob-toolbar button,.scansob-heading button{min-height:44px}
+.scansob-field{flex:1;min-width:200px;max-width:640px}
+.scansob-field label{display:block;margin-bottom:8px;font-weight:600}
+.scansob-switch{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600}
+.scansob-switch input{width:22px;height:22px;accent-color:var(--pri);flex-shrink:0}
+.scansob-subheading{font-family:'Sarabun',sans-serif;font-size:1.0625rem;font-weight:700;margin:28px 0 12px}
+.scansob-connection{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--border-soft)}
+.scansob-connection-copy{min-width:0;overflow-wrap:anywhere}
+.scansob-connection-copy strong,.scansob-connection-copy small{display:block}
+.scansob-connection-copy small{color:var(--ink-muted);margin-top:6px}
+.scansob-row-actions{display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.scansob-row-actions button{min-height:44px}
+.scansob-table-wrap{overflow:auto;border:1px solid var(--border-soft);border-radius:8px}
+.scansob-table{width:100%;border-collapse:collapse;font-family:'Sarabun',sans-serif;font-size:1rem;text-align:left;min-width:680px}
+.scansob-table th{background:var(--surface-soft);font-weight:700;white-space:nowrap}
+.scansob-table th,.scansob-table td{padding:12px 14px;border-bottom:1px solid var(--border-soft);vertical-align:top}
+.scansob-table td{overflow-wrap:anywhere;max-width:300px}
+.scansob-table tr:last-child td{border-bottom:0}
+.scansob-table .score-number{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.scansob-table small{display:block;color:var(--ink-muted);margin-top:4px}
+.scansob-modes{display:flex;flex-wrap:wrap;gap:12px;border:0;padding:0;margin:0}
+.scansob-modes label{display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer}
+.scansob-modes input{width:20px;height:20px;accent-color:var(--pri)}
+.scansob-empty{padding:24px 0;color:var(--ink-muted)}
+.scansob-code{display:block;font-size:1.5rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;padding:16px;color:var(--ink);background:var(--surface-soft);border-radius:8px}
+.scansob-error{color:var(--danger)}
+.scansob-mobile-scores{display:grid;gap:0;text-align:left}
+.scansob-student-result{padding:20px 0;border-bottom:1px solid var(--border-soft)}
+.scansob-student-result h3{font-family:'Sarabun',sans-serif;font-size:1.0625rem;line-height:1.5;margin:0 0 6px;overflow-wrap:anywhere}
+.scansob-student-result p{margin:4px 0;color:var(--ink-muted);font-size:1rem}
+.scansob-student-score{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:12px;font-variant-numeric:tabular-nums}
+.scansob-student-score strong{font-family:'Sarabun',sans-serif;font-size:1.375rem}
+.scansob-settings button:focus-visible,.scansob-toolbar input:focus-visible{outline:3px solid var(--pri);outline-offset:3px}
+@media(max-width:600px){.scansob-connection{align-items:start;flex-direction:column}.scansob-row-actions{width:100%}.scansob-row-actions button{flex:1}.scansob-toolbar{gap:12px}.scansob-field{width:100%;max-width:none}.scansob-switch{width:100%}}

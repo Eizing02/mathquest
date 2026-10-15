@@ -4107,6 +4107,8 @@ function switchTab(name, btn) {
   if (name === 'reset') loadPasswordResetRequests();
   if (name === 'shop') loadTeacherShopItems();
   if (name === 'reward-report') loadRewardReport();
+  if (name === 'exams') loadTeacherExams();
+  if (name === 'settings') loadScanSobSettings();
 }
 
 /* ══ Teacher Session ═════════════════════════════════ */

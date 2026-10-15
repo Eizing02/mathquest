@@ -15,6 +15,8 @@ MathQuest is a Thai classroom attendance and rewards app for teachers and studen
 - Search, filter, edit, and review students quickly.
 - Manage rewards, shop items, orders, and free item grants.
 - Export printable data without losing meaning.
+- Receive published ScanSob exam snapshots through approved Workspace connections; exam scores remain separate from attendance, XP, coins and shop bonuses.
+- Teachers can inspect synchronization and permanently reset imported scores; students read only their Google-linked roster identity when school policy enables score viewing.
 - Give students a playful but readable progress experience.
 
 ## Personality
