@@ -51,7 +51,7 @@ async function main() {
   fs.mkdirSync(output,{recursive:true});
   const server=await startServer();
   const browser=await chromium.launch({channel:'msedge',headless:true});
-  const page=await browser.newPage();
+  const page=await browser.newPage({permissions:['geolocation'],geolocation:{latitude:17.131333,longitude:102.103092,accuracy:10}});
   let state='signed_out', duplicate=false, lookupFailure=false, recent=true;
   const calls=[],errors=[],production=[];
   const teacher={state:'linked',id:'teacher',name:'ครูทดสอบ',grade:'-',role:'TEACHER',email:'piyawatpiwsiri@gmail.com',authMode:'google',linkVersion:'',authSessionId:'fixture-session'};
@@ -87,7 +87,9 @@ async function main() {
     else if(name==='mq_google_recent_auth')data=recent;
     else if(name==='preview_school_reset')data={students:3,attendance:80,orders:12,pets:3,pet_events:8,pending_orders:0,active_session:false,version:'fixture-v1'};
     else if(name==='mq_reset_student_progress')data={status:'success'};
-    else if(name==='mq_student_check_in')data={result:'success',points:5};
+    else if(name==='mq_student_check_in')data={result:'error',code:'LOCATION_REQUIRED'};
+    else if(name==='mq_prepare_location_check_in')data={result:'ready',request_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',max_accuracy_m:50,radius_m:100};
+    else if(name==='mq_student_check_in_at_location')data={result:'success',points:5,distance_m:0,accuracy_m:10};
     else if(name==='mq_student_buy_item')data={status:'success',mathCoins:95};
     else if(name==='mq_student_pet')data={status:'success',pet:{student_id:'00001',pet_id:'leafy',pet_name:'ทดสอบ'},cost:0};
     else if(name==='table'){
@@ -142,7 +144,8 @@ async function main() {
     assert.ok(!(await page.locator('#googleLinkSection').isVisible()),'linked account needs no code on returning login');
     const beforeCalls=calls.length;
     await page.evaluate(async()=>{await submitCheckInDb('OTHER-ID','1234');await buyItemDb('OTHER-ID','bonus','forged-name',1);await selectStudentPetDb('OTHER-ID','leafy','ทดสอบ');});
-    for(const call of calls.slice(beforeCalls).filter(c=>['mq_student_check_in','mq_student_buy_item','mq_student_pet'].includes(c.name))){
+    assert.ok(calls.slice(beforeCalls).some(c=>c.name==='mq_student_check_in_at_location'),'Google student check-in uses the location RPC');
+    for(const call of calls.slice(beforeCalls).filter(c=>['mq_prepare_location_check_in','mq_student_check_in_at_location','mq_student_buy_item','mq_student_pet'].includes(c.name))){
       assert.ok(!JSON.stringify(call.args).includes('OTHER-ID'),'student writes never submit a caller-selected identity');
     }
     await page.locator('#googleStudentAccountButton').click();await page.locator('.swal2-confirm').click();
@@ -176,7 +179,7 @@ async function main() {
     assert.match(await page.locator('#googleLoginStatus').textContent(),/20261015_01_google_login_student_links.sql/);
     assert.equal(await page.evaluate(()=>googleAccount),null,'failed bootstrap has no loaded profile');
     await page.locator('#googleSignedOutAction').click();
-    await page.waitForSelector('#googleSignedOutAction[hidden]');
+    await page.locator('#googleSignedOutAction').waitFor({state:'hidden'});
     assert.equal(state,'signed_out','recovery signs out even when profile loading failed');
     assert.deepEqual(production,[],'no production DB calls');
     assert.deepEqual(errors,[],'no uncaught exceptions');

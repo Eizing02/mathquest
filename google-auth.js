@@ -87,6 +87,7 @@ function hideGoogleAppViews() {
 }
 
 function renderGoogleLinkForm(changing) {
+  if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   googleLinkChanging = !!changing;
   googleLinkPreview = null;
   hideGoogleAppViews();
@@ -161,6 +162,7 @@ async function openGoogleAccount() {
 }
 
 async function enterGoogleAccount(account) {
+  if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   googleAccount = account;
   if (account.state === 'unlinked') { renderGoogleLinkForm(false); return; }
   if (account.state === 'teacher_setup_required') {
@@ -257,6 +259,7 @@ async function bootstrapGoogleLogin() {
 }
 
 async function signOutGoogleAccount() {
+  if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   stopGoogleAccountGuard();
   if (googleAuthSubscription) googleAuthSubscription.unsubscribe();
   googleAuthSubscription = null;

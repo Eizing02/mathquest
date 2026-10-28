@@ -1,0 +1,25 @@
+.attendance-location-status {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 96px;
+  margin-block: 0 16px;
+  padding-block: 12px;
+  border-block: 1px solid var(--border);
+  color: var(--txt);
+  text-align: start;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.attendance-location-status > i { padding-block-start: 4px; color: var(--pri); }
+.attendance-location-status p { margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.attendance-location-status #attendanceLocationText { font-weight: 700; }
+.attendance-location-status #attendanceLocationDetail { margin-block-start: 4px; font-size: 14px; color: var(--muted); }
+.attendance-location-status[data-state="error"] > i { color: var(--danger); }
+.attendance-location-status[data-state="success"] > i { color: var(--ok); }
+.attendance-location-policy { color: var(--muted); line-height: 1.7; font-size: 14px; overflow-wrap: anywhere; }
+#checkInBtn { min-height: 48px; white-space: normal; }
+#checkInBtn[aria-busy="true"] { cursor: progress; }
+@media (max-width: 390px) {
+  .attendance-location-status { min-height: 112px; }
+}

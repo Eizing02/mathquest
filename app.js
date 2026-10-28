@@ -676,6 +676,7 @@ function refreshGuestProfileFromPoints(session) {
 }
 
 async function enterStudentApp(res) {
+  if (typeof resetAttendanceLocationStatus === 'function') resetAttendanceLocationStatus(!!res.isGuest);
   document.getElementById('studentSection').classList.remove('hidden');
   document.getElementById('sNameDisp').textContent = res.name;
   document.getElementById('sGradeDisp').textContent = '\u0e0a\u0e31\u0e49\u0e19 ' + res.grade;
@@ -1769,9 +1770,10 @@ async function generateNewPINDb(targetGrade) {
 }
 
 async function submitCheckInDb(studentId, pinCode) {
-  if (isGoogleLoginActive()) return googleRpc('mq_student_check_in', {
-    p_pin: String(pinCode || '').trim(), p_expected_version: schoolSemester.version
-  });
+  if (isGoogleLoginActive()) {
+    if (typeof submitLocationCheckIn !== 'function') return { result: 'error', msg: 'กรุณาโหลดหน้าเว็บใหม่เพื่อใช้ระบบตรวจตำแหน่ง' };
+    return submitLocationCheckIn(String(pinCode || '').trim());
+  }
   if (isGuestStudentId(studentId)) {
     var session = getActiveGuestSession();
     if (!session) {
@@ -1799,60 +1801,7 @@ async function submitCheckInDb(studentId, pinCode) {
     saveActiveGuestSession(session);
     return { result: 'success', points: pts, grade: session.user.grade };
   }
-  var client = getSupabase();
-  var cid = String(studentId).trim();
-  var settings = await getSettingsMap(['pin', 'pin_expiry', 'current_grade', 'session_start', 'active_session_id']);
-  if (!settings.pin) return { result: 'error', msg: 'ยังไม่มีคาบเรียนที่เปิดอยู่' };
-  var pin = String(settings.pin || '').trim();
-  var expiry = safeDate(settings.pin_expiry);
-  var startTime = safeDate(settings.session_start);
-  var sessionId = String(settings.active_session_id || '').trim() || null;
-  var now = await getServerNowDb(client);
-  var grade = String(settings.current_grade || '').trim();
-  if (!expiry) return { result: 'error', msg: 'การตั้งค่าไม่ถูกต้อง' };
-  if (String(pinCode).trim() !== pin) return { result: 'error', msg: 'รหัส PIN ไม่ถูกต้อง ❌' };
-  if (!grade) return { result: 'error', msg: 'ไม่พบข้อมูลชั้นเรียนของคาบนี้' };
-  if (now > expiry) return { result: 'error', msg: 'รหัส PIN หมดอายุแล้ว ⏰' };
-
-  var student = await runQuery(client.from('students')
-    .select('id,grade')
-    .eq('id', cid)
-    .maybeSingle());
-  if (!student) return { result: 'error', msg: 'ไม่พบข้อมูลนักเรียน' };
-  if (!isStudentInSessionGrade(student.grade, grade)) {
-    return {
-      result: 'error',
-      msg: 'คาบนี้เปิดสำหรับชั้น ' + grade + ' แต่นักเรียนอยู่ชั้น ' + normalizeGrade(student.grade) + ' จึงเช็คชื่อไม่ได้'
-    };
-  }
-
-  var existing = await runQuery(client.from('attendance_logs')
-    .select('id,timestamp')
-    .eq('student_id', cid)
-    .order('timestamp', { ascending: false }));
-  var sessionDate = startTime ? dateKeyBangkok(startTime) : dateKeyBangkok(now);
-  for (var i = 0; i < existing.length; i++) {
-    if (dateKeyBangkok(existing[i].timestamp) === sessionDate) {
-      return { result: 'duplicate', msg: 'เช็คชื่อคาบวันที่ ' + formatDate(toNoonIso(sessionDate)) + ' เรียบร้อยแล้ว ✅' };
-    }
-  }
-
-  var pts = 0;
-  if (startTime) {
-    var min = (now - startTime) / 60000;
-    if (min <= 5) pts = 5;
-    else if (min <= 10) pts = 3;
-  }
-
-  await runQuery(client.from('attendance_logs').insert([{
-    timestamp: dateKeyBangkok(now) === sessionDate ? now.toISOString() : toNoonIso(sessionDate),
-    student_id: cid,
-    status: 'มา',
-    points: pts,
-    session_id: sessionId
-  }]));
-
-  return { result: 'success', points: pts, grade: grade };
+  return { result: 'error', msg: 'กรุณาเข้าสู่ระบบ Google และเชื่อมรหัสนักเรียนก่อนเช็คชื่อ' };
 }
 
 async function getPendingCloseSessionStudentsDb() {
@@ -3989,13 +3938,15 @@ async function handlePhotoChange(event) {
 }
 
 async function checkIn() {
+  if (typeof attendanceLocationBusy !== 'undefined' && attendanceLocationBusy) return;
   var pin = document.getElementById('pinCode').value.trim();
   if (pin.length !== 4) {
     return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุ PIN 4 หลัก', confirmButtonColor: UI_COLOR_PRIMARY });
   }
-  loading('กำลังบันทึก...');
+  if (!isGoogleLoginActive()) loading('กำลังบันทึก...');
   try {
     var res = await submitCheckInDb(CU.id, pin);
+    if (res.result === 'cancelled') return;
     if (res.result === 'success') {
       var pts = res.points || 0;
       Swal.fire({
@@ -4023,6 +3974,7 @@ async function checkIn() {
         } catch (e) {}
       }, 900);
     } else {
+      if (res.code && String(res.code).indexOf('LOCATION_') === 0) return;
       Swal.fire({
         icon: res.result === 'duplicate' ? 'info' : 'error',
         title: res.result === 'duplicate' ? 'เรียบร้อยแล้ว' : 'ผิดพลาด',
@@ -5106,6 +5058,7 @@ async function saveSettings() {
 
 /* ══ Logout ══════════════════════════════════════════ */
 async function logout() {
+  if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   var googleLogout = !isGuestMode() || !!googleAccount;
   stopGoogleAccountGuard();
   stopSchoolSync();

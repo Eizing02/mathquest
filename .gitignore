@@ -3,6 +3,7 @@
 /tmp/school-ui/
 /tmp/google-auth/
 /tmp/scansob/
+/tmp/attendance-location/
 /.env*
 /supabase/.env*
 /supabase/functions/.env*
