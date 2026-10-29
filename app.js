@@ -687,6 +687,7 @@ async function enterStudentApp(res) {
   shopWallet = await getWalletBalanceDb(CU.id);
   updateShopCoinsBadge(shopWallet.mathCoins);
   await loadStudentPet();
+  if (typeof loadStudentProfileStyle === 'function') await loadStudentProfileStyle();
   await startStudentGiftNotifications();
 }
 
@@ -2881,6 +2882,7 @@ function setStudentProfilePhoto(photoUrl) {
   image.classList.remove('is-fallback');
   image.onerror = handleStudentPhotoError;
   image.src = currentProfilePhotoUrl || profilePlaceholderSrc;
+  if (typeof renderStudentProfileFrame === 'function') renderStudentProfileFrame();
 }
 
 function handleStudentPhotoError() {
@@ -2890,6 +2892,7 @@ function handleStudentPhotoError() {
   image.onerror = null;
   image.classList.add('is-fallback');
   image.src = profilePlaceholderSrc || BLANK_IMAGE_SRC;
+  if (typeof renderStudentProfileFrame === 'function') renderStudentProfileFrame();
 }
 
 async function loadStudentProfile() {
@@ -2948,6 +2951,7 @@ function updateGamiUI(d) {
 }
 
 function renderStudentPet(row, level, previousLevel) {
+  if (typeof renderStudentProfileFrame === 'function') renderStudentProfileFrame();
   var hero = document.getElementById('petHero');
   if (!hero) return;
   var lv = level == null ? getCurrentStudentLevel() : level;
@@ -3838,6 +3842,7 @@ async function handlePhotoChange(event) {
   var input = event.target;
   var file = input.files[0];
   if (!file) return;
+  if (typeof waitForProfileStyleClose === 'function') await waitForProfileStyleClose();
   if (isGuestMode()) {
     input.value = '';
     return;
@@ -5058,6 +5063,7 @@ async function saveSettings() {
 
 /* ══ Logout ══════════════════════════════════════════ */
 async function logout() {
+  if (typeof resetStudentProfileStyle === 'function') resetStudentProfileStyle();
   if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   var googleLogout = !isGuestMode() || !!googleAccount;
   stopGoogleAccountGuard();

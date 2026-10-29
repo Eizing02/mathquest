@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "photoScale": 0.66,
+  "frames": [
+    {"petId":"thorn","name":"Thorn","color":"#a78528","effect":"embers"},
+    {"petId":"leafy","name":"Leafy","color":"#719837","effect":"leaves"},
+    {"petId":"volt","name":"Volt","color":"#e3ac19","effect":"electric"},
+    {"petId":"clover","name":"Clover","color":"#53924a","effect":"leaves"},
+    {"petId":"aqua","name":"Aqua","color":"#218ab8","effect":"water"},
+    {"petId":"ember","name":"Ember","color":"#ed7529","effect":"embers"},
+    {"petId":"snowy","name":"Snowy","color":"#74bde8","effect":"snow"},
+    {"petId":"sunny","name":"Sunny","color":"#d5a435","effect":"sun"},
+    {"petId":"mystic","name":"Mystic","color":"#a279db","effect":"arcane"},
+    {"petId":"rocky","name":"Rocky","color":"#ba7444","effect":"embers"},
+    {"petId":"toady","name":"Toady","color":"#90a63b","effect":"arcane"},
+    {"petId":"zephyr","name":"Zephyr","color":"#399b98","effect":"wind"},
+    {"petId":"fluffy","name":"Fluffy","color":"#c49cda","effect":"cloud"},
+    {"petId":"iron","name":"Iron","color":"#9e9168","effect":"electric"},
+    {"petId":"nebula","name":"Nebula","color":"#8797e9","effect":"stars"},
+    {"petId":"scorch","name":"Scorch","color":"#d29a37","effect":"sand"},
+    {"petId":"mossy","name":"Mossy","color":"#6f8c39","effect":"leaves"},
+    {"petId":"luna","name":"Luna","color":"#8193c9","effect":"stars"},
+    {"petId":"valor","name":"Valor","color":"#b67d39","effect":"sun"},
+    {"petId":"bramble","name":"Bramble","color":"#aa6e81","effect":"leaves"},
+    {"petId":"cinder","name":"Cinder","color":"#e57827","effect":"embers"}
+  ]
+}

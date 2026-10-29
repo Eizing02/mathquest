@@ -19,6 +19,7 @@
   <link href="./google-auth.css" rel="stylesheet">
   <link href="./scansob.css" rel="stylesheet">
   <link href="./attendance-location.css" rel="stylesheet">
+  <link href="./profile-frames.css" rel="stylesheet">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -119,11 +120,13 @@
         <div class="photo-overlay mb-2">
           <button type="button" class="profile-photo-trigger" id="profilePhotoTrigger"
                   onclick="openProfilePreview()" aria-label="ดูรูปโปรไฟล์ขนาดใหญ่" aria-haspopup="dialog">
+            <span class="mq-avatar" id="studentAvatar">
             <img id="studentPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23e0e7ff'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='32' fill='%234f46e5'%3E👤%3C/text%3E%3C/svg%3E"
                  class="profile-photo" alt="">
+            </span>
           </button>
           <button type="button" class="photo-edit-btn" id="photoEditButton"
-                  onclick="openPhotoUpload()" aria-label="เปลี่ยนรูปโปรไฟล์">
+                  onclick="openProfileStyle()" aria-label="เปลี่ยนรูปและกรอบโปรไฟล์" aria-haspopup="dialog">
             <i class="fa-solid fa-camera"></i>
           </button>
         </div>
@@ -957,6 +960,54 @@
   </div>
 </div>
 
+<div class="modal fade profile-style-modal" id="profileStyleModal" tabindex="-1"
+     aria-labelledby="profileStyleTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered profile-style-dialog">
+    <div class="modal-content profile-style-panel">
+      <div class="modal-header profile-style-header">
+        <h2 id="profileStyleTitle" class="modal-title">รูปโปรไฟล์</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิดการปรับโปรไฟล์"></button>
+      </div>
+      <div class="modal-body profile-style-body">
+        <div class="profile-style-portrait">
+          <div class="mq-avatar mq-avatar-editor" id="profileStyleAvatar">
+            <img id="profileStylePhoto" class="profile-style-photo" alt="ตัวอย่างรูปโปรไฟล์" draggable="false">
+          </div>
+          <button type="button" class="profile-style-photo-button" id="profileStyleChangePhoto" onclick="chooseProfileStylePhoto()">
+            <i class="fa-solid fa-camera" aria-hidden="true"></i><span>เปลี่ยนรูป</span>
+          </button>
+        </div>
+        <div class="profile-style-options">
+          <div class="profile-style-pet">
+            <div id="profileStylePetSprite" class="pet-sprite" aria-hidden="true"></div>
+            <div><strong id="profileStyleFrameName">กรอบโปรไฟล์</strong><span id="profileStylePetName"></span></div>
+          </div>
+          <fieldset class="profile-style-modes">
+            <legend>กรอบโปรไฟล์</legend>
+            <div class="profile-style-segment">
+              <label><input type="radio" name="profileFrameMode" id="profileFrameAuto" value="auto" onchange="previewProfileStyle()"><span>ตามสัตว์เลี้ยง</span></label>
+              <label><input type="radio" name="profileFrameMode" id="profileFrameNone" value="none" onchange="previewProfileStyle()"><span>ไม่ใช้กรอบ</span></label>
+            </div>
+          </fieldset>
+          <label class="profile-style-motion" for="profileFrameMotion">
+            <span>เอฟเฟกต์เคลื่อนไหว</span><input type="checkbox" role="switch" id="profileFrameMotion" onchange="previewProfileStyle()">
+          </label>
+          <p id="profileStyleEmpty" class="profile-style-note" hidden>เลือกสัตว์เลี้ยงก่อนใช้กรอบโปรไฟล์</p>
+          <p id="profileStyleReducedMotion" class="profile-style-note" hidden>อุปกรณ์ตั้งค่าให้ลดการเคลื่อนไหว กรอบจะแสดงแบบนิ่ง</p>
+          <p id="profileStyleGuest" class="profile-style-note" hidden>โหมดทดลอง บันทึกเฉพาะในแท็บนี้</p>
+        </div>
+        <p id="profileStyleStatus" class="profile-style-status" role="status" aria-live="polite" hidden></p>
+      </div>
+      <div class="modal-footer profile-style-footer">
+        <button type="button" class="profile-style-cancel" data-bs-dismiss="modal">ปิด</button>
+        <button type="button" class="profile-style-save" id="profileStyleSave" onclick="saveStudentProfileStyle()">
+          <i class="fa-solid fa-check" aria-hidden="true"></i><span>บันทึกกรอบ</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ════════ STUDENT PROFILE PHOTO CROP ════════ -->
 <div class="modal fade profile-crop-modal" id="profileCropModal" tabindex="-1"
      data-bs-backdrop="static" data-bs-keyboard="true"
@@ -1087,5 +1138,6 @@
 <script defer src="./google-auth.js"></script>
 <script defer src="./scansob.js"></script>
 <script defer src="./attendance-location.js"></script>
+<script defer src="./profile-frames.js"></script>
 </body>
 </html>
