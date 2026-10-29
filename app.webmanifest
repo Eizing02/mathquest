@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "เช็คชื่อเข้าเรียนครูอี้",
+  "short_name": "เข้าเรียนครูอี้",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf4f2",
+  "theme_color": "#176b60",
+  "icons": [
+    { "src": "./assets/app-icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/app-icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/app-icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -87,6 +87,7 @@ function hideGoogleAppViews() {
 }
 
 function renderGoogleLinkForm(changing) {
+  if (typeof resetStudentHome === 'function') resetStudentHome();
   if (typeof resetStudentProfileStyle === 'function') resetStudentProfileStyle();
   if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   googleLinkChanging = !!changing;
@@ -163,6 +164,7 @@ async function openGoogleAccount() {
 }
 
 async function enterGoogleAccount(account) {
+  if (typeof resetStudentHome === 'function') resetStudentHome();
   if (typeof resetStudentProfileStyle === 'function') resetStudentProfileStyle();
   if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   googleAccount = account;

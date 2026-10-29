@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title id="pageTitle">ระบบเช็คชื่อนักเรียน</title>
-  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/app-icons/icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="icon" type="image/png" sizes="192x192" href="./apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/app-icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -20,6 +20,10 @@
   <link href="./scansob.css" rel="stylesheet">
   <link href="./attendance-location.css" rel="stylesheet">
   <link href="./profile-frames.css" rel="stylesheet">
+  <link href="./student-home.css" rel="stylesheet">
+  <link rel="manifest" href="./app.webmanifest">
+  <meta name="theme-color" content="#176b60">
+  <meta name="apple-mobile-web-app-title" content="เช็คชื่อเข้าเรียนครูอี้">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -85,7 +89,11 @@
 <main id="studentSection" class="hidden" data-tier="0">
   <h1 class="visually-hidden">หน้าหลักนักเรียน</h1>
   <div class="container student-shell">
-    <div class="d-flex justify-content-end mb-2">
+    <header class="student-toolbar">
+      <strong>เช็คชื่อเข้าเรียนครูอี้</strong>
+      <button type="button" class="student-icon-button" onclick="openStudentMenu()" aria-label="บัญชีและเมนูเพิ่มเติม" title="เมนูเพิ่มเติม"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></button>
+    </header>
+    <div class="student-menu-actions" hidden>
       <button id="googleStudentAccountButton" type="button" class="google-student-account me-2" onclick="openGoogleAccount()" hidden><i class="fa-solid fa-user me-1" aria-hidden="true"></i>บัญชี</button>
       <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()" aria-label="รีเฟรชข้อมูลนักเรียน">
         <i class="fa-solid fa-rotate-right" id="refreshIcon" aria-hidden="true"></i>
@@ -116,7 +124,7 @@
 
     <!-- Profile + Level Card -->
     <div class="s-card mb-3" id="levelCard">
-      <div class="text-center">
+      <div class="text-center student-portrait">
         <div class="photo-overlay mb-2">
           <button type="button" class="profile-photo-trigger" id="profilePhotoTrigger"
                   onclick="openProfilePreview()" aria-label="ดูรูปโปรไฟล์ขนาดใหญ่" aria-haspopup="dialog">
@@ -132,19 +140,12 @@
         </div>
         <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                style="display:none" onchange="handlePhotoChange(event)" aria-label="อัปโหลดรูปโปรไฟล์">
-        <div class="ring-wrap mb-2">
-          <div class="level-ring" id="levelRing">
-            <div class="level-ring-inner">
-              <span class="lv-num" id="lvNum">0</span>
-              <span class="lv-label">LEVEL</span>
-            </div>
-          </div>
-        </div>
       </div>
       <div class="student-identity">
         <div class="student-name" id="sNameDisp"></div>
         <small class="student-grade" id="sGradeDisp"></small>
         <small class="student-grade" id="studentTermLabel"></small>
+        <small class="student-grade" id="studentCodeLabel"></small>
       </div>
       <section class="pet-hero" id="petHero" aria-live="polite">
         <div class="pet-empty-state">
@@ -156,29 +157,24 @@
           <button type="button" class="pet-primary-btn" onclick="openPetSelector()">เลือกตัวแรก</button>
         </div>
       </section>
-      <div class="px-2 mt-2">
+      <button class="student-pet-details" id="studentPetDetailsButton" type="button" onclick="openStudentPetDetails()" aria-label="ดูรายละเอียดและจัดการสัตว์เลี้ยง"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+      <div class="student-progress">
+        <div class="student-progress-heading"><span id="levelRing">Level <strong id="lvNum">0</strong></span><span class="student-wallet"><i class="fa-solid fa-coins" aria-hidden="true"></i><span id="shopCoinsBadge">—</span><span>เหรียญ</span></span></div>
         <div class="xp-meta">
           <span id="xpLabel">0 / 5 XP</span><span id="ptLabel">แต้มรวม 0</span>
         </div>
         <div class="xp-bg"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
-      </div>
-      <div class="trophy-row" id="trophies">
-        <span class="trophy" data-t="0" title="Starter">🎖️</span>
-        <span class="trophy" data-t="10" title="Lv.10">🥉</span>
-        <span class="trophy" data-t="20" title="Lv.20">🥈</span>
-        <span class="trophy" data-t="30" title="Lv.30">🥇</span>
-        <span class="trophy" data-t="40" title="Lv.40">🏆</span>
-        <span class="trophy" data-t="50" title="Lv.50">👑</span>
       </div>
     </div>
 
     <!-- Check-in Card -->
     <div class="s-card mb-3" id="studentCheckInSurface">
       <label class="checkin-title" for="pinCode"><i class="fa-solid fa-key" aria-hidden="true"></i>ระบุรหัส PIN 4 หลัก</label>
-      <input type="text" class="pin-input mb-3" id="pinCode"
-             inputmode="numeric" maxlength="4" placeholder="• • • •"
-             oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-             onkeydown="if(event.key==='Enter')checkIn()" autocomplete="off" aria-label="กรอก PIN 4 หลัก">
+      <div class="student-pin" id="studentPin" data-feedback="idle">
+        <div class="student-pin-slots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <input type="text" id="pinCode" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" spellcheck="false" aria-label="กรอก PIN 4 หลัก" aria-describedby="studentPinMessage" onkeydown="if(event.key==='Enter'){event.preventDefault();checkIn()}">
+      </div>
+      <p class="student-pin-message" id="studentPinMessage" role="status" aria-live="polite" aria-atomic="true">กรอกรหัสจากครู แล้วกดเช็คชื่อ</p>
       <div class="attendance-location-status" id="attendanceLocationStatus" data-state="idle" role="status" aria-live="polite" aria-atomic="true">
         <i id="attendanceLocationIcon" class="fa-solid fa-location-dot" aria-hidden="true"></i>
         <div>
@@ -192,21 +188,19 @@
       </button>
     </div>
 
-    <div class="student-actions">
-      <button id="studentExamButton" class="btn btn-outline-secondary" type="button" onclick="openStudentExamScores()" hidden><i class="fa-solid fa-file-circle-check me-1" aria-hidden="true"></i>คะแนนสอบ</button>
+    <nav class="student-actions" aria-label="เมนูนักเรียน">
+      <button class="student-home-link" type="button" aria-current="page" onclick="studentGoHome()"><i class="fa-solid fa-house" aria-hidden="true"></i><span>หน้าหลัก</span></button>
       <button class="btn-shop" id="studentShopButton" onclick="openShop()" aria-label="เปิด Magic Shop ไม่มีของขวัญใหม่">
         <i class="fa-solid fa-store" aria-hidden="true"></i>
-        <span>Magic Shop</span>
-        <span class="btn-shop-coins" id="shopCoinsBadge">—</span>
+        <span>ร้านค้า</span>
         <span class="student-gift-count hidden" id="studentShopGiftCount" aria-hidden="true">0</span>
       </button>
-      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="showStudentHistory()">
-        <i class="fa-solid fa-clock-rotate-left me-1"></i>ประวัติของฉัน
+      <button id="studentExamButton" type="button" onclick="openStudentExamScores()" hidden><i class="fa-solid fa-file-circle-check" aria-hidden="true"></i><span>คะแนนสอบ</span></button>
+      <button type="button" onclick="showStudentHistory()">
+        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>ประวัติ</span>
       </button>
-      <button class="btn btn-sm student-logout" onclick="logout()">
-        <i class="fa-solid fa-right-from-bracket me-1"></i>ออกจากระบบ
-      </button>
-    </div>
+    </nav>
+    <button id="studentInstallButton" class="student-install-button" type="button" onclick="openStudentInstall()" aria-label="วิธีติดตั้งแอปบนหน้าจอโฮม" title="ติดตั้งบนหน้าจอโฮม"><i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
   </div>
 </main>
 
@@ -1010,7 +1004,7 @@
 
 <!-- ════════ STUDENT PROFILE PHOTO CROP ════════ -->
 <div class="modal fade profile-crop-modal" id="profileCropModal" tabindex="-1"
-     data-bs-backdrop="static" data-bs-keyboard="true"
+     data-bs-backdrop="true" data-bs-keyboard="true"
      aria-labelledby="profileCropTitle" aria-describedby="profileCropStatus" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down profile-crop-dialog">
     <div class="modal-content profile-crop-panel">
@@ -1139,5 +1133,7 @@
 <script defer src="./scansob.js"></script>
 <script defer src="./attendance-location.js"></script>
 <script defer src="./profile-frames.js"></script>
+<script defer src="./student-home.js"></script>
+<script defer src="./student-install.js"></script>
 </body>
 </html>

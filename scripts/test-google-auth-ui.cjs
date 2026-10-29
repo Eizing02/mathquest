@@ -148,7 +148,9 @@ async function main() {
     for(const call of calls.slice(beforeCalls).filter(c=>['mq_prepare_location_check_in','mq_student_check_in_at_location','mq_student_buy_item','mq_student_pet'].includes(c.name))){
       assert.ok(!JSON.stringify(call.args).includes('OTHER-ID'),'student writes never submit a caller-selected identity');
     }
-    await page.locator('#googleStudentAccountButton').click();await page.locator('.swal2-confirm').click();
+    await page.locator('.student-toolbar .student-icon-button').click();
+    await page.locator('#studentUtilityBody button').filter({hasText:'บัญชี Google'}).click();
+    await page.locator('.swal2-confirm').click();
     await page.waitForSelector('#googleLinkChangeNote:not([hidden])');assert.ok(await page.locator('#googleLinkCancel').isVisible());
     await page.locator('#googleLinkCancel').click();await page.waitForSelector('#studentSection:not(.hidden)');
     state='teacher';await page.reload({waitUntil:'networkidle'});await page.waitForSelector('#teacherSection:not(.hidden)');

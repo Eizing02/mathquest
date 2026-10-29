@@ -46,7 +46,7 @@ async function main() {
     await route.fulfill({contentType:'application/json',body:JSON.stringify({data,error,count:Array.isArray(data)?data.length:0})});
   });
   const screenshot=async name=>{if(!process.argv.includes('--no-capture'))await page.screenshot({path:path.join(output,name+'.png'),fullPage:true});};
-  const close=async()=>{await page.locator('#profileStyleModal .btn-close').click();await page.waitForFunction(()=>!profileStyleTransitioning&&!isProfileStyleOpen()&&!document.getElementById('profileStyleModal').classList.contains('show'));};
+  const close=async()=>{await page.locator('#profileStyleModal .btn-close').click();await page.evaluate(()=>{if(typeof studentDiscardPending!=='undefined'&&studentDiscardPending)Swal.clickConfirm();});await page.waitForFunction(()=>!profileStyleTransitioning&&!isProfileStyleOpen()&&!document.getElementById('profileStyleModal').classList.contains('show'));};
   const open=async()=>{await page.locator('#photoEditButton').click();await page.waitForFunction(()=>isProfileStyleOpen()&&profileStyleReady&&!profileStyleLoading&&getComputedStyle(document.getElementById('profileStyleModal')).opacity==='1'&&getComputedStyle(document.querySelector('#profileStyleModal .modal-dialog')).transform==='none');};
   try {
     await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'networkidle'});
@@ -161,7 +161,7 @@ async function main() {
     await page.locator('#profileCropModal').waitFor({state:'visible'});
     await page.waitForFunction(()=>profileCropReady);
     assert.equal(await page.locator('.modal.show').count(),1,'file picker handoff has only one modal open');
-    await page.locator('#profileCropModal .btn-close').click();await page.locator('#profileCropModal').waitFor({state:'hidden'});
+    await page.locator('#profileCropModal .btn-close').click();await page.evaluate(()=>{if(studentDiscardPending)Swal.clickConfirm();});await page.locator('#profileCropModal').waitFor({state:'hidden'});
     assert.equal(await page.locator('#studentPhoto').getAttribute('src'),photoBefore,'cancelled crop preserves photo');
     await open();delay=400;
     const staleSave=page.evaluate(()=>saveStudentProfileStyle());

@@ -1,0 +1,138 @@
+/* Student-only layout; existing teacher surfaces keep their own density. */
+#studentSection[data-tier]{min-height:100svh;background:#edf4f2!important;color:#172b29;contain:none;overflow:visible}
+#studentSection[data-tier]::before{display:none!important}
+#studentSection .student-shell{max-width:480px;padding:8px 16px calc(100px + env(safe-area-inset-bottom));position:relative}
+.student-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+.student-toolbar>strong{font-size:1rem;line-height:1.4}
+.student-icon-button,.student-install-button{width:44px;height:44px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid #b8ceca;border-radius:8px;background:#fff;color:#28554d}
+.student-icon-button:hover,.student-install-button:hover{background:#e0eee9}
+#studentSection #levelCard{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px 12px;min-height:0;padding:8px 0 0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;contain:none;margin-bottom:12px!important}
+#studentSection #levelCard>.student-portrait{grid-column:1;grid-row:1;width:112px;min-height:112px;align-self:center}
+#studentSection #levelCard .mq-avatar{--avatar-size:112px}
+#studentSection #levelCard .photo-overlay{margin:0!important}
+#studentSection #levelCard>.student-identity{grid-column:2;grid-row:1;padding:0;text-align:left;align-self:center;min-width:0}
+#studentSection #levelCard #sNameDisp{font-family:'Sarabun',sans-serif;font-size:1rem!important;line-height:1.45;max-width:none;text-wrap:initial;overflow-wrap:anywhere}
+#studentSection .student-grade{font-size:.8125rem;line-height:1.6;color:#45655f;opacity:1}
+#studentSection .student-progress{grid-column:1/-1;padding:0 2px}
+.student-progress-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;font-size:.875rem;font-variant-numeric:tabular-nums}
+#studentSection #levelRing{background:none;animation:none;box-shadow:none;color:#176b60}
+.student-wallet{display:flex;align-items:center;gap:6px;color:#725015;font-size:.875rem}
+#studentSection .xp-meta{font-size:.75rem;color:#48665f}
+#studentSection .xp-bg{height:6px;background:#d5e3df;margin-bottom:6px}
+#studentSection .xp-fill{background:#268472!important;animation:none!important}
+#studentSection #levelCard .pet-hero{position:relative;inset:auto;grid-column:1/-1;grid-row:3;width:100%;min-height:82px;margin:2px 0 0;border-top:1px solid #cbdcd6;justify-content:flex-start;padding:6px 42px 0 0}
+#studentSection #petHero .pet-live-card{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:80px;position:relative;text-align:left;justify-content:start;align-items:center;border-radius:0}
+#studentSection #petHero .pet-sprite-wrap{width:96px;height:80px;margin:0}
+#studentSection #petHero .pet-sprite-live{width:80px;height:80px}
+#studentSection #petHero .pet-sprite-motion{width:80px;height:80px}
+#studentSection #petHero .pet-info{padding:0;min-width:0}
+#studentSection #petHero .pet-info strong{font-size:1rem;overflow-wrap:anywhere}
+#studentSection #petHero .pet-info span{font-size:.75rem;color:#48665f;opacity:1;margin-top:4px}
+#studentSection #petHero .pet-stage-badge{top:0;left:0;right:auto;font-size:.5625rem;padding:2px 5px;z-index:3}
+#studentSection #petHero .pet-actions,#studentSection #petHero .pet-usage-note{display:none}
+#studentSection #petHero .pet-empty-state{min-height:80px;display:flex;flex-direction:row;text-align:left;gap:10px;padding:0;justify-content:flex-start}
+#studentSection #petHero .pet-empty-state .pet-empty-icon{display:none}
+#studentSection #petHero .pet-empty-state>div{min-width:0}
+#studentSection #petHero .pet-empty-state span{opacity:1;color:#48665f}
+#studentSection #petHero .pet-primary-btn{font-size:.8125rem;padding:8px}
+.student-pet-details{position:absolute;right:0;bottom:22px;z-index:3;min-width:44px;min-height:44px;border:0;background:transparent;color:#28554d;border-radius:8px}
+#studentSection #studentCheckInSurface{border:1px solid #c5d9d1;border-radius:8px;padding:12px;background:#fff;box-shadow:none;margin-bottom:10px!important}
+#studentSection .checkin-title{font-family:'Sarabun',sans-serif;font-size:1rem;color:#263e37;margin-bottom:12px}
+#studentSection .checkin-title i{color:#9d6417}
+.student-pin{--pin-height:max(64px,3.5rem);position:relative;max-width:308px;margin:auto;height:var(--pin-height)}
+.student-pin-slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;height:var(--pin-height)}
+.student-pin-slots>span{display:flex;align-items:center;justify-content:center;position:relative;isolation:isolate;min-width:0;border:1px solid #b0c7be;border-radius:8px;background:#f6f9f7;color:#213d33;font-size:1.75rem;font-weight:700;font-variant-numeric:tabular-nums;transition:border-color .15s,background-color .15s}
+.student-pin-slots>span:empty::after{content:'';width:7px;height:2px;background:#829b90}
+.student-pin #pinCode{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:transparent;color:transparent;caret-color:transparent;font-size:24px;opacity:1;outline:0;box-shadow:none;-webkit-text-fill-color:transparent}
+.student-pin:focus-within .is-current{outline:2px solid #217563;outline-offset:2px;background:#fff}
+.student-pin-message{min-height:2.6em;margin:max(12px,.65rem) 0 0;line-height:1.5;text-align:center;font-size:.875rem;color:#52655d;overflow-wrap:anywhere}
+.student-pin-message[data-tone="error"]{color:#b0273f}
+.student-pin-message[data-tone="success"]{color:#096d4f}
+.student-pin-slots>span.is-typed{animation:student-pin-type .14s ease-out}
+.student-pin[data-feedback="error"] .student-pin-slots>span{animation:student-pin-error 3s ease-out both}
+.student-pin[data-feedback="error"] .student-pin-slots{animation:student-pin-shake .32s ease-out}
+.student-pin[data-feedback="success"] .student-pin-slots>span{animation:student-pin-wave .65s ease-out both,student-pin-success 3s ease-out both}
+.student-pin[data-feedback="success"] .student-pin-slots>span:nth-child(2){animation-delay:.075s,0s}
+.student-pin[data-feedback="success"] .student-pin-slots>span:nth-child(3){animation-delay:.15s,0s}
+.student-pin[data-feedback="success"] .student-pin-slots>span:nth-child(4){animation-delay:.225s,0s}
+@keyframes student-pin-type{35%{transform:translateX(-1px)}70%{transform:translateX(1px)}100%{transform:none}}
+@keyframes student-pin-shake{20%,60%{transform:translateX(-3px)}40%,80%{transform:translateX(3px)}100%{transform:none}}
+@keyframes student-pin-wave{35%{transform:translateY(-8px)}70%{transform:translateY(2px)}100%{transform:none}}
+@keyframes student-pin-error{0%,65%{border-color:#c5354b;background:#fff0f1;color:#ad2238}100%{border-color:#b0c7be;background:#f6f9f7;color:#213d33}}
+@keyframes student-pin-success{0%,65%{border-color:#189568;background:#e7f8ef;color:#096d4f;box-shadow:0 0 12px #2cbf7b55}100%{border-color:#b0c7be;background:#f6f9f7;color:#213d33;box-shadow:none}}
+#studentSection .attendance-location-status{margin:4px 0 12px;padding:10px 0;gap:8px;min-height:0}
+#studentSection #attendanceLocationText{font-size:.8125rem;line-height:1.4}
+#studentSection #attendanceLocationDetail{font-size:.75rem;line-height:1.45;margin-top:3px}
+#studentSection .checkin-submit{border-radius:8px;min-height:48px;background:#13765d!important}
+#studentSection .student-actions{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,480px);display:flex;align-items:stretch;gap:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom));margin:0;z-index:900;border-top:1px solid #cadbd5;background:#fff}
+#studentSection .student-actions>button{position:relative;display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:52px;padding:5px 2px;border:0;border-radius:8px;background:transparent;color:#536b62;font-family:'Sarabun',sans-serif;font-size:.75rem;box-shadow:none;line-height:1.4}
+#studentSection .student-actions>button[hidden]{display:none}
+#studentSection .student-actions>button i{font-size:1.1rem}
+#studentSection .student-actions>button:hover{background:#edf5f0}
+#studentSection .student-actions>button[aria-current="page"]{background:#e4f1e9;color:#176b60;font-weight:700}
+#studentSection #studentShopGiftCount{top:0;right:14px;font-size:.6875rem}
+.student-install-button{position:fixed;right:max(14px,calc((100vw - 480px)/2 + 14px));bottom:calc(84px + env(safe-area-inset-bottom));z-index:910;gap:3px;box-shadow:0 4px 12px #163c2614}
+.student-install-button>i:last-child{font-size:.625rem}
+.student-install-button[hidden]{display:none}
+#studentSection .student-gift-notification{min-height:52px;padding:8px 10px;gap:8px;border-radius:8px;margin-bottom:10px;grid-template-columns:30px minmax(0,1fr) auto}
+#studentSection .student-gift-notification-icon{width:30px;height:30px;border-radius:6px;font-size:.875rem}
+#studentSection .student-gift-notification-copy strong{font-family:'Sarabun',sans-serif;font-size:.8125rem}
+#studentSection .student-gift-notification-copy>span{font-size:.8125rem;white-space:nowrap}
+#studentSection .student-gift-notification-copy small{font-size:.6875rem}
+#studentSection .student-gift-notification-action span{display:none}
+.student-utility-modal .modal-dialog{width:min(440px,calc(100% - 24px));margin:24px auto}
+.student-utility-modal .modal-content{border:0;border-radius:8px;max-height:calc(100dvh - 48px);box-shadow:0 12px 36px #152d2329;color:#21382e}
+.student-utility-modal .modal-body{overflow-y:auto;overscroll-behavior:contain;padding:20px}
+.student-utility-modal .modal-header{padding:16px 20px;flex:none}
+.student-utility-modal h2{font-family:'Sarabun',sans-serif;font-size:1.125rem;font-weight:700}
+.student-utility-modal .modal-header .btn-close{min-width:44px;min-height:44px;padding:0;margin:-8px -8px -8px 0}
+.student-menu-list{display:grid;gap:4px}
+.student-menu-list button{display:flex;align-items:center;gap:12px;border:0;border-radius:6px;background:transparent;color:#294f40;text-align:left;min-height:48px;padding:12px;font-size:1rem}
+.student-menu-list button:hover{background:#edf4ef}
+.student-menu-list button i{width:22px;text-align:center}
+.student-menu-list .student-menu-logout{color:#b0273f;border-top:1px solid #e1e9e3;margin-top:8px}
+.student-pet-summary{font-size:1rem;line-height:1.6;margin-bottom:16px;overflow-wrap:anywhere}
+.student-utility-modal .trophy-row{margin:16px 0}
+.student-utility-modal .trophy{font-size:1.4rem}
+.student-pet-manage{display:flex;gap:8px;flex-wrap:wrap}
+.student-pet-manage button,.student-install-primary{border:0;border-radius:8px;min-height:48px;padding:12px 16px;background:#176b60;color:#fff;font-size:1rem}
+.student-pet-manage button:last-child{background:#e6f0ea;color:#285340}
+.student-install-brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.student-install-brand img{width:64px;height:64px;object-fit:contain}
+.student-install-brand strong{font-size:1rem;line-height:1.5}
+.student-install-tabs{display:flex;border-bottom:1px solid #cfddd3;margin-bottom:18px;gap:8px}
+.student-install-tabs button{flex:1;min-height:44px;padding:10px 4px;border:0;border-bottom:2px solid transparent;background:transparent;color:#53695d;font-size:.9375rem}
+.student-install-tabs button[aria-selected="true"]{border-color:#176b60;color:#176b60;font-weight:700}
+.student-install-steps{list-style:none;padding:0;margin:0 0 16px;counter-reset:install-step;display:grid;gap:18px}
+.student-install-steps li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;counter-increment:install-step;line-height:1.55;font-size:.9375rem}
+.student-install-steps .install-step-icon{display:flex;align-items:center;justify-content:center;position:relative;width:44px;height:44px;border-radius:8px;background:#eaf2ec;color:#285a45;font-size:1.125rem}
+.student-install-steps .install-step-icon::before{content:counter(install-step);position:absolute;left:-5px;top:-5px;font-size:.625rem;width:17px;height:17px;border-radius:50%;background:#176b60;color:#fff;text-align:center;line-height:17px;font-weight:700}
+.student-install-steps strong,.student-install-steps small{display:block}
+.student-install-steps small{font-size:.8125rem;color:#53695d;margin-top:3px}
+.student-install-primary{width:100%}
+.student-install-note{font-size:.8125rem;color:#53695d;line-height:1.55;margin:12px 0 0}
+.student-install-status{font-size:.875rem;color:#285340;line-height:1.5;margin:12px 0}
+.student-utility-modal button:focus-visible,#studentSection button:focus-visible{outline:3px solid #28745a;outline-offset:3px}
+@media(max-width:600px){
+  .student-utility-modal .modal-dialog{display:flex;align-items:flex-end;min-height:calc(100dvh - 24px);margin:12px auto}
+  .student-utility-modal .modal-content{max-height:calc(100dvh - 40px)}
+  .student-gift-toast-region{bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+@media(max-width:360px){
+  #studentSection .student-shell{padding-left:12px;padding-right:12px}
+  #studentSection #levelCard{grid-template-columns:96px minmax(0,1fr);gap:8px 10px}
+  #studentSection #levelCard>.student-portrait{width:96px;min-height:96px}
+  #studentSection #levelCard .mq-avatar{--avatar-size:96px}
+  #studentSection #studentCheckInSurface{padding:12px}
+  .student-toolbar>strong{font-size:.9375rem}
+}
+@media(max-height:600px){
+  #studentSection[data-pin-editing="true"] .student-actions{display:none}
+  #studentSection[data-pin-editing="true"] .student-shell{padding-bottom:24px}
+}
+@media(prefers-reduced-motion:reduce){
+  .student-pin-slots,.student-pin-slots>span{animation:none!important;transition:none}
+  .student-pin[data-feedback="error"] .student-pin-slots>span{border-color:#c5354b;background:#fff0f1;color:#ad2238}
+  .student-pin[data-feedback="success"] .student-pin-slots>span{border-color:#189568;background:#e7f8ef;color:#096d4f}
+}
+@media print{.student-install-button,.student-actions{display:none!important}}

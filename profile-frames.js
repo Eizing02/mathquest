@@ -266,6 +266,8 @@ function initProfileStyleModal() {
   profileStyleModal = bootstrap.Modal.getOrCreateInstance(modal);
   modal.addEventListener('hide.bs.modal', function(event) {
     if (profileStyleBusy) { event.preventDefault(); return; }
+    if (profileStyleActive && typeof studentConfirmDiscard === 'function'
+        && studentConfirmDiscard(event, modal, studentProfileDraftDirty())) return;
     profileStyleActive = false;
     profileStyleTransitioning = true;
     profileStyleClosing = new Promise(function(resolve) {
@@ -319,6 +321,7 @@ function waitForProfileStyleClose() { return profileStyleClosing || Promise.reso
 function chooseProfileStylePhoto() {
   if (profileStyleBusy || profileStyleTransitioning || profileUploadInFlight) return;
   // Keep the file picker in the original user gesture (required by Safari).
+  document.getElementById('profileStyleModal').dataset.discardApproved = 'true';
   profileStyleModal.hide();
   openPhotoUpload();
 }

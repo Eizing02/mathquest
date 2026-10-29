@@ -56,6 +56,7 @@ function cancelAttendanceLocation() {
   attendanceLocationRun = null;
   attendanceLocationRequest = null;
   if (run) { run.cancelled = true; if (run.cancel) run.cancel(); }
+  if (typeof studentCheckInBusy !== 'undefined') studentCheckInBusy = false;
   setAttendanceLocationBusy(false);
 }
 

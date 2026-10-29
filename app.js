@@ -200,6 +200,7 @@ function loading(t) {
   Swal.fire({
     title: t || 'กำลังโหลด...',
     allowOutsideClick: false,
+    allowEscapeKey: false,
     didOpen: function() { Swal.showLoading(); }
   });
 }
@@ -676,10 +677,12 @@ function refreshGuestProfileFromPoints(session) {
 }
 
 async function enterStudentApp(res) {
+  if (typeof resetStudentHome === 'function') resetStudentHome();
   if (typeof resetAttendanceLocationStatus === 'function') resetAttendanceLocationStatus(!!res.isGuest);
   document.getElementById('studentSection').classList.remove('hidden');
   document.getElementById('sNameDisp').textContent = res.name;
   document.getElementById('sGradeDisp').textContent = '\u0e0a\u0e31\u0e49\u0e19 ' + res.grade;
+  document.getElementById('studentCodeLabel').textContent = 'รหัส ' + res.id;
   if (res.isGuest) startGuestSessionClock();
   else stopGuestSessionClock();
   if (res.isFirstLogin && res.authMode !== 'google') await forceChangePassword(res.id);
@@ -3057,6 +3060,7 @@ function closePetSelector() {
 }
 
 function handlePetOverlayClick(e) {
+  if (typeof studentBackdropClick === 'function') return studentBackdropClick(e, 'petOverlay', closePetSelector);
   if (e.target === document.getElementById('petOverlay')) closePetSelector();
 }
 
@@ -3152,6 +3156,8 @@ async function choosePetFromCard(petId) {
     html: '<div class="pet-swal-summary"><strong>' + escHtml(pet.defaultName) + '</strong><span>' + (cost > 0 ? 'ใช้ ' + cost + ' เหรียญจาก MathCoins' : 'ใช้สิทธิ์เลือกฟรี') + '</span></div>',
     input: 'text',
     inputValue: pet.defaultName,
+    allowOutsideClick: function() { return typeof studentEditableSwalDismiss !== 'function' || studentEditableSwalDismiss(pet.defaultName); },
+    allowEscapeKey: function() { return typeof studentEditableSwalDismiss !== 'function' || studentEditableSwalDismiss(pet.defaultName); },
     inputLabel: 'ตั้งชื่อสัตว์เลี้ยง',
     inputAttributes: { maxlength: 18, autocapitalize: 'off', autocomplete: 'off' },
     showCancelButton: true,
@@ -3198,6 +3204,7 @@ async function openRenamePetModal() {
   var pet = findPetById(studentPet.pet_id);
   var renameUsed = clampPetCount(studentPet.rename_used, PET_RENAME_LIMIT);
   var remaining = Math.max(0, PET_RENAME_LIMIT - renameUsed);
+  var initialPetName = studentPet.pet_name || (pet && pet.defaultName) || 'Buddy';
   var SWAL_ABOVE = { customClass: { container: 'swal-above-shop' } };
   if (remaining <= 0) {
     return Swal.fire(Object.assign({
@@ -3211,7 +3218,9 @@ async function openRenamePetModal() {
     title: 'เปลี่ยนชื่อสัตว์เลี้ยง',
     html: '<div class="pet-swal-summary"><strong>' + escHtml(studentPet.pet_name || (pet && pet.defaultName) || 'Buddy') + '</strong><span>เหลือสิทธิ์เปลี่ยนชื่อ ' + remaining + ' ครั้ง</span></div>',
     input: 'text',
-    inputValue: studentPet.pet_name || (pet && pet.defaultName) || 'Buddy',
+    inputValue: initialPetName,
+    allowOutsideClick: function() { return typeof studentEditableSwalDismiss !== 'function' || studentEditableSwalDismiss(initialPetName); },
+    allowEscapeKey: function() { return typeof studentEditableSwalDismiss !== 'function' || studentEditableSwalDismiss(initialPetName); },
     inputLabel: 'ชื่อใหม่',
     inputAttributes: { maxlength: 18, autocapitalize: 'off', autocomplete: 'off' },
     showCancelButton: true,
@@ -3675,7 +3684,8 @@ function initProfileCrop() {
 
   modal.addEventListener('shown.bs.modal', initializeProfileCropper);
   modal.addEventListener('hide.bs.modal', function(event) {
-    if (profileCropProcessing) event.preventDefault();
+    if (profileCropProcessing) { event.preventDefault(); return; }
+    if (typeof studentConfirmDiscard === 'function') studentConfirmDiscard(event, modal, !!profileCropResolve);
   });
   modal.addEventListener('hidden.bs.modal', function() {
     if (profileCropResolve) {
@@ -3744,7 +3754,7 @@ function openProfileCrop(file) {
     setProfileCropState('loading', 'กำลังเตรียมรูป...');
     setProfileCropControlsDisabled(true, false);
     profileCropModalInstance = bootstrap.Modal.getOrCreateInstance(modal, {
-      backdrop: 'static',
+      backdrop: true,
       keyboard: true
     });
     profileCropModalInstance.show();
@@ -3943,18 +3953,26 @@ async function handlePhotoChange(event) {
 }
 
 async function checkIn() {
+  if (typeof studentCheckInBusy !== 'undefined' && studentCheckInBusy) return;
   if (typeof attendanceLocationBusy !== 'undefined' && attendanceLocationBusy) return;
   var pin = document.getElementById('pinCode').value.trim();
   if (pin.length !== 4) {
+    if (typeof studentPinFeedback === 'function') { studentPinFeedback('error', 'กรุณากรอก PIN ให้ครบ 4 หลัก'); document.getElementById('pinCode').focus(); return; }
     return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาระบุ PIN 4 หลัก', confirmButtonColor: UI_COLOR_PRIMARY });
   }
-  if (!isGoogleLoginActive()) loading('กำลังบันทึก...');
+  var uiOwner = typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id;
+  if (typeof studentCheckInBusy !== 'undefined') studentCheckInBusy = true;
+  if (typeof setStudentSubmissionBusy === 'function') setStudentSubmissionBusy(true);
+  if (typeof updateStudentInstallVisibility === 'function') updateStudentInstallVisibility();
+  if (typeof studentPinFeedback !== 'function' && !isGoogleLoginActive()) loading('กำลังบันทึก...');
   try {
     var res = await submitCheckInDb(CU.id, pin);
+    if (uiOwner !== (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) return;
     if (res.result === 'cancelled') return;
+    if (typeof studentCheckInFeedback === 'function') studentCheckInFeedback(res);
     if (res.result === 'success') {
       var pts = res.points || 0;
-      Swal.fire({
+      if (typeof studentCheckInFeedback !== 'function') Swal.fire({
         icon: 'success',
         title: 'สำเร็จ ✅',
         text: pts > 0 ? 'ได้รับ +' + pts + ' คะแนน 🎉' : 'เช็คชื่อเรียบร้อย',
@@ -3962,10 +3980,12 @@ async function checkIn() {
         timer: 2200,
         timerProgressBar: true
       });
-      document.getElementById('pinCode').value = '';
+      if (typeof studentCheckInFeedback !== 'function') document.getElementById('pinCode').value = '';
       setTimeout(async function() {
         try {
+          if (uiOwner !== (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) return;
           var d = await getStudentPointsAndLevelDb(CU.id);
+          if (uiOwner !== (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) return;
           var old = parseInt(document.getElementById('lvNum').textContent, 10) || 0;
           updateGamiUI(d);
           if (d.level > old) {
@@ -3975,11 +3995,12 @@ async function checkIn() {
           }
           renderStudentPet(studentPet, d.level, old);
           shopWallet = await getWalletBalanceDb(CU.id);
+          if (uiOwner !== (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) return;
           updateShopCoinsBadge(shopWallet.mathCoins);
         } catch (e) {}
       }, 900);
     } else {
-      if (res.code && String(res.code).indexOf('LOCATION_') === 0) return;
+      if (typeof studentCheckInFeedback === 'function' || (res.code && String(res.code).indexOf('LOCATION_') === 0)) return;
       Swal.fire({
         icon: res.result === 'duplicate' ? 'info' : 'error',
         title: res.result === 'duplicate' ? 'เรียบร้อยแล้ว' : 'ผิดพลาด',
@@ -3988,7 +4009,15 @@ async function checkIn() {
       });
     }
   } catch (e) {
-    onErr(e);
+    if (uiOwner !== (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) return;
+    if (typeof studentCheckInFeedback === 'function') studentCheckInFeedback({result:'error',msg:'ยังยืนยันการเช็คชื่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง'});
+    else onErr(e);
+  } finally {
+    if (uiOwner === (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) {
+      if (typeof studentCheckInBusy !== 'undefined') studentCheckInBusy = false;
+      if (typeof setStudentSubmissionBusy === 'function') setStudentSubmissionBusy(false);
+      if (typeof updateStudentInstallVisibility === 'function') updateStudentInstallVisibility();
+    }
   }
 }
 
@@ -4026,9 +4055,13 @@ function refreshStudentData() {
 }
 
 async function showStudentHistory() {
-  loading('กำลังโหลด...');
+  var historyOwner = typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id;
+  Swal.fire({ title: 'ประวัติ ' + CU.name, html: '<div id="studentAttendanceHistory" class="swal-scroll" role="status">กำลังโหลดประวัติ...</div>',
+    confirmButtonText: 'ปิด', confirmButtonColor: UI_COLOR_PRIMARY, width: 400 });
+  var historyPopup = Swal.getPopup();
   try {
     var logs = await getStudentHistoryDb(CU.id, 'all');
+    if (historyPopup !== Swal.getPopup() || historyOwner !== (typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id)) return;
     var pts = function(l) {
       return l.points > 0
         ? '<span class="point-chip">+' + l.points + 'pt</span>'
@@ -4041,14 +4074,9 @@ async function showStudentHistory() {
         + '<span class="pill ' + attendancePillClass(l.status) + '">' + l.status + '</span>'
         + '</div></div>';
     }).join('') : '<div class="empty-message">ไม่มีข้อมูล</div>';
-    Swal.fire({
-      title: 'ประวัติ ' + CU.name,
-      html: '<div class="swal-scroll">' + html + '</div>',
-      confirmButtonColor: UI_COLOR_PRIMARY,
-      width: 400
-    });
+    document.getElementById('studentAttendanceHistory').innerHTML = html;
   } catch (e) {
-    onErr(e);
+    if (historyPopup === Swal.getPopup()) document.getElementById('studentAttendanceHistory').textContent = 'โหลดประวัติไม่ได้ กรุณาปิดแล้วลองใหม่';
   }
 }
 
@@ -5063,6 +5091,7 @@ async function saveSettings() {
 
 /* ══ Logout ══════════════════════════════════════════ */
 async function logout() {
+  if (typeof resetStudentHome === 'function') resetStudentHome();
   if (typeof resetStudentProfileStyle === 'function') resetStudentProfileStyle();
   if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   var googleLogout = !isGuestMode() || !!googleAccount;
@@ -6397,6 +6426,7 @@ function closeShop() {
 }
 
 function handleShopOverlayClick(e) {
+  if (typeof studentBackdropClick === 'function') return studentBackdropClick(e, 'shopOverlay', closeShop);
   if (e.target === document.getElementById('shopOverlay')) closeShop();
 }
 
@@ -6471,7 +6501,7 @@ function updateWalletUI(w, prevCoins) {
 
 function updateShopCoinsBadge(coins) {
   var b = document.getElementById('shopCoinsBadge');
-  if (b) b.textContent = coins + ' 🪙';
+  if (b) b.textContent = Number(coins).toLocaleString('th-TH');
 }
 
 function renderShopItems(items) {

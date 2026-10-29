@@ -5,6 +5,7 @@
 /tmp/scansob/
 /tmp/attendance-location/
 /tmp/profile-frames/
+/tmp/student-home/
 /.env*
 /supabase/.env*
 /supabase/functions/.env*

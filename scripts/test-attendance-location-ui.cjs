@@ -94,7 +94,8 @@ async function main() {
     const count = calls.length; await page.locator('#pinCode').press('Enter'); assert.equal(calls.length, count, 'Enter cannot double submit');
     if (!process.argv.includes('--no-capture')) await page.locator('#studentCheckInSurface').screenshot({ path: path.join(output, 'waiting-1280.png') });
     await page.evaluate(() => { fixtureLocation.mode = 'inside'; }); await finished();
-    assert.equal(await page.locator('#pinCode').inputValue(), '', 'successful check-in clears PIN');
+    await page.waitForFunction(() => document.getElementById('pinCode').value === '', { timeout: 5000 });
+    assert.equal(await page.locator('#pinCode').inputValue(), '', 'successful check-in clears PIN after the 3-second visual feedback');
     const opts = await page.evaluate(() => fixtureLocation.options);
     assert.equal(opts.enableHighAccuracy, true); assert.equal(opts.maximumAge, 0); assert.equal(opts.timeout, 20000);
     const commitsBeforePoorFix = calls.filter(c => c.name === 'mq_student_check_in_at_location').length;
