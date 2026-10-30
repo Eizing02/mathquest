@@ -1,0 +1,66 @@
+{
+  "id": "nebula",
+  "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme NEBULA: cobalt enamel, periwinkle crystalline ribbons, silver celestial filigree and fine flowing star TRAILS engraved into polished metal. Far right has a dimensional sweeping spiral armillary arch and layered comet-tail fins with pale lilac translucent crystal, suggesting the original pet's flowing luminous mane without depicting any creature. Thin silver engraved stellar points confined to the architecture at the edges, never scattered in the open center. Saturated cobalt blue #3156a7, periwinkle #8797e9, cool silver, very light pearl center; no moon/crescent as focal symbol, no dark outer-space sky, no glow balls. Unique flowing swept architecture rather than mechanical gears.",
+  "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-e7706a82-305f-48f9-9648-c1cfad23d1b4.png",
+  "generator": "built-in tools.image_gen__imagegen",
+  "transparent_background": false,
+  "master": "assets/student-banners/masters/nebula.png",
+  "runtime": {
+    "path": "assets/student-banners/nebula.webp",
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "format": "webp",
+    "quality": 90,
+    "alphaQuality": 100
+  },
+  "qa": {
+    "id": "nebula",
+    "masterDimensions": [
+      1983,
+      793
+    ],
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "runtimeBytes": 161024,
+    "runtimeSha256": "032369a6e4a80000f964baded56afedb87e9fb4e753a63f8c4850e3cf6c14595",
+    "masterSha256": "fea5280fbabf78c9fc4fbd2feddb669bd608ab29ad9029b3eebc8e71a51bc6ca",
+    "originalToolFilePreserved": true,
+    "exactPromptEmbedded": true,
+    "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+    "nonblank": true,
+    "alphaRange": [
+      255,
+      255
+    ],
+    "transparentPercent": 0,
+    "textSafeZone": {
+      "bounds": [
+        0.2,
+        0.75,
+        0.2,
+        0.85
+      ],
+      "pixels": 234432,
+      "nonzeroAlphaPixels": 234432,
+      "alphaGte16Pixels": 234432,
+      "maxAlpha": 255,
+      "meanAlpha": 255,
+      "meanLuma": 239.6963757815403,
+      "darkPercentBelow180": 4.046802484302484
+    },
+    "visual480WidthChecked": true,
+    "noTextCharactersOrUI": true,
+    "distinctMaterialsAndPalette": true,
+    "strictTransparentZone": null,
+    "lightAndDarkCompositeInspected": null
+  },
+  "reviewStatus": "needs_parent_review",
+  "gateScore": "unscored",
+  "limitations": [
+    "Base banners have light text-zone mean luma 225.6-239.7/255, with 2.7%-7.9% of the full requested rectangle below luma180 at edge ornament intrusions, strongest on Cinder. 480-wide previews visually checked."
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "id": "valor",
+  "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme VALOR: regal knight armor architecture in polished ivory ceramic, engraved warm gold #b67d39, deep navy enamel and crisp crimson accents. At far right an upright heraldic shield-shaped architectural relief, articulated angular ivory/gold armor fins and restrained navy/crimson fabric pennant folds framing a luminous arch. Shield is blank material ornament, no emblem letters, numbers, coat of arms animals, person, helmet face, or character. Narrow outer rails carry layered ivory armor segments edged in gold with tiny dark navy and crimson geometric inlays. Bright chivalric ceremonial craftsmanship, balanced ivory/gold/navy/crimson; center pale pearl-white. Distinct angular knight armor geometry, not foliage, not lunar/celestial, not gears. Lavish and confident, no battle scene.",
+  "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-d783c60c-f1b8-4606-bdd0-6fb2718cd673.png",
+  "generator": "built-in tools.image_gen__imagegen",
+  "transparent_background": false,
+  "master": "assets/student-banners/masters/valor.png",
+  "runtime": {
+    "path": "assets/student-banners/valor.webp",
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "format": "webp",
+    "quality": 90,
+    "alphaQuality": 100
+  },
+  "qa": {
+    "id": "valor",
+    "masterDimensions": [
+      1983,
+      793
+    ],
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "runtimeBytes": 143882,
+    "runtimeSha256": "97d3c2552255583edb248728b011fb9644c331f85b577a73794018cc7cd094c6",
+    "masterSha256": "fe5e4a9273b39eecc86530a4a4ee0ceebeea8b3a7800a9d318b6ee3e2058ca1d",
+    "originalToolFilePreserved": true,
+    "exactPromptEmbedded": true,
+    "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+    "nonblank": true,
+    "alphaRange": [
+      255,
+      255
+    ],
+    "transparentPercent": 0,
+    "textSafeZone": {
+      "bounds": [
+        0.2,
+        0.75,
+        0.2,
+        0.85
+      ],
+      "pixels": 234432,
+      "nonzeroAlphaPixels": 234432,
+      "alphaGte16Pixels": 234432,
+      "maxAlpha": 255,
+      "meanAlpha": 255,
+      "meanLuma": 232.48233329030742,
+      "darkPercentBelow180": 5.0735394485394485
+    },
+    "visual480WidthChecked": true,
+    "noTextCharactersOrUI": true,
+    "distinctMaterialsAndPalette": true,
+    "strictTransparentZone": null,
+    "lightAndDarkCompositeInspected": null
+  },
+  "reviewStatus": "needs_parent_review",
+  "gateScore": "unscored",
+  "limitations": [
+    "Base banners have light text-zone mean luma 225.6-239.7/255, with 2.7%-7.9% of the full requested rectangle below luma180 at edge ornament intrusions, strongest on Cinder. 480-wide previews visually checked."
+  ]
+}

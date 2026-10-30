@@ -1,0 +1,17 @@
+{
+  "id": "toady",
+  "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME TOADY: rich purple, vivid lime green and muted olive, with aged gold details. Far-right architecture is an elegant alchemist's still-life built into an ivory niche: tall faceted lime-glass retort, angular purple-glass vial and coiled olive-and-gold condenser pipes, tiny engraved metallic fittings without writing, polished enamel and glass craftsmanship. No round bubbles, balls, beads, potion labels, mushrooms, faces or creatures. All alchemy vessels fixed to the far-right structure, center pearl-white and empty.",
+  "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-2f68fef1-a1f4-4d97-873b-5d5df0d58605.png",
+  "referencePath": "tmp/profile-frames/pet-colors.png",
+  "generator": "tools.image_gen__imagegen",
+  "masterPath": "assets/student-banners/masters/toady.png",
+  "runtimePath": "assets/student-banners/toady.webp",
+  "transform": {
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "webpQuality": 90,
+    "maxBytes": 256000
+  }
+}

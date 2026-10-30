@@ -1,0 +1,834 @@
+{
+  "batch": "b",
+  "generator": "built-in tools.image_gen__imagegen",
+  "reference": "tmp/profile-frames/pet-colors.png",
+  "expectedIds": [
+    "iron",
+    "nebula",
+    "scorch",
+    "mossy",
+    "luna",
+    "valor",
+    "bramble",
+    "cinder",
+    "rank-10",
+    "rank-20",
+    "rank-30",
+    "rank-40"
+  ],
+  "runtimeWidth": 1280,
+  "runtimeHeight": 512,
+  "entries": [
+    {
+      "id": "iron",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme IRON: brushed blue-grey tempered steel, aged warm brass clockwork teeth, finely engraved gear cogs, precision rivets, miniature interlocking mechanical arch architecture and layered armadillo-like armored scales without any creature. A mastercrafted circular open mechanism and overlapping steel/brass armor plates anchor the far right; tiny copper bearings and polished screws enrich the narrow edges. Palette steel slate, muted brass #9e9168, ivory pearl; avoid floral and celestial motifs. High-end mechanical atelier, pale silver-white center.",
+      "transparent": false,
+      "source": "C:/Users/piyaw/.codex/generated_images/01a188f1-88f8-76f1-a1bf-c053613b157d/exec-01c98df4-7a14-4f9d-9b4c-8e07a103e283.png",
+      "master": "assets/student-banners/masters/iron.png",
+      "runtime": "assets/student-banners/iron.webp",
+      "sidecar": "assets/student-banners/iron.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "iron",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 150850,
+        "runtimeSha256": "18c1b1614413241922488773422d1aadfe67402f7de6cfe7ca3a2db2c1b7cbcc",
+        "masterSha256": "05a969d63561ae659002326e2be5f91e50e22fd1debb6d8aeb27a9ce281df052",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 237.84409020589194,
+          "darkPercentBelow180": 4.103961916461916
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "nebula",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme NEBULA: cobalt enamel, periwinkle crystalline ribbons, silver celestial filigree and fine flowing star TRAILS engraved into polished metal. Far right has a dimensional sweeping spiral armillary arch and layered comet-tail fins with pale lilac translucent crystal, suggesting the original pet's flowing luminous mane without depicting any creature. Thin silver engraved stellar points confined to the architecture at the edges, never scattered in the open center. Saturated cobalt blue #3156a7, periwinkle #8797e9, cool silver, very light pearl center; no moon/crescent as focal symbol, no dark outer-space sky, no glow balls. Unique flowing swept architecture rather than mechanical gears.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-e7706a82-305f-48f9-9648-c1cfad23d1b4.png",
+      "master": "assets/student-banners/masters/nebula.png",
+      "runtime": "assets/student-banners/nebula.webp",
+      "sidecar": "assets/student-banners/nebula.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "nebula",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 161024,
+        "runtimeSha256": "032369a6e4a80000f964baded56afedb87e9fb4e753a63f8c4850e3cf6c14595",
+        "masterSha256": "fea5280fbabf78c9fc4fbd2feddb669bd608ab29ad9029b3eebc8e71a51bc6ca",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 239.6963757815403,
+          "darkPercentBelow180": 4.046802484302484
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "scorch",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme SCORCH: desert-forged amber gold ceremonial armor, turquoise enamel inlays, layered scalloped golden carapace plates, warm amber faceted jewels and precise sand-etched geometric craftsmanship. At far right, a grand curling segmented armored buttress with curved crescent-like claw geometry but NO creature anatomy, no animal or face, accompanied by an elegant sun-warmed gold desert palace arch. Thin gold/turquoise scale mosaics trace only the outer edge. Palette rich antique gold #d29a37, honey amber, vivid turquoise and pale ivory pearl center. Restrained reddish copper joins, no gears, no celestial stars, no greenery, no dunes crossing the light center. Distinct desert armor architecture, opulent and bright.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-f298a706-e1f5-4bb3-a13d-a27a04e57c01.png",
+      "master": "assets/student-banners/masters/scorch.png",
+      "runtime": "assets/student-banners/scorch.webp",
+      "sidecar": "assets/student-banners/scorch.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "scorch",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 157496,
+        "runtimeSha256": "b39bbe4c9a8bbb1841af31bb95b8124a812317fa72ed06a520064c755e5169f3",
+        "masterSha256": "ead4d8d178b11098fcc41756f2b91e90f57a914089a3626418647cd3485fed8d",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 238.2167687346827,
+          "darkPercentBelow180": 3.4892847392847393
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "mossy",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme MOSSY: deep forest-green lacquered woodland scale armor, amber cabochons, aged gilded bronze, sculptural branching antler-shaped architectural braces with NO creature or face, layered glossy leaf-shaped armor plates. Far right is an opulent woodland ceremonial arch of carved branching timber clad with green scales and antler-like bronze tracery, small warm amber inset jewels. Subtle ferns, moss tufts and finely carved foliage along only narrow outer edges, no natural landscape in the center. Palette deep green #234a32, olive #6f8c39, amber, warm bronze, bright pearl-white center. Elegant architectural discipline rather than a tangled thicket. Distinct leaf scales and antler braces, no thorn vines or burgundy.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-650dc9a6-6429-49e1-9439-46f29c0a221e.png",
+      "master": "assets/student-banners/masters/mossy.png",
+      "runtime": "assets/student-banners/mossy.webp",
+      "sidecar": "assets/student-banners/mossy.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "mossy",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 171254,
+        "runtimeSha256": "70d72274569c09df67c20a17d032b84b70b96875077c11359e8aabc2d68fd68a",
+        "masterSha256": "2c8622a6a084b0757ce4cddaf2cb00e14eabbf2609bcc7ee019fdbed0caf94be",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 225.59477281304385,
+          "darkPercentBelow180": 2.9321935571935573
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "luna",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme LUNA: deep indigo velvet-like enamel, polished cool silver, restrained pale champagne gold, milky moonstone cabochons with subtle icy blue internal sheen. Far right, an elegant tall slender silver crescent moon architectural sculpture with indigo inlaid arched supports, layered small angular silver fins and moonstone jewelry, all sculpted into the edge architecture, no animal. The crescent is open and airy with pearl backdrop visible through it, no round floating glow. Narrow silver lunar filigree and indigo enamel frame the edges. Palette indigo #29355d, soft blue #8193c9, silver, pale gold, pristine pearl-white center. Lunar crescent and moonstone theme clearly different from Nebula's dynamic star-trail ribbons; no flowing comet fins, no scattered stars, no night-sky background.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-1402c31e-7120-4e7d-a039-207d9af768f1.png",
+      "master": "assets/student-banners/masters/luna.png",
+      "runtime": "assets/student-banners/luna.webp",
+      "sidecar": "assets/student-banners/luna.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "luna",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 118044,
+        "runtimeSha256": "71e3a09be57ec411cc0b6e548988f2d44c0270af4134f203b151ba7ab606ef34",
+        "masterSha256": "6677ca2de9f0c8bf3d26b72126d71c59a020e72c6820f479259144432f38fdfb",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 239.0789840533445,
+          "darkPercentBelow180": 2.7491980616980616
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "valor",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme VALOR: regal knight armor architecture in polished ivory ceramic, engraved warm gold #b67d39, deep navy enamel and crisp crimson accents. At far right an upright heraldic shield-shaped architectural relief, articulated angular ivory/gold armor fins and restrained navy/crimson fabric pennant folds framing a luminous arch. Shield is blank material ornament, no emblem letters, numbers, coat of arms animals, person, helmet face, or character. Narrow outer rails carry layered ivory armor segments edged in gold with tiny dark navy and crimson geometric inlays. Bright chivalric ceremonial craftsmanship, balanced ivory/gold/navy/crimson; center pale pearl-white. Distinct angular knight armor geometry, not foliage, not lunar/celestial, not gears. Lavish and confident, no battle scene.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-d783c60c-f1b8-4606-bdd0-6fb2718cd673.png",
+      "master": "assets/student-banners/masters/valor.png",
+      "runtime": "assets/student-banners/valor.webp",
+      "sidecar": "assets/student-banners/valor.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "valor",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 143882,
+        "runtimeSha256": "97d3c2552255583edb248728b011fb9644c331f85b577a73794018cc7cd094c6",
+        "masterSha256": "fe5e4a9273b39eecc86530a4a4ee0ceebeea8b3a7800a9d318b6ee3e2058ca1d",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 232.48233329030742,
+          "darkPercentBelow180": 5.0735394485394485
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "bramble",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme BRAMBLE: earthy dark olive green armor scales, antique bronze architectural filigree, deep burgundy pointed bracts and small dusty rose inset stones #aa6e81. Sculptural twisting thorn vines form an intricate fortified right-side buttress and sharply layered burgundy/bronze armored ridge; each thorn is an intentional carved bronze material detail, not a dangerous foreground weapon. Small round berry-like garnet cabochons stay embedded in the architecture; no floating orbs. Narrow outer edges have elegant thorns, bronze vine tracery and leathery earth-green leaf plates. Pearl-white luminous open center. Moody colors only on edges, daylight material clarity. Clearly different from Mossy's woodland antler/fern architecture: BRAMBLE is angular protective thorn-and-burgundy scale ornament, no antlers, no forest scene, no big flowers, no living creature.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-a2aceefe-a1ce-431a-acc0-4f285e6fd656.png",
+      "master": "assets/student-banners/masters/bramble.png",
+      "runtime": "assets/student-banners/bramble.webp",
+      "sidecar": "assets/student-banners/bramble.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "bramble",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 155816,
+        "runtimeSha256": "be7a679d5c00101d3b762798251fc8d45e2fb7d400b8659ad737658f119e307d",
+        "masterSha256": "0a711096f5747425351d687c5fd32b06229cd948477dc0454cdff87ba935fc19",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 229.20629874630976,
+          "darkPercentBelow180": 4.627354627354627
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "cinder",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme CINDER: sculpted black basalt and charcoal volcanic obsidian armor architecture with thin vivid molten-orange lava seams, ember-orange crystal inlays and pale warm gunmetal reinforcement. Far right has monumental interlocking hexagonal basalt carapace plates and a circular forge-like stone relief with a narrow contained orange molten ring, flanked by angular volcanic spires. No animal or face. Narrow outer border is fragmented polished black basalt with precise bright orange fissures and tiny glowing inset seams, not fire crossing the center. Keep black lava rock restricted to outer10% and far-right quarter; middle remains luminous pearlescent near-white. Palette black basalt #242326, lava orange #e57827, molten amber and ivory pearl. NO smoke, haze, ash, floating sparks/orbs, flame creatures, dark overall scene, gears or machinery. Contrast between lavish volcanic edge and absolutely clean light center.",
+      "transparent": false,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-2033a654-e07f-485f-8330-a0758bf406db.png",
+      "master": "assets/student-banners/masters/cinder.png",
+      "runtime": "assets/student-banners/cinder.webp",
+      "sidecar": "assets/student-banners/cinder.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "opaque"
+      },
+      "qa": {
+        "id": "cinder",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 152862,
+        "runtimeSha256": "6aeaecd6d96bd1c5247ba79d41bb046866bb2d5eaa784e58bcd5bed54db881b5",
+        "masterSha256": "d83d0545a08b50fea7440815af71efb704aea02a898df55476877fdb0725ca29",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          255,
+          255
+        ],
+        "transparentPercent": 0,
+        "textSafeZone": {
+          "bounds": [
+            0.2,
+            0.75,
+            0.2,
+            0.85
+          ],
+          "pixels": 234432,
+          "nonzeroAlphaPixels": 234432,
+          "alphaGte16Pixels": 234432,
+          "maxAlpha": 255,
+          "meanAlpha": 255,
+          "meanLuma": 228.86126010079468,
+          "darkPercentBelow180": 7.922126672126672
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": null,
+        "lightAndDarkCompositeInspected": null
+      }
+    },
+    {
+      "id": "rank-10",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK10 design: restrained elegant etched SILVER endcaps, a pair of narrow vertically oriented silver acanthus-scroll end pieces at extreme left and right, slim lightly engraved silver double rails along top and bottom. Precise cool silver chasing, very tiny clear white crystal pin accents at corners only. Symmetrical horizontal panorama with especially refined silver right endcap; large totally transparent open middle. This is the simplest tier, no crown, no gold wing crest. Do not fill the opening with pearl, white, any background, or scenery. Use real transparent alpha. Render the complete panoramic frame in the canvas, not a centered small isolated badge.",
+      "transparent": true,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-7dcac069-f68d-42c9-8de2-fd7ef14491c5.png",
+      "master": "assets/student-banners/masters/rank-10.png",
+      "runtime": "assets/student-banners/rank-10.webp",
+      "sidecar": "assets/student-banners/rank-10.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "extract": {
+          "left": 0,
+          "top": 110,
+          "width": 1983,
+          "height": 580
+        },
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "fill"
+        },
+        "alpha": "native preserved; no alpha edits"
+      },
+      "qa": {
+        "id": "rank-10",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 140924,
+        "runtimeSha256": "58dce74162b1522698b4d1d0f59067222eb08074a33fdb1bb127e5884452b447",
+        "masterSha256": "60c58a954456503dfa963629bfcbd16203196ef138704d6b6e42792b2ee99478",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          0,
+          255
+        ],
+        "transparentPercent": 75.28594970703125,
+        "textSafeZone": {
+          "bounds": [
+            0.15,
+            0.85,
+            0.15,
+            0.9
+          ],
+          "pixels": 344064,
+          "nonzeroAlphaPixels": 5798,
+          "alphaGte16Pixels": 5,
+          "maxAlpha": 213,
+          "meanAlpha": 0.018415178571428572,
+          "meanLuma": 0.34994302222842244,
+          "darkPercentBelow180": 99.87996419270833
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": false,
+        "lightAndDarkCompositeInspected": true
+      }
+    },
+    {
+      "id": "rank-20",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK20 design: premium pale-gold and clear crystal endcaps, elegant carved champagne-gold filigree over platinum, elongated faceted white crystals inset only at extreme left and right, slim jeweled corner joints. PANORAMIC EDGE ANCHORING IS CRITICAL: top rail must physically touch the top canvas edge, bottom rail must touch the bottom edge, NO transparent margins above or below rails. Top rail entirely above y8%; bottom rail entirely below y94%; do not draw an inset rectangular frame. Side caps stay in outer12%. Center x15%-85% y15%-90% is one completely transparent opening. Slightly richer than simple silver but no crown and no big wings. No white/pearl/black background, no scenery. This is actual cutout metal-and-crystal ornament only, real native alpha.",
+      "transparent": true,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-4871ae91-a247-4361-90e3-83f37d0d35d6.png",
+      "master": "assets/student-banners/masters/rank-20.png",
+      "runtime": "assets/student-banners/rank-20.webp",
+      "sidecar": "assets/student-banners/rank-20.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "native preserved; no alpha edits"
+      },
+      "qa": {
+        "id": "rank-20",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 170594,
+        "runtimeSha256": "b48a6b66d901b49bcd4b0cc0bfdacc267d64c7e842d7badd0e77bfbcacc9e659",
+        "masterSha256": "c24d7d4049b7664aae59786ca5742992e38b524e67e3501886ecd10955f6fe5e",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          0,
+          255
+        ],
+        "transparentPercent": 72.38937377929688,
+        "textSafeZone": {
+          "bounds": [
+            0.15,
+            0.85,
+            0.15,
+            0.9
+          ],
+          "pixels": 344064,
+          "nonzeroAlphaPixels": 3545,
+          "alphaGte16Pixels": 608,
+          "maxAlpha": 255,
+          "meanAlpha": 0.39334833054315477,
+          "meanLuma": 2.8117008050827823,
+          "darkPercentBelow180": 99.01268368675595
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": false,
+        "lightAndDarkCompositeInspected": true
+      }
+    },
+    {
+      "id": "rank-30",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK30 design: elegant platinum and pale gold CROWN CREST with graceful sculpted metallic WINGS framing the OUTER edges. Keep the small crown crest at TOP RIGHT within x88%-98%, y0%-14%; sweep layered metal feather-wing motifs down the extreme side edges only, not into the transparent opening. Right side richer than left, exquisite platinum relief and pale gold fine accents, restrained white crystal points. Top and bottom narrow platinum-gold rails physically touch their canvas edges. TOP RAIL entirely y0%-7%; BOTTOM RAIL entirely y96%-100%. NO inset frame. ALL middle x15%-85%,y15%-90% absolutely transparent. No bottom-center inward-pointing crest; keep bottom rail very thin. The crown is jewelry, not a character, and the wings are carved metal ornament, not birds. Stronger premium tier than gold-crystal endcaps but not the most lavish; no stars anywhere. Native transparent alpha, absolutely no opaque filling or backdrop.",
+      "transparent": true,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-c2eb3868-0980-4b97-95ce-b075350706d6.png",
+      "master": "assets/student-banners/masters/rank-30.png",
+      "runtime": "assets/student-banners/rank-30.webp",
+      "sidecar": "assets/student-banners/rank-30.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "native preserved; no alpha edits"
+      },
+      "qa": {
+        "id": "rank-30",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 170762,
+        "runtimeSha256": "ac0fed77319c93ff34801bb47d709ddc543fdf8d6de00f22ac3132fd64204f64",
+        "masterSha256": "75a09265859364bc961555ccaef5ba96503afea865c27184f7045f82c63c1fe0",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          0,
+          255
+        ],
+        "transparentPercent": 73.50601196289062,
+        "textSafeZone": {
+          "bounds": [
+            0.15,
+            0.85,
+            0.15,
+            0.9
+          ],
+          "pixels": 344064,
+          "nonzeroAlphaPixels": 1463,
+          "alphaGte16Pixels": 123,
+          "maxAlpha": 248,
+          "meanAlpha": 0.06776355561755952,
+          "meanLuma": 0.08914346051897315,
+          "darkPercentBelow180": 99.99273390997024
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": false,
+        "lightAndDarkCompositeInspected": true
+      }
+    },
+    {
+      "id": "rank-40",
+      "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK40 design: the MOST lavish platinum and gold faceted-star CROWN/WING CREST edge jewelry, meticulous layered carved metal feathers and elaborate openwork tracery. Cluster the monumental but narrow faceted-star crown at TOP RIGHT, x88%-99%, y0%-18%, with a single large geometric colorless crystal star integrated IN the crown, NOT a floating star. Sculpted platinum wing flourishes run down the extreme right outer10% and left outer10%, with gold engraved feather ribs, angular faceted crystal jewels only along those edges. Multi-layer filigree top rail in y0%-8%, refined bottom rail entirely y96%-100%; both rails physically touch canvas edges, no inset rectangular frame, no transparent margins outside rails. The entire center x15%-85%, y15%-90% absolutely transparent, no wing or jewel trespassing; no bottom-middle crest. Rank40 clearly richer than rank30 with faceted star crown, dense finer precious-metal feather layers, crystalline detail. Metal sculpture only, not a character or bird. No pet motifs, no colored background or pearl fill, real native transparent alpha.",
+      "transparent": true,
+      "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-14d38605-0c8b-4c5e-b0c4-6cddb9722740.png",
+      "master": "assets/student-banners/masters/rank-40.png",
+      "runtime": "assets/student-banners/rank-40.webp",
+      "sidecar": "assets/student-banners/rank-40.webp.json",
+      "quality": 90,
+      "status": "produced",
+      "reviewStatus": "needs_parent_review",
+      "gateScore": "unscored",
+      "runtimeTransform": {
+        "resize": {
+          "width": 1280,
+          "height": 512,
+          "fit": "cover",
+          "position": "centre"
+        },
+        "alpha": "native preserved; no alpha edits"
+      },
+      "qa": {
+        "id": "rank-40",
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "runtimeBytes": 198446,
+        "runtimeSha256": "935528b6e130d8bea79c3854b5477104d4a52b89416eb91d92ed544da0ed413b",
+        "masterSha256": "c2ad2455e24969ac7980ffe9e793e08dd12557047295c587e7645a90a520e22b",
+        "originalToolFilePreserved": true,
+        "exactPromptEmbedded": true,
+        "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+        "nonblank": true,
+        "alphaRange": [
+          0,
+          255
+        ],
+        "transparentPercent": 66.94473266601562,
+        "textSafeZone": {
+          "bounds": [
+            0.15,
+            0.85,
+            0.15,
+            0.9
+          ],
+          "pixels": 344064,
+          "nonzeroAlphaPixels": 3122,
+          "alphaGte16Pixels": 457,
+          "maxAlpha": 255,
+          "meanAlpha": 0.27827380952380953,
+          "meanLuma": 1.098309938267292,
+          "darkPercentBelow180": 99.69831194196429
+        },
+        "visual480WidthChecked": true,
+        "noTextCharactersOrUI": true,
+        "distinctMaterialsAndPalette": true,
+        "strictTransparentZone": false,
+        "lightAndDarkCompositeInspected": true
+      }
+    }
+  ],
+  "completedIds": [
+    "iron",
+    "nebula",
+    "scorch",
+    "mossy",
+    "luna",
+    "valor",
+    "bramble",
+    "cinder",
+    "rank-10",
+    "rank-20",
+    "rank-30",
+    "rank-40"
+  ],
+  "missingFiles": [],
+  "generationBlocked": false,
+  "generationCalls": 12,
+  "allToolOriginalsPreserved": true,
+  "allRuntimeUnder250KB": true,
+  "scope": "Only Batch B masters, runtime images, prompt sidecars and this batch JSON written. No code/UI, Git, production, main manifest or test-file changes.",
+  "limitations": [
+    "Rank overlays use genuine native alpha preserved without masking, keying, or alpha synthesis, but generated low-alpha residue and small edge fringes mean the literal all-zero x15%-85% / y15%-90% zone test fails. Inspect per-asset alpha metrics; needs_parent_review.",
+    "Rank-10 runtime alone uses a vertical source crop (top 110, height 580 of 793) and fit:fill resize to put inset rails near canvas edges. Its original master is uncropped; endcap tips are cropped in runtime.",
+    "Base banners have light text-zone mean luma 225.6-239.7/255, with 2.7%-7.9% of the full requested rectangle below luma180 at edge ornament intrusions, strongest on Cinder. 480-wide previews visually checked.",
+    "No human visual approval or parent gate score recorded; all assets unscored."
+  ]
+}

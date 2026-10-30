@@ -21,6 +21,7 @@
   <link href="./attendance-location.css" rel="stylesheet">
   <link href="./profile-frames.css" rel="stylesheet">
   <link href="./student-home.css" rel="stylesheet">
+  <link href="./student-panels.css" rel="stylesheet">
   <link rel="manifest" href="./app.webmanifest">
   <meta name="theme-color" content="#176b60">
   <meta name="apple-mobile-web-app-title" content="เช็คชื่อเข้าเรียนครูอี้">
@@ -89,10 +90,6 @@
 <main id="studentSection" class="hidden" data-tier="0">
   <h1 class="visually-hidden">หน้าหลักนักเรียน</h1>
   <div class="container student-shell">
-    <header class="student-toolbar">
-      <strong>เช็คชื่อเข้าเรียนครูอี้</strong>
-      <button type="button" class="student-icon-button" onclick="openStudentMenu()" aria-label="บัญชีและเมนูเพิ่มเติม" title="เมนูเพิ่มเติม"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></button>
-    </header>
     <div class="student-menu-actions" hidden>
       <button id="googleStudentAccountButton" type="button" class="google-student-account me-2" onclick="openGoogleAccount()" hidden><i class="fa-solid fa-user me-1" aria-hidden="true"></i>บัญชี</button>
       <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()" aria-label="รีเฟรชข้อมูลนักเรียน">
@@ -124,6 +121,9 @@
 
     <!-- Profile + Level Card -->
     <div class="s-card mb-3" id="levelCard">
+      <div class="student-banner-header">
+      <img id="studentBannerArt" class="student-banner-art" alt="" aria-hidden="true" hidden>
+      <span class="student-rank-frame" id="studentRankFrame" aria-hidden="true"><img id="studentRankArt" alt="" hidden></span>
       <div class="text-center student-portrait">
         <div class="photo-overlay mb-2">
           <button type="button" class="profile-photo-trigger" id="profilePhotoTrigger"
@@ -143,9 +143,22 @@
       </div>
       <div class="student-identity">
         <div class="student-name" id="sNameDisp"></div>
+        <div class="student-identity-metrics">
+          <span id="levelRing">Lv. <strong id="lvNum">0</strong></span>
+          <span class="student-wallet"><i class="fa-solid fa-coins" aria-hidden="true"></i><strong id="shopCoinsBadge">—</strong><span>เหรียญ</span></span>
+        </div>
+      </div>
+      </div>
+      <div class="student-roster-details">
         <small class="student-grade" id="sGradeDisp"></small>
         <small class="student-grade" id="studentTermLabel"></small>
         <small class="student-grade" id="studentCodeLabel"></small>
+      </div>
+      <div class="student-progress">
+        <div class="xp-meta">
+          <span id="xpLabel">0 / 5 XP</span><span id="ptLabel">แต้มรวม 0</span>
+        </div>
+        <div class="xp-bg"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
       </div>
       <section class="pet-hero" id="petHero" aria-live="polite">
         <div class="pet-empty-state">
@@ -158,12 +171,8 @@
         </div>
       </section>
       <button class="student-pet-details" id="studentPetDetailsButton" type="button" onclick="openStudentPetDetails()" aria-label="ดูรายละเอียดและจัดการสัตว์เลี้ยง"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
-      <div class="student-progress">
-        <div class="student-progress-heading"><span id="levelRing">Level <strong id="lvNum">0</strong></span><span class="student-wallet"><i class="fa-solid fa-coins" aria-hidden="true"></i><span id="shopCoinsBadge">—</span><span>เหรียญ</span></span></div>
-        <div class="xp-meta">
-          <span id="xpLabel">0 / 5 XP</span><span id="ptLabel">แต้มรวม 0</span>
-        </div>
-        <div class="xp-bg"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+      <div class="student-toolbar">
+        <button type="button" class="student-icon-button" onclick="openStudentMenu()" aria-label="บัญชีและเมนูเพิ่มเติม" title="เมนูเพิ่มเติม"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></button>
       </div>
     </div>
 
@@ -190,7 +199,7 @@
 
     <nav class="student-actions" aria-label="เมนูนักเรียน">
       <button class="student-home-link" type="button" aria-current="page" onclick="studentGoHome()"><i class="fa-solid fa-house" aria-hidden="true"></i><span>หน้าหลัก</span></button>
-      <button class="btn-shop" id="studentShopButton" onclick="openShop()" aria-label="เปิด Magic Shop ไม่มีของขวัญใหม่">
+      <button class="btn-shop" id="studentShopButton" onclick="openShop()" aria-label="เปิดร้านค้า ไม่มีของขวัญใหม่">
         <i class="fa-solid fa-store" aria-hidden="true"></i>
         <span>ร้านค้า</span>
         <span class="student-gift-count hidden" id="studentShopGiftCount" aria-hidden="true">0</span>
@@ -552,7 +561,7 @@
     <div class="t-pane" id="tab-shop" role="region" aria-labelledby="teacher-tab-shop" hidden>
       <div class="tshop-wrap">
         <div class="tshop-hdr">
-          <h2 class="teacher-section-title"><i class="fa-solid fa-store me-2"></i>จัดการ Magic Shop</h2>
+          <h2 class="teacher-section-title"><i class="fa-solid fa-store me-2"></i>จัดการร้านค้า</h2>
           <div class="tshop-hdr-actions">
             <button class="tshop-action-btn tshop-action-gift" onclick="openGrantItemModal()">
               <i class="fa-solid fa-gift me-1"></i>มอบไอเทมฟรี
@@ -822,14 +831,14 @@
 <div class="shop-overlay" id="shopOverlay" onclick="handleShopOverlayClick(event)" aria-hidden="true">
   <div class="shop-modal" id="shopModal" role="dialog" aria-modal="true" aria-labelledby="shopModalTitle" tabindex="-1">
     <div class="shop-header">
-      <h5 id="shopModalTitle"><i class="fa-solid fa-store me-2" aria-hidden="true"></i>Magic Shop</h5>
+      <h5 id="shopModalTitle"><i class="fa-solid fa-store me-2" aria-hidden="true"></i>ร้านค้า</h5>
       <button class="shop-close" onclick="closeShop()" aria-label="ปิดร้านค้า"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </div>
     <div class="wallet-wrap">
       <div class="wallet-badge">
-        <div class="wallet-icon">🪙</div>
+        <div class="wallet-icon"><i class="fa-solid fa-coins" aria-hidden="true"></i></div>
         <div class="wallet-info" style="flex:1">
-          <div class="wi-label">MathCoins พร้อมใช้งาน</div>
+          <div class="wi-label">เหรียญพร้อมใช้</div>
           <div class="wi-val" id="shopCoinsDisplay" aria-live="polite">—</div>
           <div class="wi-sub" id="shopLifetimeDisplay" aria-live="polite">Lifetime EXP: —</div>
         </div>
@@ -1135,5 +1144,7 @@
 <script defer src="./profile-frames.js"></script>
 <script defer src="./student-home.js"></script>
 <script defer src="./student-install.js"></script>
+<script defer src="./student-history.js"></script>
+<script defer src="./student-banners.js"></script>
 </body>
 </html>

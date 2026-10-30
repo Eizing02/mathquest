@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "width": 1280,
+  "height": 512,
+  "pets": ["thorn", "leafy", "volt", "clover", "aqua", "ember", "snowy", "sunny", "mystic", "rocky", "toady", "zephyr", "fluffy", "iron", "nebula", "scorch", "mossy", "luna", "valor", "bramble", "cinder"],
+  "ranks": [0, 10, 20, 30, 40]
+}

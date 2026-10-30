@@ -2817,7 +2817,7 @@ function initOverlayKeyboardControls() {
     var openOverlay = petOverlay && petOverlay.classList.contains('open')
       ? petOverlay
       : (shopOverlay && shopOverlay.classList.contains('open') ? shopOverlay : null);
-    if (!openOverlay) return;
+    if (!openOverlay || (typeof Swal !== 'undefined' && Swal.isVisible())) return;
     if (event.key === 'Escape') {
       if (openOverlay === petOverlay) closePetSelector();
       else closeShop();
@@ -2951,9 +2951,11 @@ function updateGamiUI(d) {
 
   var lc = document.getElementById('levelCard');
   if (lc) lc.style.cssText = '';
+  if (typeof renderStudentBanner === 'function') renderStudentBanner();
 }
 
 function renderStudentPet(row, level, previousLevel) {
+  if (typeof renderStudentBanner === 'function') renderStudentBanner();
   if (typeof renderStudentProfileFrame === 'function') renderStudentProfileFrame();
   var hero = document.getElementById('petHero');
   if (!hero) return;
@@ -4055,6 +4057,7 @@ function refreshStudentData() {
 }
 
 async function showStudentHistory() {
+  if (typeof openStudentAttendanceHistory === 'function') return openStudentAttendanceHistory();
   var historyOwner = typeof studentUiIdentity === 'function' ? studentUiIdentity() : CU.id;
   Swal.fire({ title: 'ประวัติ ' + CU.name, html: '<div id="studentAttendanceHistory" class="swal-scroll" role="status">กำลังโหลดประวัติ...</div>',
     confirmButtonText: 'ปิด', confirmButtonColor: UI_COLOR_PRIMARY, width: 400 });
@@ -5335,7 +5338,7 @@ function updateStudentGiftNotificationUI(groups, announce) {
   var shopButton = document.getElementById('studentShopButton');
   var historyTab = document.getElementById('stab-history');
   var unreadLabel = count > 0 ? ' มีของขวัญใหม่ ' + count + ' รายการ' : ' ไม่มีของขวัญใหม่';
-  if (shopButton) shopButton.setAttribute('aria-label', 'เปิด Magic Shop' + unreadLabel);
+  if (shopButton) shopButton.setAttribute('aria-label', 'เปิดร้านค้า' + unreadLabel);
   if (historyTab) historyTab.setAttribute('aria-label', 'ประวัติการแลกของ' + unreadLabel);
 
   var banner = document.getElementById('studentGiftNotification');
@@ -6403,6 +6406,7 @@ async function loadWalletSummary() {
    STUDENT MAGIC SHOP
 ═════════════════════════════════════════════════════ */
 function openShop() {
+  if (CU.role !== 'STUDENT' || (typeof Swal !== 'undefined' && Swal.isVisible()) || document.querySelector('.modal.show')) return;
   var overlay = document.getElementById('shopOverlay');
   shopReturnFocus = document.activeElement;
   overlay.classList.add('open');
@@ -6411,7 +6415,7 @@ function openShop() {
   document.body.classList.add('shop-lock');
   var closeButton = overlay.querySelector('.shop-close');
   if (closeButton) closeButton.focus();
-  setTimeout(function() { if (closeButton) closeButton.focus(); }, 80);
+  setTimeout(function() { if (closeButton && overlay.classList.contains('open')) closeButton.focus(); }, 80);
   loadShopData();
 }
 
@@ -6471,7 +6475,7 @@ async function loadShopData() {
 
 async function refreshWallet() {
   document.getElementById('shopCoinsDisplay').textContent = '…';
-  document.getElementById('shopLifetimeDisplay').textContent = 'Lifetime EXP: …';
+  document.getElementById('shopLifetimeDisplay').textContent = 'กำลังโหลดข้อมูลเหรียญ...';
   try {
     shopWallet = await getWalletBalanceDb(CU.id);
     updateWalletUI(shopWallet, null);
@@ -6482,7 +6486,7 @@ async function refreshWallet() {
 
 function updateWalletUI(w, prevCoins) {
   var el = document.getElementById('shopCoinsDisplay');
-  el.textContent = w.mathCoins + ' 🪙';
+  el.textContent = Number(w.mathCoins).toLocaleString('th-TH');
   if (prevCoins !== null && prevCoins !== w.mathCoins) {
     if (el.animate) {
       el.animate([
@@ -6496,7 +6500,7 @@ function updateWalletUI(w, prevCoins) {
     }
   }
   document.getElementById('shopLifetimeDisplay').textContent =
-    'Lifetime EXP: ' + w.lifetimeExp + ' | ใช้ไปแล้ว: ' + w.totalSpent;
+    'EXP สะสม ' + w.lifetimeExp + ' · ใช้ไปแล้ว ' + w.totalSpent + ' เหรียญ';
 }
 
 function updateShopCoinsBadge(coins) {
@@ -6507,24 +6511,30 @@ function updateShopCoinsBadge(coins) {
 function renderShopItems(items) {
   var grid = document.getElementById('shopGrid');
   if (!items || !items.length) {
-    grid.innerHTML = '<div class="shop-empty shop-empty-full"><div class="shop-empty-icon">🏪</div><p>ยังไม่มีสินค้าในร้านค้าตอนนี้</p></div>';
+    grid.innerHTML = '<div class="shop-empty shop-empty-full"><div class="shop-empty-icon"><i class="fa-solid fa-store" aria-hidden="true"></i></div><p>ยังไม่มีสินค้าในร้านค้าตอนนี้</p></div>';
     return;
   }
   var coins = shopWallet ? shopWallet.mathCoins : 0;
   grid.innerHTML = items.map(function(item) {
     var canAfford = coins >= item.cost;
     var imgHtml = item.image
-      ? '<img src="' + item.image + '" class="shop-item-img" alt="รูปสินค้า ' + escHtml(item.itemName) + '" loading="lazy" width="60" height="60" onerror="this.classList.add(\'hidden\');this.nextElementSibling.classList.remove(\'hidden\')"><span class="shop-item-emoji hidden">🎁</span>'
-      : '<span class="shop-item-emoji">🎁</span>';
-    return '<div class="shop-item">'
+      ? '<img src="' + escHtml(item.image) + '" class="shop-item-img" alt="รูปสินค้า ' + escHtml(item.itemName) + '" loading="lazy" width="80" height="80" onerror="this.classList.add(\'hidden\');this.nextElementSibling.classList.remove(\'hidden\')"><i class="fa-solid fa-gift shop-item-fallback hidden" aria-hidden="true"></i>'
+      : '<i class="fa-solid fa-gift shop-item-fallback" aria-hidden="true"></i>';
+    return '<article class="shop-item">'
       + imgHtml
       + '<div class="shop-item-name">' + escHtml(item.itemName) + '</div>'
       + (item.description ? '<div class="shop-item-desc">' + escHtml(item.description) + '</div>' : '')
-      + '<div class="shop-item-cost"><span>🪙</span>' + item.cost + '</div>'
-      + '<button class="shop-buy-btn' + (canAfford ? '' : ' cant-afford') + '" ' + (canAfford ? '' : 'disabled ') + 'onclick="tryBuyItem(\'' + escHtml(item.itemId) + '\',\'' + escHtml(item.itemName) + '\',' + item.cost + ')">'
-      + (canAfford ? '🛍️ ซื้อเลย' : '🔒 เหรียญไม่พอ')
-      + '</button></div>';
+      + '<div class="shop-item-cost"><i class="fa-solid fa-coins" aria-hidden="true"></i>' + escHtml(item.cost) + ' เหรียญ</div>'
+      + '<button type="button" class="shop-buy-btn' + (canAfford ? '' : ' cant-afford') + '" ' + (canAfford ? '' : 'disabled ') + 'data-shop-item="' + escHtml(item.itemId) + '">'
+      + (canAfford ? '<i class="fa-solid fa-bag-shopping" aria-hidden="true"></i> แลกของ' : '<i class="fa-solid fa-lock" aria-hidden="true"></i> เหรียญไม่พอ')
+      + '</button></article>';
   }).join('');
+  grid.querySelectorAll('[data-shop-item]').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var item = items.find(function(row) { return String(row.itemId) === button.dataset.shopItem; });
+      if (item) tryBuyItem(item.itemId, item.itemName, item.cost);
+    });
+  });
 }
 
 async function getWalletBalance(studentId) {

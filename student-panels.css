@@ -1,0 +1,136 @@
+/* Shared student dialogs retain a visible outside-dismiss area on every viewport. */
+#shopOverlay{align-items:center;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));background:rgba(17,32,30,.48);backdrop-filter:none;-webkit-backdrop-filter:none}
+#shopOverlay #shopModal{width:min(720px,100%);height:min(80dvh,700px);max-height:calc(100dvh - 32px);min-height:0;padding:0;border:0;border-radius:8px;background:#fff;color:#203831;box-shadow:0 16px 48px #172e3026;transform:scale(.98);transition:transform .18s ease-out;overflow:hidden;will-change:auto}
+#shopOverlay.open #shopModal{transform:none}
+#shopOverlay .shop-header{padding:14px 20px;border-bottom:1px solid #dde7e3;color:#203831;flex:none}
+#shopOverlay .shop-header h5{font-family:'Sarabun',sans-serif;color:#203831;font-size:1.25rem;gap:4px}
+#shopOverlay .shop-close{color:#536d63;border-radius:6px}
+#shopOverlay .shop-close:hover{background:#edf3ef;color:#203831;transform:none}
+#shopOverlay .wallet-wrap{padding:12px 20px;flex:none}
+#shopOverlay .wallet-badge{border:0;border-radius:0;background:transparent;padding:0;gap:14px}
+#shopOverlay .wallet-icon{width:44px;text-align:center;font-size:1.5rem;filter:none;animation:none;color:#a16a12;will-change:auto}
+#shopOverlay .wi-label{color:#536d63;font-size:.875rem;font-weight:400;line-height:1.5}
+#shopOverlay .wi-val{color:#203831;font-size:1.75rem;font-variant-numeric:tabular-nums;line-height:1.4;margin:2px 0}
+#shopOverlay .wi-sub{color:#536d63;font-size:.8125rem;line-height:1.6}
+#shopOverlay .wallet-refresh-btn{color:#176b60;background:#edf5ef}
+#shopOverlay .shop-tabs{padding:0 20px;gap:16px;border-bottom:1px solid #dde7e3;flex:none}
+#shopOverlay .shop-tab{background:none;color:#536d63;box-shadow:none;border:0;border-bottom:2px solid transparent;border-radius:0;min-height:48px;font-size:.9375rem}
+#shopOverlay .shop-tab.active{background:none;border-color:#176b60;color:#176b60;box-shadow:none}
+#shopOverlay .shop-tab-gift-count{border-color:white}
+#shopOverlay .shop-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;padding:16px 20px 20px;scrollbar-color:#a4bbb0 transparent}
+#shopOverlay .shop-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));gap:14px;max-width:620px;margin:0 auto}
+#shopOverlay .shop-item{min-width:0;padding:16px 12px;border:1px solid #d8e4dd;border-radius:8px;background:#fff;color:#203831;box-shadow:none;transition:border-color .15s}
+#shopOverlay .shop-item:hover{background:#f8fbf8;border-color:#8cac9d;transform:none}
+#shopOverlay .shop-item-img{width:80px;height:80px;object-fit:contain;border-radius:0;margin-bottom:12px;flex:none}
+#shopOverlay .shop-item-emoji,#shopOverlay .shop-item-fallback{width:80px;height:80px;font-size:2rem;color:#708e80;align-self:center;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+#shopOverlay .shop-item-name{color:#203831;font-size:1rem;line-height:1.55;height:auto;min-height:3.1em;overflow:visible;overflow-wrap:anywhere}
+#shopOverlay .shop-item-desc{color:#536d63;font-size:.875rem;line-height:1.6;height:auto;min-height:3.2em;overflow:visible;overflow-wrap:anywhere;margin-top:6px}
+#shopOverlay .shop-item-cost{color:#94600b;font-size:1rem;margin-top:auto;padding-top:12px;gap:6px}
+#shopOverlay .shop-buy-btn{border-radius:6px;background:#176b60;color:#fff;min-height:44px;font-size:.9375rem}
+#shopOverlay .shop-buy-btn:hover:not(:disabled){background:#105447!important;transform:none}
+#shopOverlay .shop-buy-btn:disabled{background:#eef1ef!important;color:#66786e!important}
+#shopOverlay .redeem-item{border:0;border-bottom:1px solid #dce6e0;border-radius:0;background:transparent;padding:14px 0;gap:12px;align-items:flex-start}
+#shopOverlay .ri-name{color:#203831;line-height:1.55;font-size:1rem;overflow-wrap:anywhere}
+#shopOverlay .ri-date,#shopOverlay .shop-empty{color:#536d63;font-size:.875rem;line-height:1.6}
+#shopOverlay .ri-cost{color:#94600b}
+#shopOverlay .badge-pending{background:#fff4d8;color:#80550e;border-color:#ebd69b}
+#shopOverlay .badge-approved{background:#e2f4e9;color:#166640;border-color:#b1d7c0}
+#shopOverlay .badge-rejected{background:#fce9ed;color:#a52c44;border-color:#edbdc7}
+#shopOverlay .shop-skeleton{background:#edf3ef;border:0;border-radius:8px}
+#shopOverlay button:focus-visible{outline:3px solid #28745a;outline-offset:2px}
+.student-utility-modal[data-kind="attendance-history"] .modal-dialog{display:flex;align-items:center;min-height:calc(100dvh - 48px);width:min(440px,calc(100% - 24px));margin:24px auto}
+.student-utility-modal[data-kind="attendance-history"] .modal-content{max-height:calc(100dvh - 48px)}
+.student-utility-modal[data-kind="attendance-history"] .modal-body{padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.student-history-scroll{height:min(360px,48dvh);min-height:100px;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:0 20px;scrollbar-width:thin;scrollbar-color:#a4bbb0 transparent}
+.student-attendance-day{padding:13px 0;border-bottom:1px solid #e0e9e4}
+.student-attendance-day time{display:block;font-weight:700;font-size:1rem;line-height:1.5;margin-bottom:6px;color:#203831}
+.student-attendance-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:5px;font-size:.875rem;line-height:1.6}
+.student-attendance-entry>span:first-child{font-weight:600}
+.student-attendance-entry[data-status="มา"]>span:first-child{color:#176b48}
+.student-attendance-entry[data-status="กิจกรรม"]>span:first-child{color:#245b92}
+.student-attendance-entry[data-status="ขาด"]>span:first-child{color:#ab3043}
+.student-attendance-entry[data-status="ลา"]>span:first-child{color:#845c16}
+.student-attendance-entry>span:last-child{color:#536d63;font-variant-numeric:tabular-nums}
+.student-history-footer{padding:12px 20px 16px;border-top:1px solid #e0e9e4;flex:none}
+.student-history-footer p{font-size:.875rem;line-height:1.6;color:#536d63;margin:0 0 8px}
+.student-history-footer button{min-height:44px;width:100%;border:1px solid #b8cfc1;background:#f5faf6;border-radius:6px;color:#176b60;font-size:.9375rem}
+.student-history-footer button:disabled{opacity:.65}
+.student-history-empty{font-size:1rem;color:#536d63;padding:24px 0;line-height:1.6}
+/* Pet art and HTML identity share one banner; no generated text or personal data. */
+#studentSection #levelCard{isolation:isolate;position:relative;padding:0;gap:0;background:#f6faf8;border-radius:8px;grid-template-columns:minmax(0,1fr);border:1px solid #d4e1db;overflow:hidden;container:student-profile / inline-size}
+.student-banner-header{isolation:isolate;position:relative;display:grid;grid-template-columns:84px minmax(0,1fr);align-items:center;gap:12px;padding:18px 20% 18px 14px;grid-column:1/-1;grid-row:1;min-width:0;min-height:156px;background:#fbf9f2}
+.student-banner-header>.student-portrait{width:84px;min-height:84px;grid-column:1;grid-row:1;position:relative}
+#studentSection #levelCard .mq-avatar{--avatar-size:84px}
+#studentSection #levelCard .photo-overlay{width:84px;height:84px}
+.student-banner-header>.student-identity{grid-column:2;grid-row:1;min-width:0;text-align:left}
+.student-banner-art{position:absolute;inset:0;width:calc(100% + var(--student-art-overflow,0px));height:100%;object-fit:cover;object-position:left center;pointer-events:none;z-index:-2}
+.student-rank-frame{position:absolute;inset:0;z-index:-1;pointer-events:none;border-style:solid;border-color:transparent;border-width:14px 30px 10px;border-image-source:var(--student-rank-image,none);border-image-slice:70 150 50;border-image-repeat:stretch}
+.student-rank-frame:has(img[hidden]),.student-banner-art[hidden]{display:none}
+#studentRankArt{position:absolute;width:1px;height:1px;visibility:hidden}
+#levelCard .student-toolbar{position:absolute;top:auto;bottom:20px;right:58px;z-index:5;margin:0;display:block}
+#levelCard .student-toolbar .student-icon-button{background:#ffffffed;border-color:#cbded4}
+#studentSection #levelCard .student-identity{padding:0;background:transparent}
+#studentSection #levelCard #sNameDisp{font-size:1.25rem!important;font-weight:800;line-height:1.5;color:#18362c;text-shadow:0 1px 1px white}
+.student-identity-metrics{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:6px 0;font-variant-numeric:tabular-nums}
+#studentSection[data-pet-theme="thorn"],#studentSection[data-pet-theme="volt"],#studentSection[data-pet-theme="aqua"],#studentSection[data-pet-theme="sunny"],#studentSection[data-pet-theme="rocky"]{--student-art-overflow:72px}
+#studentSection[data-pet-theme="thorn"] .student-identity-metrics,#studentSection[data-pet-theme="volt"] .student-identity-metrics,#studentSection[data-pet-theme="rocky"] .student-identity-metrics{flex-direction:column;align-items:flex-start;gap:4px}
+#studentSection #levelRing{color:var(--student-accent,#176b60);font-size:1rem;font-weight:700;white-space:nowrap}
+#studentSection #levelRing strong{font-size:1.25rem}
+#studentSection .student-wallet{color:#82520b;font-size:1rem;font-weight:700;gap:5px;flex-wrap:wrap}
+#studentSection .student-wallet strong{font-size:1.125rem}
+#studentSection .student-wallet>span:last-child{font-size:.8125rem;font-weight:400}
+.student-roster-details{grid-column:1/-1;grid-row:2;display:flex;flex-wrap:wrap;gap:2px 12px;margin:0;padding:8px 14px 0}
+#studentSection .student-roster-details .student-grade{font-size:.875rem;color:#405e52;line-height:1.7}
+#studentSection #studentCodeLabel{flex-basis:auto}
+#studentSection #levelCard .student-progress{position:relative;grid-row:3;padding:6px 14px 0;background:#f6faf8}
+#studentSection #levelCard .xp-meta{font-size:.8125rem;line-height:1.7;color:#405e52;gap:8px;margin-bottom:6px}
+#studentSection #levelCard .xp-fill{background:var(--student-accent,#268472)!important}
+#studentSection #levelCard .pet-hero{grid-row:4;margin:0 14px 10px;width:auto;border-top:1px solid #c4d7cc;min-height:64px;padding:4px 88px 0 0;background:#f6faf8}
+#studentSection #petHero .pet-live-card{grid-template-columns:76px minmax(0,1fr);min-height:64px}
+#studentSection #petHero .pet-sprite-wrap{width:76px;height:64px}
+#studentSection #petHero .pet-sprite-live,#studentSection #petHero .pet-sprite-motion{width:64px;height:64px}
+#studentSection #petHero .pet-info strong{font-size:.9375rem;line-height:1.6;color:#244737}
+#studentSection #petHero .pet-info span{font-size:.8125rem;line-height:1.7;margin-top:2px;color:#405e52}
+#studentSection #petHero .pet-empty-state{min-height:64px}
+#studentSection .student-pet-details{right:10px;bottom:22px;z-index:5}
+#studentSection #studentCheckInSurface{margin-top:16px;line-height:1.6}
+#studentSection #attendanceLocationText{font-size:.875rem;line-height:1.65}
+#studentSection #attendanceLocationDetail{font-size:.8125rem;line-height:1.7;margin-top:5px}
+#studentSection .student-pin-message{line-height:1.65}
+.student-banner-level-up{animation:student-banner-promotion .7s ease-out}
+@keyframes student-banner-promotion{0%{opacity:.65}100%{opacity:1}}
+@media(max-width:360px){
+  .student-banner-header{grid-template-columns:76px minmax(0,1fr);padding:14px 20% 14px 12px;gap:10px}
+  .student-banner-header>.student-portrait{width:76px;min-height:76px}
+  #studentSection #levelCard .mq-avatar{--avatar-size:76px}
+  #studentSection #levelCard .photo-overlay{width:76px;height:76px}
+  #studentSection #levelCard #sNameDisp{font-size:1.125rem!important}
+  .student-identity-metrics{gap:5px 8px}
+  #studentSection .student-wallet>span:last-child{font-size:.75rem}
+  #shopOverlay .shop-header,#shopOverlay .wallet-wrap{padding-left:14px;padding-right:14px}
+  #shopOverlay .shop-tabs{padding-left:14px;padding-right:14px}
+  #shopOverlay .shop-scroll{padding:12px 14px}
+  #shopOverlay .shop-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){#shopOverlay #shopModal,.student-banner-level-up{animation:none;transition:none}}
+@media(max-height:780px){
+  .student-banner-header{padding-top:14px;padding-bottom:14px}
+  .student-identity-metrics{margin:4px 0}
+  #studentSection #levelCard .pet-hero{min-height:56px}
+  #studentSection #petHero .pet-live-card,#studentSection #petHero .pet-sprite-wrap{min-height:56px;height:56px}
+  #studentSection #petHero .pet-sprite-live,#studentSection #petHero .pet-sprite-motion{width:56px;height:56px}
+  #studentSection #levelCard .xp-meta{font-size:.75rem;line-height:1.5;margin-bottom:4px}
+  #studentSection #studentCheckInSurface{margin-top:10px}
+  #studentSection .student-pin{--pin-height:max(56px,3.5rem)}
+  #studentSection .student-pin-message{min-height:2.3em;margin-top:10px}
+  #studentSection #attendanceLocationText{font-size:.8125rem;line-height:1.45}
+  #studentSection #attendanceLocationDetail{font-size:.75rem;line-height:1.5;margin-top:4px}
+}
+@container student-profile (max-width:16rem){
+  .student-banner-header{grid-template-columns:minmax(0,1fr);padding:14px;gap:12px}
+  .student-banner-header>.student-portrait{grid-column:1;grid-row:1;min-height:144px;align-self:start;display:flex;align-items:flex-start}
+  .student-banner-header>.student-identity{grid-column:1;grid-row:2}
+  .student-banner-art,.student-rank-frame{height:144px;max-height:none}
+  #studentSection #levelCard #sNameDisp{font-size:1.125rem!important}
+  .student-roster-details{padding-top:12px}
+}

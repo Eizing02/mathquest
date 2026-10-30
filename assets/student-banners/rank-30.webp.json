@@ -1,0 +1,66 @@
+{
+  "id": "rank-30",
+  "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK30 design: elegant platinum and pale gold CROWN CREST with graceful sculpted metallic WINGS framing the OUTER edges. Keep the small crown crest at TOP RIGHT within x88%-98%, y0%-14%; sweep layered metal feather-wing motifs down the extreme side edges only, not into the transparent opening. Right side richer than left, exquisite platinum relief and pale gold fine accents, restrained white crystal points. Top and bottom narrow platinum-gold rails physically touch their canvas edges. TOP RAIL entirely y0%-7%; BOTTOM RAIL entirely y96%-100%. NO inset frame. ALL middle x15%-85%,y15%-90% absolutely transparent. No bottom-center inward-pointing crest; keep bottom rail very thin. The crown is jewelry, not a character, and the wings are carved metal ornament, not birds. Stronger premium tier than gold-crystal endcaps but not the most lavish; no stars anywhere. Native transparent alpha, absolutely no opaque filling or backdrop.",
+  "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-c2eb3868-0980-4b97-95ce-b075350706d6.png",
+  "generator": "built-in tools.image_gen__imagegen",
+  "transparent_background": true,
+  "master": "assets/student-banners/masters/rank-30.png",
+  "runtime": {
+    "path": "assets/student-banners/rank-30.webp",
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "format": "webp",
+    "quality": 90,
+    "alphaQuality": 100
+  },
+  "qa": {
+    "id": "rank-30",
+    "masterDimensions": [
+      1983,
+      793
+    ],
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "runtimeBytes": 170762,
+    "runtimeSha256": "ac0fed77319c93ff34801bb47d709ddc543fdf8d6de00f22ac3132fd64204f64",
+    "masterSha256": "75a09265859364bc961555ccaef5ba96503afea865c27184f7045f82c63c1fe0",
+    "originalToolFilePreserved": true,
+    "exactPromptEmbedded": true,
+    "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+    "nonblank": true,
+    "alphaRange": [
+      0,
+      255
+    ],
+    "transparentPercent": 73.50601196289062,
+    "textSafeZone": {
+      "bounds": [
+        0.15,
+        0.85,
+        0.15,
+        0.9
+      ],
+      "pixels": 344064,
+      "nonzeroAlphaPixels": 1463,
+      "alphaGte16Pixels": 123,
+      "maxAlpha": 248,
+      "meanAlpha": 0.06776355561755952,
+      "meanLuma": 0.08914346051897315,
+      "darkPercentBelow180": 99.99273390997024
+    },
+    "visual480WidthChecked": true,
+    "noTextCharactersOrUI": true,
+    "distinctMaterialsAndPalette": true,
+    "strictTransparentZone": false,
+    "lightAndDarkCompositeInspected": true
+  },
+  "reviewStatus": "needs_parent_review",
+  "gateScore": "unscored",
+  "limitations": [
+    "Rank overlays use genuine native alpha preserved without masking, keying, or alpha synthesis, but generated low-alpha residue and small edge fringes mean the literal all-zero x15%-85% / y15%-90% zone test fails. Inspect per-asset alpha metrics; needs_parent_review."
+  ]
+}

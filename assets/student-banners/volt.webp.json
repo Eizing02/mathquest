@@ -1,0 +1,17 @@
+{
+  "id": "volt",
+  "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME VOLT: deep navy enamel, brilliant golden lightning and pale crystal. Far-right architecture is a cluster of angular citrine lightning-blade crystals mounted in a precise navy-and-gold electrum lattice, zigzag faceted metal fins and white quartz support columns, sharp prismatic construction, no clouds or floating sparks. Thin lightning-cut engraved gilding stays at the outer edges. Navy is confined to inlaid ornament; keep the center pearl-white and free of lines.",
+  "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-2f9fb228-7d44-4267-9d9f-31c29cf04584.png",
+  "referencePath": "tmp/profile-frames/pet-colors.png",
+  "generator": "tools.image_gen__imagegen",
+  "masterPath": "assets/student-banners/masters/volt.png",
+  "runtimePath": "assets/student-banners/volt.webp",
+  "transform": {
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "webpQuality": 90,
+    "maxBytes": 256000
+  }
+}

@@ -1,0 +1,1049 @@
+{
+  "batch": "A",
+  "generator": "tools.image_gen__imagegen",
+  "referencePath": "tmp/profile-frames/pet-colors.png",
+  "themeSource": "original21pets",
+  "artworkType": "opaque-2.5D-painterly-profile-banner",
+  "target": {
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "webpQuality": 90,
+    "maxBytes": 256000
+  },
+  "textSafeRegion": {
+    "x": [
+      0.2,
+      0.75
+    ],
+    "y": [
+      0.2,
+      0.85
+    ]
+  },
+  "review": "unscored; needs parent visual review",
+  "assets": [
+    {
+      "id": "thorn",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME THORN: charcoal blackened armor plates with olive enamel inlays and rich amber-gold edges. Far-right architecture is an interlocking crown of rugged swept horn-shaped armor fins and layered overlapping shield scales, amber mineral seams, fine hammered metal and carved ivory horn tips; no skulls or heads. Thin thornlike gilded armor relief follows the outer edges. Distinct stout armored mineral craftsmanship, olive and charcoal confined to the ornate right and edge relief, pearl-white center untouched.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-d4bdc259-d97c-4bc1-881c-088a24383d57.png",
+      "masterPath": "assets/student-banners/masters/thorn.png",
+      "runtimePath": "assets/student-banners/thorn.webp",
+      "sidecarPath": "assets/student-banners/thorn.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/thorn.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "thorn",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 176372,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "c71e92c144ce9d7602d2f3c382d672077188c95fa7a073a0b8dd75952f151eb0",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 231.32,
+          "percentile5Luma255": 126.92,
+          "lightPixelPercent": 88.2,
+          "darkPixelPercent": 7.6
+        }
+      },
+      "mobileQa": {
+        "id": "thorn",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 244.7,
+          "darkPixelPercent": 0.04
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Dark horn-armor relief intrudes into the right portion of the requested text-safe region."
+      }
+    },
+    {
+      "id": "leafy",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME LEAFY: rich fresh green, ivory and orange-gold botanical craftsmanship. Far-right architecture is a vertical flourishing arrangement of large elegantly curled enamel leaves, pale ivory leaf undersides, gilded curling stems and fine orange-gold leaf veins; layered hand-carved foliate marble and translucent green chalcedony inserts. No antlers, armor, horns or crystals. Narrow leafy carved relief hugs the outer edges. Keep all dense green ornament to the rightmost fifth and extreme corners, leaving the full specified center zone pearl-white, uninterrupted and empty.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-d16ceb0f-2ae5-4a45-aefa-bc9a441594bc.png",
+      "masterPath": "assets/student-banners/masters/leafy.png",
+      "runtimePath": "assets/student-banners/leafy.webp",
+      "sidecarPath": "assets/student-banners/leafy.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/leafy.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "leafy",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 133548,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "fda4c43f96bfbd011a1fe84d3d1c7d037b066ba8334017466f4024758d7fc39d",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 236.28,
+          "percentile5Luma255": 179.79,
+          "lightPixelPercent": 92.99,
+          "darkPixelPercent": 4.29
+        }
+      },
+      "mobileQa": {
+        "id": "leafy",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 242.82,
+          "darkPixelPercent": 0.04
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "volt",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME VOLT: deep navy enamel, brilliant golden lightning and pale crystal. Far-right architecture is a cluster of angular citrine lightning-blade crystals mounted in a precise navy-and-gold electrum lattice, zigzag faceted metal fins and white quartz support columns, sharp prismatic construction, no clouds or floating sparks. Thin lightning-cut engraved gilding stays at the outer edges. Navy is confined to inlaid ornament; keep the center pearl-white and free of lines.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-2f9fb228-7d44-4267-9d9f-31c29cf04584.png",
+      "masterPath": "assets/student-banners/masters/volt.png",
+      "runtimePath": "assets/student-banners/volt.webp",
+      "sidecarPath": "assets/student-banners/volt.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/volt.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "volt",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 140460,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "ace5696e27e5c4d8a22007792fd5c33959b7acf58d2ed5cdd879aa518031b9c2",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 232.25,
+          "percentile5Luma255": 161.84,
+          "lightPixelPercent": 89.65,
+          "darkPixelPercent": 5.46
+        }
+      },
+      "mobileQa": {
+        "id": "volt",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 243.67,
+          "darkPixelPercent": 0.1
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "clover",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME CLOVER: olive and emerald green, ivory and fine gold. Far-right architecture is a graceful branching antler-shaped ivory trellis intertwined with small sculpted four-leaf clover sprays, emerald enamel clover bosses and fine gold stem filigree; no animal heads. An airy branch silhouette, unlike Leafy's large curled leaves. Restrained clover-relief ornament only at the extreme edges; calm pearl-white center completely empty.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-407c8322-84e3-4668-8193-82d21035edf2.png",
+      "masterPath": "assets/student-banners/masters/clover.png",
+      "runtimePath": "assets/student-banners/clover.webp",
+      "sidecarPath": "assets/student-banners/clover.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/clover.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "clover",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 123810,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "00f5b3086990c1277bdaaa830b952d0f70389384caa30c50a9be29717cc35f58",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 239.85,
+          "percentile5Luma255": 219.47,
+          "lightPixelPercent": 95.9,
+          "darkPixelPercent": 2.1
+        }
+      },
+      "mobileQa": {
+        "id": "clover",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 243.95,
+          "darkPixelPercent": 0
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "aqua",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME AQUA: saturated ocean blue, teal, gold and luminous shell nacre. Far-right architecture is an opulent open scalloped shell fan with layered mother-of-pearl ribs, curling sculpted teal wave crests and gold wave filigree, blue glazed ceramic and polished abalone. No sea creatures, bubbles, spheres or floating droplets. Low wave relief hugs the bottommost edge without crossing the broad pearl-white central field.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-f4abc5f6-0aa0-4c08-a771-17652f35dbd8.png",
+      "masterPath": "assets/student-banners/masters/aqua.png",
+      "runtimePath": "assets/student-banners/aqua.webp",
+      "sidecarPath": "assets/student-banners/aqua.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/aqua.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "aqua",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 176864,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "d504f70fb1969015034cb9221ce2ebb9863af59102651587619a35dfd026697b",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 231.71,
+          "percentile5Luma255": 162.29,
+          "lightPixelPercent": 89.12,
+          "darkPixelPercent": 5.6
+        }
+      },
+      "mobileQa": {
+        "id": "aqua",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 241.12,
+          "darkPixelPercent": 0.16
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "ember",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME EMBER: vivid orange and scarlet red with burnished gold. Far-right architecture is a majestic curling flame-shaped finial composed of orange-red enamel tongues and gilded fire-lily-shaped metal blades, molten amber glass ribbons nested in white marble, deeply layered and sculptural. No actual smoky fire, sparks, cinders or particles. Flame relief runs narrowly around extreme corners. Keep center pearl-white and coolly readable, reds confined to ornament.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-dec71fa1-34cb-48b1-9ef2-0d6eff05d49a.png",
+      "masterPath": "assets/student-banners/masters/ember.png",
+      "runtimePath": "assets/student-banners/ember.webp",
+      "sidecarPath": "assets/student-banners/ember.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/ember.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "ember",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 125164,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "8b6bbf39b4a57296abf7fced83d202de524b824977e2a48ad31f17e5e351c0cc",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 238.45,
+          "percentile5Luma255": 176.74,
+          "lightPixelPercent": 91.13,
+          "darkPixelPercent": 4.34
+        }
+      },
+      "mobileQa": {
+        "id": "ember",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 245.02,
+          "darkPixelPercent": 1.11
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "snowy",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME SNOWY: white, bright silver and icy blue. Far-right architecture is a crystalline ice-bloom spire of long faceted pale-blue quartz shards, silvery frost-cut lattice and opalescent white mineral fans, sharply defined translucent facets and polished silver edges. No snow particles or floating flakes. Very thin silver-and-ice corner relief, brilliant pearl-white center with enough tonal separation to read the crystal craftsmanship.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-a554ff5e-2289-49fb-b320-5c6a95b31965.png",
+      "masterPath": "assets/student-banners/masters/snowy.png",
+      "runtimePath": "assets/student-banners/snowy.webp",
+      "sidecarPath": "assets/student-banners/snowy.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/snowy.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "snowy",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 120170,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "9336286eec08013fb9b45b375579c111ea8a4b33ce20bbfe0e575c33bcf2bf58",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 235.58,
+          "percentile5Luma255": 198.01,
+          "lightPixelPercent": 93.27,
+          "darkPixelPercent": 2.25
+        }
+      },
+      "mobileQa": {
+        "id": "snowy",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 238.29,
+          "darkPixelPercent": 0.18
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "sunny",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME SUNNY: radiant gold, warm ivory and deep navy accents. Far-right architecture is a majestic carved feather fan with long individually overlapping ivory feathers edged in gold, navy enamel feather tips and an integrated solid sun-disc medallion within the fan, embossed gold rays, no face and no writing. The sun is a carved metal object, not a glowing orb. Fine feathered gilding follows outer edges. Center remains luminous pearl-white, no rays or shadows crossing the text zone.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-6e673cd4-3ae2-4e66-a3bd-fb3b799e0cb5.png",
+      "masterPath": "assets/student-banners/masters/sunny.png",
+      "runtimePath": "assets/student-banners/sunny.webp",
+      "sidecarPath": "assets/student-banners/sunny.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/sunny.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "sunny",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 149656,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "d56495b77b57e2d72cbfb0db74eeed2558d029550664a3cd90c7a338cef9a48d",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 236.17,
+          "percentile5Luma255": 164.13,
+          "lightPixelPercent": 89.29,
+          "darkPixelPercent": 5.61
+        }
+      },
+      "mobileQa": {
+        "id": "sunny",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 246.75,
+          "darkPixelPercent": 0
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Pale-sky central field deviates from pearl-stone material; right feather fan reaches into the requested text-safe boundary."
+      }
+    },
+    {
+      "id": "mystic",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME MYSTIC: saturated amethyst purple, silver and gold. Far-right architecture is one ornate hanging arcane lantern with pointed silver fretwork, gold ribs and amethyst glass panes, suspended from a curled ivory-and-silver bracket, draped sculpted purple velvet ribbons and faceted violet mineral insets. No written runes, symbols, faces, magical spheres, particles or discrete glow orbs. Lantern has soft contained glass luminosity only. Purple is confined to detailed edge ornament; center stays crisp pearl-white.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-e88e151f-1ff4-40b9-96ee-5eb9c1e96c36.png",
+      "masterPath": "assets/student-banners/masters/mystic.png",
+      "runtimePath": "assets/student-banners/mystic.webp",
+      "sidecarPath": "assets/student-banners/mystic.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/mystic.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "mystic",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 111978,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "37e14841e45fc47c599adedb7186c2efe1596d61354e1f48bd0a476242b60381",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 244.59,
+          "percentile5Luma255": 234.58,
+          "lightPixelPercent": 98.3,
+          "darkPixelPercent": 0.72
+        }
+      },
+      "mobileQa": {
+        "id": "mystic",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 246.09,
+          "darkPixelPercent": 0
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "rocky",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME ROCKY: rugged brown, bronze and clear orange mineral. Far-right architecture is a stout terraced formation of hand-carved brown stone slabs and geometric bronze mountings enclosing chunky orange carnelian and quartz crystal outcrops, chiseled grain, convincing mineral facets and bronze edge bracing. No statues, heads or creatures. Narrow block-carved relief at extreme corners, broad clean pearl-white limestone center, distinct geological mass rather than thorn armor.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-35f751e1-1819-4724-988b-e7476eb2aecf.png",
+      "masterPath": "assets/student-banners/masters/rocky.png",
+      "runtimePath": "assets/student-banners/rocky.webp",
+      "sidecarPath": "assets/student-banners/rocky.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/rocky.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "rocky",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 165752,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "efb0adb721f5e07ef0befefb5f385e00f9ee8036365014a1153f2993d464ed6d",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 225.29,
+          "percentile5Luma255": 113.89,
+          "lightPixelPercent": 83.87,
+          "darkPixelPercent": 10.39
+        }
+      },
+      "mobileQa": {
+        "id": "rocky",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 239.47,
+          "darkPixelPercent": 0.42
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Higher camera angle and broad right stone terraces intrude into the requested text-safe region."
+      }
+    },
+    {
+      "id": "toady",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME TOADY: rich purple, vivid lime green and muted olive, with aged gold details. Far-right architecture is an elegant alchemist's still-life built into an ivory niche: tall faceted lime-glass retort, angular purple-glass vial and coiled olive-and-gold condenser pipes, tiny engraved metallic fittings without writing, polished enamel and glass craftsmanship. No round bubbles, balls, beads, potion labels, mushrooms, faces or creatures. All alchemy vessels fixed to the far-right structure, center pearl-white and empty.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-2f68fef1-a1f4-4d97-873b-5d5df0d58605.png",
+      "masterPath": "assets/student-banners/masters/toady.png",
+      "runtimePath": "assets/student-banners/toady.webp",
+      "sidecarPath": "assets/student-banners/toady.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/toady.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "toady",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 146144,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "7a9b0df45ed88b6dbf20137c67020333bf1a9923539c55e7dabb65a370dc2cc9",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 229.8,
+          "percentile5Luma255": 161.33,
+          "lightPixelPercent": 90.19,
+          "darkPixelPercent": 5.68
+        }
+      },
+      "mobileQa": {
+        "id": "toady",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 239.3,
+          "darkPixelPercent": 0
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "zephyr",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME ZEPHYR: saturated teal, gold and vivid vermilion accents. Far-right architecture is a soaring swept arrangement of long teal enamel wind feathers edged in gold with vermilion undersides, taut curling silk ribbons and flowing carved ivory air-scrolls, elegant directional motion frozen as sculpture. No birds, characters, floating feather particles or cloud blobs. Slender aerodynamic forms, unlike Sunny's radial feather fan. Broad center is completely still pearl-white, all curls stay at right and extreme edges.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-a1898d9d-bcd9-497a-b4c2-c842fb8ffb8d.png",
+      "masterPath": "assets/student-banners/masters/zephyr.png",
+      "runtimePath": "assets/student-banners/zephyr.webp",
+      "sidecarPath": "assets/student-banners/zephyr.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/zephyr.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "zephyr",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 115178,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "45b857b3923ccbf67c3c7bf966108eb591edaf8ffbce3458f4904c27392fd9d4",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 235.17,
+          "percentile5Luma255": 187.77,
+          "lightPixelPercent": 93.12,
+          "darkPixelPercent": 3.8
+        }
+      },
+      "mobileQa": {
+        "id": "zephyr",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 241.11,
+          "darkPixelPercent": 0.05
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    },
+    {
+      "id": "fluffy",
+      "prompt": "Use case: stylized-concept. Asset type: raw full-bleed RPG PROFILE BANNER ARTWORK, one single horizontal panoramic illustration, NOT a webpage, UI mockup, screenshot, collage, or framed card. Render at 2560x1024, landscape ratio exactly 2.5:1. Luxurious 2.5D hand-painted fantasy game environment ornament, crisp tactile sculptural detailing, lustrous materials, subtle brushwork, elegant high-end collectible-game finish. Reference image is a palette/material guide to the original21pets only; do not depict any pet, face, living creature, mascot, or character, and do not copy the reference sheet layout. COMMON COMPOSITION: a broad open continuous pearl-white luminous architectural ground occupies the full middle and center-left, seamlessly part of the artwork, not an opaque rectangle or UI card. Absolutely calm very pale text-safe area at x20%-75%, y20%-85%, with no ornament, lines, speckles, symbols, objects, horizon, or dark areas there. Reserve left-middle for an HTML avatar and real dark student text to be added later: render neither. The open center is crisp light pearlescent stone/enamel, delicately dimensional, never dark, blurry, foggy, flat vector, or CSS-gradient-like. Lavish saturated themed architectural ornament sits in x80%-100% with the main motif centered at x87%, y53%; narrower accents hug only the outermost top 10%, bottom 10%, and far-left 8%. Focal motif stays within y15%-85% so a center-cover crop remains intact. At a 480px-wide portrait phone the pale central area still reads cleanly; rightmost edge accents may crop. Bright soft daylight, controlled relief shadows only on ornaments. Preserve the same composition, camera angle, material fidelity, visual weight and style across this series, with genuinely different forms and constructions for each theme. NO text, letters, numbers, captions, glyphs, runes, logos, symbols resembling writing, UI controls, portraits, silhouettes, characters, creatures, scenic dark background, discrete glowing orbs, bokeh, floating particles, decorative blobs, checkerboard, border-radius, external drop shadow, or watermark. Opaque artwork to all four edges.\nTHEME FLUFFY: pearly ivory, lavender and peach with delicate warm gold edges. Far-right architecture is an airy woven cascade of broad continuous nacreous silk cloud ribbons, layered flowing scalloped ivory fabric folds, lavender and peach enamel ribbons braided around a mother-of-pearl column. Clouds are represented by connected elongated sculpted ribbon relief, never separate balls, cotton puffs, blobs or orbs. Soft luxurious satin highlights and fine relief edges; clean crisp pearl-white center, not fog or blur.",
+      "sourcePath": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-8805-7cc3-97fc-a5a7358d6a11\\exec-a27bc607-58a3-40dd-8b15-0827cdc961ae.png",
+      "masterPath": "assets/student-banners/masters/fluffy.png",
+      "runtimePath": "assets/student-banners/fluffy.webp",
+      "sidecarPath": "assets/student-banners/fluffy.webp.json",
+      "status": "complete",
+      "promptFile": "assets/student-banners/masters/fluffy.prompt.txt",
+      "reviewStatus": "needs_parent_review",
+      "qa": {
+        "id": "fluffy",
+        "sourceDimensions": [
+          1983,
+          793
+        ],
+        "masterDimensions": [
+          1983,
+          793
+        ],
+        "runtimeDimensions": [
+          1280,
+          512
+        ],
+        "bytes": 128146,
+        "webpQuality": 90,
+        "opaque": true,
+        "nonblank": true,
+        "embeddedPromptExact": true,
+        "sidecarPromptExact": true,
+        "masterPixelsEqualSource": true,
+        "sourcePreserved": true,
+        "runtimeSha256": "ae7b75eb5a08817aa345371bd5c63aff4f0fd9ed32e63393ac7fea63ac17506d",
+        "crop": {
+          "fit": "cover",
+          "position": "centre",
+          "sourceAspect": 2.5006305170239598,
+          "targetAspect": 2.5,
+          "horizontalSourceCropPixels": 0.5,
+          "verticalSourceCropPixels": 0
+        },
+        "textZone": {
+          "meanLuma255": 240.03,
+          "percentile5Luma255": 212.39,
+          "lightPixelPercent": 95.41,
+          "darkPixelPercent": 0.72
+        }
+      },
+      "mobileQa": {
+        "id": "fluffy",
+        "phoneDimensions": [
+          480,
+          192
+        ],
+        "coreTextZone": {
+          "x": [
+            0.2,
+            0.6
+          ],
+          "y": [
+            0.2,
+            0.85
+          ],
+          "meanLuma255": 243.78,
+          "darkPixelPercent": 0
+        }
+      },
+      "visualInspection": {
+        "inspected": true,
+        "distinctMotif": true,
+        "noTextOrCharactersObserved": true,
+        "fullTextSafeRectangleUniformlyClear": false,
+        "note": "Bright open center; some outer relief or fine architectural lines enter the requested right/lower text-safe boundary."
+      }
+    }
+  ],
+  "productionStatus": "complete",
+  "generatedAssetCount": 13,
+  "generationCalls": 13,
+  "generationFailures": [],
+  "missingFiles": [],
+  "missingEmbeddedPrompts": [],
+  "missingWebpSidecars": [],
+  "limitations": [
+    "All 13 original tool PNGs are 1983x793, despite 2560x1024 requested in each exact prompt. Masters preserve original pixels; runtime assets are exactly 1280x512.",
+    "The full requested x20%-75% / y20%-85% text-safe rectangle is bright overall but not uniformly empty: ornamental relief enters its right/lower portion, most noticeably on thorn and rocky. The x20%-60% central core is substantially clearer; metrics are recorded per asset. No artwork or UI was altered to hide this drift.",
+    "sunny renders pale sky and clouds in its central field rather than continuous pearlescent stone; rocky uses a higher, more downward-looking camera angle than most siblings.",
+    "No transparent ornaments were requested in Batch A. All banners are intentionally opaque.",
+    "Image contents and runtime crops were visually inspected. Parent human approval and integration are outside this batch."
+  ],
+  "checks": {
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "nativeMasterDimensions": [
+      1983,
+      793
+    ],
+    "quality": 90,
+    "runtimeBytesMin": 111978,
+    "runtimeBytesMax": 176864,
+    "allRuntimeUnder250000Bytes": true,
+    "allNonblank": true,
+    "allOpaque": true,
+    "allPngPromptsByteExact": true,
+    "allWebpSidecarPromptsExact": true,
+    "allMasterPixelsEqualNativeSources": true,
+    "allOriginalToolFilesPreserved": true,
+    "uniqueRuntimeArtworkHashes": 13,
+    "mobileEvaluationDimensions": [
+      480,
+      192
+    ],
+    "runtimeCropVisualInspection": "All 13 runtime WebPs opened and inspected; centre-cover removes only approximately 0.25 source pixels at each horizontal edge.",
+    "directoryPromptScan": {
+      "command": ".agents/skills/impeccable/scripts/impeccable.cmd embed-prompt --scan assets/student-banners/masters",
+      "rasterCount": 25,
+      "missing": 0,
+      "note": "Read-only directory scan includes other batches; only Batch A was written."
+    }
+  }
+}

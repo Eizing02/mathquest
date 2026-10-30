@@ -1,0 +1,66 @@
+{
+  "id": "rank-20",
+  "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK20 design: premium pale-gold and clear crystal endcaps, elegant carved champagne-gold filigree over platinum, elongated faceted white crystals inset only at extreme left and right, slim jeweled corner joints. PANORAMIC EDGE ANCHORING IS CRITICAL: top rail must physically touch the top canvas edge, bottom rail must touch the bottom edge, NO transparent margins above or below rails. Top rail entirely above y8%; bottom rail entirely below y94%; do not draw an inset rectangular frame. Side caps stay in outer12%. Center x15%-85% y15%-90% is one completely transparent opening. Slightly richer than simple silver but no crown and no big wings. No white/pearl/black background, no scenery. This is actual cutout metal-and-crystal ornament only, real native alpha.",
+  "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-4871ae91-a247-4361-90e3-83f37d0d35d6.png",
+  "generator": "built-in tools.image_gen__imagegen",
+  "transparent_background": true,
+  "master": "assets/student-banners/masters/rank-20.png",
+  "runtime": {
+    "path": "assets/student-banners/rank-20.webp",
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "format": "webp",
+    "quality": 90,
+    "alphaQuality": 100
+  },
+  "qa": {
+    "id": "rank-20",
+    "masterDimensions": [
+      1983,
+      793
+    ],
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "runtimeBytes": 170594,
+    "runtimeSha256": "b48a6b66d901b49bcd4b0cc0bfdacc267d64c7e842d7badd0e77bfbcacc9e659",
+    "masterSha256": "c24d7d4049b7664aae59786ca5742992e38b524e67e3501886ecd10955f6fe5e",
+    "originalToolFilePreserved": true,
+    "exactPromptEmbedded": true,
+    "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+    "nonblank": true,
+    "alphaRange": [
+      0,
+      255
+    ],
+    "transparentPercent": 72.38937377929688,
+    "textSafeZone": {
+      "bounds": [
+        0.15,
+        0.85,
+        0.15,
+        0.9
+      ],
+      "pixels": 344064,
+      "nonzeroAlphaPixels": 3545,
+      "alphaGte16Pixels": 608,
+      "maxAlpha": 255,
+      "meanAlpha": 0.39334833054315477,
+      "meanLuma": 2.8117008050827823,
+      "darkPercentBelow180": 99.01268368675595
+    },
+    "visual480WidthChecked": true,
+    "noTextCharactersOrUI": true,
+    "distinctMaterialsAndPalette": true,
+    "strictTransparentZone": false,
+    "lightAndDarkCompositeInspected": true
+  },
+  "reviewStatus": "needs_parent_review",
+  "gateScore": "unscored",
+  "limitations": [
+    "Rank overlays use genuine native alpha preserved without masking, keying, or alpha synthesis, but generated low-alpha residue and small edge fringes mean the literal all-zero x15%-85% / y15%-90% zone test fails. Inspect per-asset alpha metrics; needs_parent_review."
+  ]
+}

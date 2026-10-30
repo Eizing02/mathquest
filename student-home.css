@@ -1,5 +1,5 @@
 /* Student-only layout; existing teacher surfaces keep their own density. */
-#studentSection[data-tier]{min-height:100svh;background:#edf4f2!important;color:#172b29;contain:none;overflow:visible}
+#studentSection[data-tier]{min-height:100svh;background:var(--student-page-bg,#edf4f2)!important;color:#172b29;contain:none;overflow:visible}
 #studentSection[data-tier]::before{display:none!important}
 #studentSection .student-shell{max-width:480px;padding:8px 16px calc(100px + env(safe-area-inset-bottom));position:relative}
 .student-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}

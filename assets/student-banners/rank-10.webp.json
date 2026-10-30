@@ -1,0 +1,72 @@
+{
+  "id": "rank-10",
+  "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG rank ornament OVERLAY as a genuinely transparent PNG. Full panoramic canvas aspect ratio2.5:1, ideally2560x1024 for runtime1280x512. NO background whatsoever; native transparent alpha, including every opening and entire empty interior. This is neutral silver/gold sculptural edge jewelry to layer on a separate bright pet-themed banner, NOT a banner scene, mockup, badge, opaque plate, or UI. Narrow exquisite top and bottom rails stay in y0%-10% and y94%-100%; small endcap flourishes in x0%-12% and x90%-100%. Keep the ENTIRE rectangle x15%-85%, y15%-90% absolutely empty transparent, no shadows, haze, glow, gems, stars or wings crossing it. All decorative focal detail fits at the outer edges with margin for slight crop; delicate outer filigree, carved metallic relief, bevels and premium hand-painted jewel rendering, crisp 2.5D painterly craftsmanship with soft directional studio light. No texture or white/black/checkerboard filled backdrop, no opaque panel or plate, no drawn letters/numbers, captions, logos, UI, portraits, characters, disconnected orbs. Rich neutral materials: silver, platinum, white crystal, restrained pale gold only; no pet-specific motifs. Native alpha must be preserved, not simulated with checkerboard. Tier RANK10 design: restrained elegant etched SILVER endcaps, a pair of narrow vertically oriented silver acanthus-scroll end pieces at extreme left and right, slim lightly engraved silver double rails along top and bottom. Precise cool silver chasing, very tiny clear white crystal pin accents at corners only. Symmetrical horizontal panorama with especially refined silver right endcap; large totally transparent open middle. This is the simplest tier, no crown, no gold wing crest. Do not fill the opening with pearl, white, any background, or scenery. Use real transparent alpha. Render the complete panoramic frame in the canvas, not a centered small isolated badge.",
+  "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-7dcac069-f68d-42c9-8de2-fd7ef14491c5.png",
+  "generator": "built-in tools.image_gen__imagegen",
+  "transparent_background": true,
+  "master": "assets/student-banners/masters/rank-10.png",
+  "runtime": {
+    "path": "assets/student-banners/rank-10.webp",
+    "width": 1280,
+    "height": 512,
+    "fit": "fill",
+    "extract": {
+      "left": 0,
+      "top": 110,
+      "width": 1983,
+      "height": 580
+    },
+    "format": "webp",
+    "quality": 90,
+    "alphaQuality": 100
+  },
+  "qa": {
+    "id": "rank-10",
+    "masterDimensions": [
+      1983,
+      793
+    ],
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "runtimeBytes": 140924,
+    "runtimeSha256": "58dce74162b1522698b4d1d0f59067222eb08074a33fdb1bb127e5884452b447",
+    "masterSha256": "60c58a954456503dfa963629bfcbd16203196ef138704d6b6e42792b2ee99478",
+    "originalToolFilePreserved": true,
+    "exactPromptEmbedded": true,
+    "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+    "nonblank": true,
+    "alphaRange": [
+      0,
+      255
+    ],
+    "transparentPercent": 75.28594970703125,
+    "textSafeZone": {
+      "bounds": [
+        0.15,
+        0.85,
+        0.15,
+        0.9
+      ],
+      "pixels": 344064,
+      "nonzeroAlphaPixels": 5798,
+      "alphaGte16Pixels": 5,
+      "maxAlpha": 213,
+      "meanAlpha": 0.018415178571428572,
+      "meanLuma": 0.34994302222842244,
+      "darkPercentBelow180": 99.87996419270833
+    },
+    "visual480WidthChecked": true,
+    "noTextCharactersOrUI": true,
+    "distinctMaterialsAndPalette": true,
+    "strictTransparentZone": false,
+    "lightAndDarkCompositeInspected": true
+  },
+  "reviewStatus": "needs_parent_review",
+  "gateScore": "unscored",
+  "limitations": [
+    "Rank overlays use genuine native alpha preserved without masking, keying, or alpha synthesis, but generated low-alpha residue and small edge fringes mean the literal all-zero x15%-85% / y15%-90% zone test fails. Inspect per-asset alpha metrics; needs_parent_review.",
+    "Rank-10 runtime alone uses a vertical source crop (top 110, height 580 of 793) and fit:fill resize to put inset rails near canvas edges. Its original master is uncropped; endcap tips are cropped in runtime."
+  ]
+}

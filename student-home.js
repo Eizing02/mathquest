@@ -154,6 +154,8 @@ function studentProfileDraftDirty() {
     || document.getElementById('profileFrameMotion').checked!==profileStyle.motionEnabled);
 }
 function resetStudentHome() {
+  if(typeof cancelStudentAttendanceHistory==='function')cancelStudentAttendanceHistory();
+  if(typeof resetStudentBanner==='function')resetStudentBanner();
   resetStudentPinFeedback();studentCheckInBusy=false;
   setStudentSubmissionBusy(false);
   var input=document.getElementById('pinCode');input.value='';renderStudentPin();

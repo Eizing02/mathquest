@@ -6,6 +6,8 @@
 /tmp/attendance-location/
 /tmp/profile-frames/
 /tmp/student-home/
+/tmp/student-panels/
+/.impeccable/review/
 /.env*
 /supabase/.env*
 /supabase/functions/.env*

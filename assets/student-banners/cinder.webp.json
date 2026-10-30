@@ -1,0 +1,66 @@
+{
+  "id": "cinder",
+  "prompt": "Use case: stylized-concept. Create ONE original luxurious 2.5D painterly RPG PROFILE BANNER illustration, a raw raster artwork asset, NOT a webpage, UI mockup, card, or icon. Panoramic landscape 2.5:1, ideally 2560x1024. Shared composition: straight-on shallow relief fantasy architectural ornament framing an open pearlescent luminous near-white interior. The central interior is the scene itself, not an opaque card or plate, with a subtle crisp mother-of-pearl surface and no blur. Keep x20%-75%, y20%-85% very light and empty, perfectly calm for real dark HTML student text and an avatar. No drawn text or avatar. Concentrate lavish intricate saturated ornament, unique materials, and dimensional architecture at far right x79%-97%, and narrow outer top/bottom/left edges. Focal right ornament safely inside x82%-94%, y18%-82%; preserve it under slight edge cropping. Mostly symmetrical narrow edge frame but right-weighted narrative detail. Middle 55% stays clean even when viewed at portrait-phone width480. Painterly hand-finished concept art, sculptural layered bevels, jewel-like material detail, luminous daylight, sophisticated craftsmanship, crisp focus, generous breathing room, same camera and style across the series. Bright pearlescent open middle, never a dark setting. No characters, creatures, portraits, faces, letters, numerals, captions, logos, buttons, charts, UI, watermark, disconnected glow orbs, sparks floating across the center, CSS gradients, vector icons, or other existing IP. Theme is based solely on the original21pets creature palette/material concept, translated into architecture and ornament without depicting the creature. Distinct theme CINDER: sculpted black basalt and charcoal volcanic obsidian armor architecture with thin vivid molten-orange lava seams, ember-orange crystal inlays and pale warm gunmetal reinforcement. Far right has monumental interlocking hexagonal basalt carapace plates and a circular forge-like stone relief with a narrow contained orange molten ring, flanked by angular volcanic spires. No animal or face. Narrow outer border is fragmented polished black basalt with precise bright orange fissures and tiny glowing inset seams, not fire crossing the center. Keep black lava rock restricted to outer10% and far-right quarter; middle remains luminous pearlescent near-white. Palette black basalt #242326, lava orange #e57827, molten amber and ivory pearl. NO smoke, haze, ash, floating sparks/orbs, flame creatures, dark overall scene, gears or machinery. Contrast between lavish volcanic edge and absolutely clean light center.",
+  "source": "C:\\Users\\piyaw\\.codex\\generated_images\\01a188f1-88f8-76f1-a1bf-c053613b157d\\exec-2033a654-e07f-485f-8330-a0758bf406db.png",
+  "generator": "built-in tools.image_gen__imagegen",
+  "transparent_background": false,
+  "master": "assets/student-banners/masters/cinder.png",
+  "runtime": {
+    "path": "assets/student-banners/cinder.webp",
+    "width": 1280,
+    "height": 512,
+    "fit": "cover",
+    "position": "centre",
+    "format": "webp",
+    "quality": 90,
+    "alphaQuality": 100
+  },
+  "qa": {
+    "id": "cinder",
+    "masterDimensions": [
+      1983,
+      793
+    ],
+    "runtimeDimensions": [
+      1280,
+      512
+    ],
+    "runtimeBytes": 152862,
+    "runtimeSha256": "6aeaecd6d96bd1c5247ba79d41bb046866bb2d5eaa784e58bcd5bed54db881b5",
+    "masterSha256": "d83d0545a08b50fea7440815af71efb704aea02a898df55476877fdb0725ca29",
+    "originalToolFilePreserved": true,
+    "exactPromptEmbedded": true,
+    "promptVerifiedBy": "impeccable.cmd embed-prompt --read (exact-string match)",
+    "nonblank": true,
+    "alphaRange": [
+      255,
+      255
+    ],
+    "transparentPercent": 0,
+    "textSafeZone": {
+      "bounds": [
+        0.2,
+        0.75,
+        0.2,
+        0.85
+      ],
+      "pixels": 234432,
+      "nonzeroAlphaPixels": 234432,
+      "alphaGte16Pixels": 234432,
+      "maxAlpha": 255,
+      "meanAlpha": 255,
+      "meanLuma": 228.86126010079468,
+      "darkPercentBelow180": 7.922126672126672
+    },
+    "visual480WidthChecked": true,
+    "noTextCharactersOrUI": true,
+    "distinctMaterialsAndPalette": true,
+    "strictTransparentZone": null,
+    "lightAndDarkCompositeInspected": null
+  },
+  "reviewStatus": "needs_parent_review",
+  "gateScore": "unscored",
+  "limitations": [
+    "Base banners have light text-zone mean luma 225.6-239.7/255, with 2.7%-7.9% of the full requested rectangle below luma180 at edge ornament intrusions, strongest on Cinder. 480-wide previews visually checked."
+  ]
+}
