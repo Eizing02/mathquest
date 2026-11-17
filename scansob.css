@@ -47,10 +47,12 @@
 #scansobInboxTitle:focus{outline:2px solid var(--pri);outline-offset:3px;border-radius:2px}
 .scansob-inbox-pagination,.scansob-policy-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-block:12px}
 .scansob-inbox-pagination button{min-width:44px;min-height:44px}
-.scansob-signed-policy{margin-block:20px;border-block:1px solid var(--border-soft)}
+.scansob-signed-policy{margin-block:0 16px;padding-block:12px;border-block:1px solid var(--border-soft)}
+.scansob-policy-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
+.scansob-policy-heading span{color:var(--ink-muted)}
+.scansob-policy-actions .scansob-switch{margin-inline-end:8px}
 .scansob-signed-policy summary{cursor:pointer;min-height:44px;padding-block:10px;font-weight:700}
-.scansob-signed-policy summary span{margin-inline-start:8px;color:var(--ink-muted);font-weight:500}
-.scansob-signed-policy form{max-width:580px;padding-block-end:8px}
+.scansob-signed-policy details{max-width:580px;padding-block-end:8px}
 .scansob-signed-policy button{min-height:44px}
 .scansob-signed-policy p{margin:8px 0}
 .scansob-decision{text-align:start;overflow-wrap:anywhere}

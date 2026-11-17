@@ -1,7 +1,7 @@
-# MathQuest Product Context
+# ระบบเช็คชื่อ: Product Context
 
 ## Product
-MathQuest is a Thai classroom attendance and rewards app for teachers and students. It helps teachers open attendance sessions, track class activity, manage points and shop items, grant free items, and export summaries. Students use it mostly on mobile to check in, see progress, and redeem rewards.
+ระบบเช็คชื่อ is a Thai classroom attendance and rewards app for teachers and students. It helps teachers open attendance sessions, track class activity, manage points and shop items, grant free items, and export summaries. Students use it mostly on mobile to check in, see progress, and redeem rewards.
 
 ## Primary Users
 - Teachers who need fast, reliable classroom operations during class time.

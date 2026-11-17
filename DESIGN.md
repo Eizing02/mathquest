@@ -1,7 +1,7 @@
-# MathQuest Design System Notes
+# ระบบเช็คชื่อ: Design System Notes
 
 ## Visual Direction
-MathQuest should balance a practical classroom tool with lightweight game energy. Teacher views should use structured surfaces, restrained color, and predictable controls. Student views may use warmer progress and reward accents while preserving readability.
+ระบบเช็คชื่อ should balance a practical classroom tool with lightweight game energy. Teacher views should use structured surfaces, restrained color, and predictable controls. Student views may use warmer progress and reward accents while preserving readability.
 
 ## Color
 - Use indigo/navy for trusted primary actions.

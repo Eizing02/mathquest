@@ -3,6 +3,7 @@ var SUPABASE_URL = window.SUPABASE_URL || 'https://jckuqyohylttctzcaekg.supabase
 var SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3VxeW9oeWx0dGN0emNhZWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyODY2MzQsImV4cCI6MjA5Mjg2MjYzNH0.1YgqnE3VBUOJrK6xDIDgXVwylttSaD4ti47A_0Tarvg';
 var STORAGE_BUCKET = 'mathquest-storage';
 var BANGKOK_TZ = 'Asia/Bangkok';
+var DEFAULT_APP_NAME = 'ระบบเช็คชื่อ';
 var supabaseClient = null;
 var configAlertShown = false;
 var BLANK_IMAGE_SRC = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
@@ -27,7 +28,7 @@ var bulkDateRanges = [];
 var refreshCooldown = false;
 var settingsLogoUrl = '', settingsColor = UI_COLOR_PRIMARY;
 var appSettings = {
-  appName: 'ระบบเช็คชื่อนักเรียน',
+  appName: DEFAULT_APP_NAME,
   schoolName: 'กุงแก้ววิทยาคาร',
   accentColor: UI_COLOR_PRIMARY,
   logoBase64: '',
@@ -1094,12 +1095,18 @@ async function upsertSettings(entries) {
   await runQuery(client.from('system_settings').upsert(rows, { onConflict: 'key' }));
 }
 
+function resolveAppName(value) {
+  var name = String(value || '').trim();
+  return !name || /^(MathQuest|ระบบเช็คชื่อนักเรียน|เช็คชื่อเข้าเรียนครูอี้|เข้าเรียนครูอี้)$/i.test(name)
+    ? DEFAULT_APP_NAME : name;
+}
+
 async function getAppSettingsDb() {
   var s = await getSettingsMap(['app_name', 'school_name', 'accent_color', 'logo_url',
     'semester_number', 'semester_year', 'semester_start', 'semester_end', 'school_data_version']);
   var logoUrl = s.logo_url || '';
   return {
-    appName: s.app_name || 'ระบบเช็คชื่อนักเรียน',
+    appName: resolveAppName(s.app_name),
     schoolName: s.school_name || 'กุงแก้ววิทยาคาร',
     accentColor: s.accent_color || UI_COLOR_PRIMARY,
     logoBase64: logoUrl,
@@ -1111,7 +1118,7 @@ async function getAppSettingsDb() {
 
 async function saveAppSettingsDb(settings) {
   await upsertSettings({
-    app_name: settings.appName || 'ระบบเช็คชื่อนักเรียน',
+    app_name: resolveAppName(settings.appName),
     school_name: settings.schoolName || 'กุงแก้ววิทยาคาร',
     accent_color: settings.accentColor || UI_COLOR_PRIMARY,
     logo_url: settings.logoUrl || ''
@@ -2847,11 +2854,12 @@ function applyAppSettings(s) {
   if (!s) return;
   applySemesterSettings(s);
   appSettings = s;
+  var name = resolveAppName(s.appName);
   if (s.accentColor && s.accentColor !== UI_COLOR_PRIMARY) {
     document.documentElement.style.setProperty('--pri', s.accentColor);
     document.documentElement.style.setProperty('--pri-l', s.accentColor + '99');
   }
-  document.getElementById('loginAppName').textContent = s.appName || 'ระบบเช็คชื่อนักเรียน';
+  document.getElementById('loginAppName').textContent = name;
   document.getElementById('loginSchoolName').textContent = s.schoolName || 'กุงแก้ววิทยาคาร';
   if (s.logoBase64) {
     var w = document.getElementById('loginLogoWrap');
@@ -2859,7 +2867,7 @@ function applyAppSettings(s) {
   } else {
     document.getElementById('loginLogoWrap').innerHTML = '<i class="fa-solid fa-school" aria-hidden="true"></i>';
   }
-  document.title = s.appName || 'ระบบเช็คชื่อนักเรียน';
+  document.title = name;
   if (document.getElementById('tHdrSchool')) {
     document.getElementById('tHdrSchool').textContent = s.schoolName || 'กุงแก้ววิทยาคาร';
   }
@@ -5072,7 +5080,7 @@ function clearLogo() {
 
 async function saveSettings() {
   var s = {
-    appName: document.getElementById('setAppName').value.trim() || 'ระบบเช็คชื่อนักเรียน',
+    appName: resolveAppName(document.getElementById('setAppName').value),
     schoolName: document.getElementById('setSchoolName').value.trim() || 'กุงแก้ววิทยาคาร',
     accentColor: settingsColor || UI_COLOR_PRIMARY,
     logoBase64: settingsLogoUrl || '',

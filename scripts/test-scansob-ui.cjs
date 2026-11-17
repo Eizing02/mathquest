@@ -10,7 +10,7 @@ async function main(){
   let fail=false,studentView=true,oldProfile=false,studentGate=null,studentStarted=null;
   let receiptMode='partial';
   let inboxMode=false,inboxRows=[],inboxClock=Date.now(),policyConflict=false;
-  const policy={school_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',enabled:false,emails:[],revision:'0'};
+  const policy={school_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',enabled:false,emails:[],revision:'0',policy:'email_allowlist'};
   const requestId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',connectionId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   const config={school_id:connectionId,receiver_profile:'1.1',held_score_count:1,enabled:false,student_view_enabled:false,identity_policy_accepted:false,score_count:2,
     requests:[{id:requestId,workspace_id:requestId,workspace_label:'ครูวิทยาศาสตร์ ชื่อสำหรับทดสอบข้อความยาวบนหน้าจอมือถือ',status:'pending_approval',expires_at:'2026-10-15T08:00:00Z',held_score_count:1}],
@@ -33,11 +33,12 @@ async function main(){
       if(!inboxMode)return route.fulfill({contentType:'application/json',body:JSON.stringify({data:null,error:{code:'PGRST202'}})});
       if(args.p_action==='inbox'){
         const page=args.p_args.page;
-        data={school_id:policy.school_id,count:inboxRows.length,requests:inboxRows.slice(page*20,page*20+20),page,page_size:20,server_now:new Date(inboxClock).toISOString()};
+        data={school_id:policy.school_id,destination_label:'โรงเรียนปลายทางทดสอบ',count:inboxRows.length,requests:inboxRows.slice(page*20,page*20+20),page,page_size:20,server_now:new Date(inboxClock).toISOString()};
       }else{
         if(args.p_action==='configure'){
           if(policyConflict)return route.fulfill({contentType:'application/json',body:JSON.stringify({data:null,error:{message:'PAIRING_POLICY_CHANGED'}})});
           Object.assign(policy,args.p_args,{revision:'1'});
+          if(policy.policy==='review_each_request')policy.emails=[];
         }
         data=policy;
       }
@@ -74,7 +75,7 @@ async function main(){
       await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'settings overflow '+width);
       if([390,1280].includes(width))await capture('settings-'+width);
     }
-    await page.locator('#scansobCreate').click();await page.waitForSelector('.scansob-code');assert.equal(await page.locator('.scansob-code').textContent(),'1234ABCD1234ABCD');await page.locator('.swal2-confirm').click();
+    assert.equal(await page.locator('#scansobCreate').isVisible(),false,'code creation is not in the main toolbar');
     await page.locator('[onclick*="decideScanSobRequest"]').first().click();assert.ok((await page.locator('.swal2-html-container').textContent()).includes('คะแนนค้าง'));await page.locator('.swal2-confirm').click();await page.waitForFunction(()=>document.querySelector('#scansobRequests').textContent.includes('ไม่มีคำขอ'));
     await page.evaluate(()=>switchTab('exams'));await page.waitForSelector('.scansob-table tbody tr');
     const examSelect=page.locator('#externalExamSelect');
@@ -159,7 +160,11 @@ async function main(){
       assert.equal(await page.locator('#scansobRequests .scansob-connection').count(),2);
       if([390,768,1280].includes(width)) await capture('inbox-'+width);
     }
-    await page.locator('#scansobSignedPolicy summary').click();
+    await page.locator('#scansobLegacyPolicy summary').click();
+    await page.locator('#scansobCreate').click();
+    await page.waitForSelector('.scansob-code');
+    assert.equal(await page.locator('.scansob-code').textContent(),'1234ABCD1234ABCD');
+    await page.locator('.swal2-confirm').click();
     await page.locator('#scansobPolicyEnabled').check();
     await page.locator('#scansobPolicySave').click();
     await page.waitForFunction(()=>document.querySelector('#scansobPolicyStatus').textContent.includes('ตรวจอีเมล'));
@@ -175,6 +180,24 @@ async function main(){
     assert.equal(await page.locator('#scansobPolicyEmails').inputValue(),'draft@fixture.invalid','Realtime does not overwrite settings drafts');
     await page.locator('#scansobPolicyReload').click();
     await page.waitForFunction(()=>document.querySelector('#scansobPolicyEmails').value==='teacher@fixture.invalid');
+    policyConflict=false;
+    await page.locator('#scansobPolicyUseReview').click();
+    await page.locator('.swal2-confirm').click();
+    await page.waitForFunction(()=>document.querySelector('#scansobPolicyMode').textContent==='อนุมัติรายคำขอ');
+    assert.equal(await page.locator('#scansobPolicyEnabled').isChecked(),false,'mode switch pauses intake');
+    assert.equal(await page.locator('#scansobPolicyEmails').isVisible(),false);
+    assert.equal(await page.locator('#scansobCreate').isVisible(),false);
+    assert.equal(await page.locator('#scansobPolicyEnabled').evaluate(el=>el===document.activeElement),true);
+    await page.locator('#scansobPolicyEnabled').check();
+    await page.locator('#scansobPolicySave').click();
+    await page.waitForFunction(()=>document.querySelector('#scansobPolicyStatus').textContent==='บันทึกการรับคำขอแล้ว');
+    assert.equal(calls.filter(call=>call.name==='mq_scansob_pairing_inbox'&&call.args.p_action==='configure').at(-1).args.p_args.emails,undefined);
+    assert.match(await page.locator('#scansobRequests').textContent(),/โรงเรียนปลายทางทดสอบ/);
+    for(const width of [320,390,768,1280]){
+      await page.setViewportSize({width,height:900});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'review settings overflow '+width);
+      if([390,1280].includes(width))await capture('review-settings-'+width);
+    }
     await page.locator('#scansobRequests [data-request-action=approve]').first().click();
     await page.waitForSelector('.scansob-decision');
     assert.match(await page.locator('.scansob-decision').textContent(),/teacher-with-a-long-name.*สิทธิ์: ส่งคะแนน/);

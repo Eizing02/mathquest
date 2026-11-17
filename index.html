@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title id="pageTitle">ระบบเช็คชื่อนักเรียน</title>
+  <title id="pageTitle">ระบบเช็คชื่อ</title>
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/app-icons/icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="icon" type="image/png" sizes="192x192" href="./assets/app-icons/icon-192.png">
@@ -24,7 +24,7 @@
   <link href="./student-panels.css" rel="stylesheet">
   <link rel="manifest" href="./app.webmanifest">
   <meta name="theme-color" content="#176b60">
-  <meta name="apple-mobile-web-app-title" content="เช็คชื่อเข้าเรียนครูอี้">
+  <meta name="apple-mobile-web-app-title" content="ระบบเช็คชื่อ">
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -39,7 +39,7 @@
   <div class="login-stage">
   <div class="login-card">
     <div id="loginLogoWrap" class="login-logo-emoji">🏫</div>
-    <h1 id="loginAppName">ระบบเช็คชื่อนักเรียน</h1>
+    <h1 id="loginAppName">ระบบเช็คชื่อ</h1>
     <p id="loginSchoolName" aria-live="polite">กำลังโหลด...</p>
     <button id="googleLoginBtn" type="button" class="google-login-button" onclick="signInWithGoogle()">
       <i class="fa-brands fa-google" aria-hidden="true"></i><span>เข้าสู่ระบบด้วย Google</span>
@@ -710,10 +710,28 @@
           <label class="scansob-switch"><input id="scansobIngestToggle" type="checkbox" role="switch" disabled>รับคะแนนจาก ScanSob</label>
           <label class="scansob-switch"><input id="scansobViewToggle" type="checkbox" role="switch" disabled>ให้นักเรียนดูคะแนน</label>
           <button id="scansobSave" type="button" class="btn btn-primary-action" onclick="saveScanSobSettings()" disabled><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึก</button>
-          <button id="scansobCreate" type="button" class="btn btn-outline-secondary" onclick="createScanSobCode()" disabled><i class="fa-solid fa-link me-1" aria-hidden="true"></i>สร้างรหัสจับคู่</button>
         </div>
         <section aria-labelledby="scansobInboxTitle">
-          <h3 id="scansobInboxTitle" class="scansob-subheading" tabindex="-1">คำขอเชื่อมต่อ</h3>
+          <h3 id="scansobInboxTitle" class="scansob-subheading" tabindex="-1">คำขอจาก ScanSob</h3>
+          <form id="scansobSignedPolicy" class="scansob-signed-policy" onsubmit="saveScanSobPolicy(event)" hidden>
+            <div class="scansob-policy-heading">
+              <strong id="scansobPolicyState"></strong>
+              <span id="scansobPolicyMode"></span>
+            </div>
+            <div class="scansob-policy-actions">
+              <label class="scansob-switch"><input id="scansobPolicyEnabled" type="checkbox" role="switch">เปิดรับคำขอใหม่</label>
+              <button id="scansobPolicySave" type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึกการรับคำขอ</button>
+              <button id="scansobPolicyUseReview" type="button" class="btn btn-primary-action" onclick="switchScanSobPolicyToReview()" hidden>เปลี่ยนเป็นอนุมัติรายคำขอ</button>
+              <button id="scansobPolicyReload" type="button" class="btn btn-outline-secondary" onclick="loadScanSobPolicy(true)" hidden>โหลดค่าล่าสุด</button>
+            </div>
+            <details id="scansobLegacyPolicy" hidden>
+              <summary>การเชื่อมต่อแบบเดิม</summary>
+              <label class="form-label" for="scansobPolicyEmails">อีเมลครูที่ส่งคำขอได้ (หนึ่งอีเมลต่อบรรทัด)</label>
+              <textarea id="scansobPolicyEmails" class="form-control" rows="3" maxlength="25500" inputmode="email" autocomplete="off" spellcheck="false" placeholder="teacher@school.example"></textarea>
+              <button id="scansobCreate" type="button" class="btn btn-outline-secondary mt-2" onclick="createScanSobCode()" disabled><i class="fa-solid fa-link me-1" aria-hidden="true"></i>สร้างรหัสจับคู่</button>
+            </details>
+            <p id="scansobPolicyStatus" role="status" hidden></p>
+          </form>
           <p id="scansobInboxStatus" class="scansob-inbox-status" role="status" hidden></p>
           <div id="scansobRequests"></div>
           <div id="scansobInboxPagination" class="scansob-inbox-pagination" hidden>
@@ -722,19 +740,6 @@
             <button id="scansobInboxNext" class="btn btn-outline-secondary" type="button" aria-label="หน้าถัดไป" onclick="changeScanSobInboxPage(1)"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
           </div>
         </section>
-        <details id="scansobSignedPolicy" class="scansob-signed-policy" hidden>
-          <summary>คำขอแบบไม่ใช้รหัส <span id="scansobPolicyState"></span></summary>
-          <form id="scansobPolicyForm" onsubmit="saveScanSobPolicy(event)">
-            <label class="scansob-switch"><input id="scansobPolicyEnabled" type="checkbox" role="switch">เปิดรับคำขอใหม่</label>
-            <label class="form-label" for="scansobPolicyEmails">อีเมลครูที่ส่งคำขอได้ (หนึ่งอีเมลต่อบรรทัด)</label>
-            <textarea id="scansobPolicyEmails" class="form-control" rows="3" maxlength="25500" inputmode="email" autocomplete="off" spellcheck="false" placeholder="teacher@school.example"></textarea>
-            <div class="scansob-policy-actions">
-              <button id="scansobPolicySave" type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึกการรับคำขอ</button>
-              <button id="scansobPolicyReload" type="button" class="btn btn-outline-secondary" onclick="loadScanSobPolicy(true)" hidden>โหลดค่าล่าสุด</button>
-            </div>
-            <p id="scansobPolicyStatus" role="status" hidden></p>
-          </form>
-        </details>
         <h3 class="scansob-subheading">Workspace ที่เชื่อมไว้</h3><div id="scansobConnections"></div>
       </section>
       <section class="semester-settings" aria-labelledby="semesterTitle">
@@ -762,7 +767,7 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label" for="setAppName">ชื่อแอปพลิเคชัน</label>
-            <input type="text" id="setAppName" class="form-control mb-3" placeholder="ระบบเช็คชื่อนักเรียน">
+            <input type="text" id="setAppName" class="form-control mb-3" placeholder="ระบบเช็คชื่อ">
             <label class="form-label" for="setSchoolName">ชื่อโรงเรียน</label>
             <input type="text" id="setSchoolName" class="form-control mb-3" placeholder="กุงแก้ววิทยาคาร">
             <label class="form-label" for="setColor">สีหลัก (Accent Color)</label>

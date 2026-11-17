@@ -23,7 +23,7 @@ function installStep(icon,title,detail) {
   return '<li><span class="install-step-icon" aria-hidden="true"><i class="'+icon+'"></i></span><div><strong>'+title+'</strong><small>'+detail+'</small></div></li>';
 }
 function studentInstallContent() {
-  return '<div class="student-install-brand"><img src="./assets/app-icons/icon-192.png" width="64" height="64" alt="โลโก้แอป"><strong>เช็คชื่อเข้าเรียนครูอี้</strong></div>'
+  return '<div class="student-install-brand"><img src="./assets/app-icons/icon-192.png" width="64" height="64" alt="โลโก้แอป"><strong>'+DEFAULT_APP_NAME+'</strong></div>'
     +'<div class="student-install-tabs" role="tablist" aria-label="เลือกอุปกรณ์">'
     +'<button id="installAndroidTab" type="button" role="tab" aria-controls="studentInstallPanel" onclick="selectStudentInstallPlatform(\'android\')"><i class="fa-brands fa-android" aria-hidden="true"></i> Android</button>'
     +'<button id="installIosTab" type="button" role="tab" aria-controls="studentInstallPanel" onclick="selectStudentInstallPlatform(\'ios\')"><i class="fa-brands fa-apple" aria-hidden="true"></i> iPhone / iPad</button></div>'
@@ -41,13 +41,13 @@ function selectStudentInstallPlatform(platform) {
     +installStep('fa-brands fa-safari','เปิดเว็บนี้ด้วย Safari','หากเปิดจาก LINE หรือ Facebook ให้เลือกเปิดในเบราว์เซอร์ก่อน')
     +installStep('fa-solid fa-arrow-up-from-bracket','กดปุ่มแชร์','บางรูปแบบหน้าจอ ต้องเปิดเมนูเพิ่มเติมก่อนเลือกแชร์')
     +installStep('fa-regular fa-square-plus','เลือก “เพิ่มไปยังหน้าจอโฮม”','หากยังไม่เห็น ให้เลื่อนรายการหรือกดดูเพิ่มเติม')
-    +installStep('fa-solid fa-circle-check','กด “เพิ่ม”','เปิดตัวเลือก “เปิดเป็นเว็บแอป” หากมี แล้วมองหาโลโก้ครูอี้บนหน้าจอโฮม')+'</ol>';
+    +installStep('fa-solid fa-circle-check','กด “เพิ่ม”','เปิดตัวเลือก “เปิดเป็นเว็บแอป” หากมี แล้วมองหาแอป '+DEFAULT_APP_NAME+' บนหน้าจอโฮม')+'</ol>';
   else panel.innerHTML='<ol class="student-install-steps">'
     +installStep('fa-brands fa-chrome','เปิดเว็บนี้ด้วย Chrome','แนะนำ Chrome บน Android หากเปิดจากแอปอื่น ให้เปิดในเบราว์เซอร์ก่อน')
     +(studentInstallPrompt?installStep('fa-solid fa-download','กด “ติดตั้งแอป” ด้านล่าง','เบราว์เซอร์จะแสดงหน้าต่างให้ยืนยันการติดตั้ง'):
       installStep('fa-solid fa-ellipsis-vertical','เปิดเมนูสามจุดของ Chrome','อยู่ข้างแถบที่อยู่เว็บไซต์')
       +installStep('fa-regular fa-square-plus','เลือก “ติดตั้งแอป” หรือ “เพิ่มลงในหน้าจอหลัก”','บางเวอร์ชันอยู่ในเมนูติดตั้งและสร้างทางลัด'))
-    +installStep('fa-solid fa-circle-check','ยืนยัน แล้วเปิดจากหน้าจอโฮม','มองหาโลโก้แอปเช็คชื่อเข้าเรียนครูอี้')+'</ol>'
+    +installStep('fa-solid fa-circle-check','ยืนยัน แล้วเปิดจากหน้าจอโฮม','มองหาแอป '+DEFAULT_APP_NAME)+'</ol>'
     +(studentInstallPrompt?'<button id="studentInstallNow" class="student-install-primary" type="button" onclick="installStudentApp()"><i class="fa-solid fa-download" aria-hidden="true"></i> ติดตั้งแอป</button>':'<p class="student-install-note">หากไม่มีเมนูติดตั้ง ให้ลอง Chrome รุ่นล่าสุด หรือใช้เมนูเพิ่มทางลัดแทน</p>');
   panel.insertAdjacentHTML('beforeend','<p id="studentInstallStatus" class="student-install-status" role="status" aria-live="polite" hidden></p>');
 }

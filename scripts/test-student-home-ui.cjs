@@ -42,10 +42,14 @@ async function main(){
   try{
     await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'networkidle'});
     await page.waitForFunction(()=>profileStyleReady&&studentAvatar.dataset.frame==='aqua');
+    assert.equal(await page.title(),'ระบบเช็คชื่อ','saved legacy name is adapted after login');
+    assert.equal(await page.locator('#loginAppName').textContent(),'ระบบเช็คชื่อ');
+    assert.equal(await page.evaluate(()=>resolveAppName(' MathQuest ')),'ระบบเช็คชื่อ');
+    assert.equal(await page.evaluate(()=>resolveAppName('ระบบของโรงเรียนตัวอย่าง')),'ระบบของโรงเรียนตัวอย่าง');
     await page.evaluate(()=>{getStudentPointsAndLevelDb=async()=>({level:7,totalPoints:35,pointsInLevel:0});getWalletBalanceDb=async()=>({mathCoins:30});studentExamButton.hidden=false;});
     assert.equal(await page.evaluate(()=>fixtureGpsCalls),0,'no background GPS');
     const manifest=await page.request.get('http://127.0.0.1:'+server.address().port+'/app.webmanifest');
-    assert.match(manifest.headers()['content-type'],/manifest\+json/);assert.equal((await manifest.json()).name,'เช็คชื่อเข้าเรียนครูอี้');
+    assert.match(manifest.headers()['content-type'],/manifest\+json/);assert.equal((await manifest.json()).name,'ระบบเช็คชื่อ');
     for(const [width,height] of [[320,568],[360,740],[390,844],[430,932],[768,1024],[1280,900]]){
       await page.setViewportSize({width,height});
       await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width,height});
@@ -90,6 +94,7 @@ async function main(){
     assert.equal(await page.locator('#studentPin').getAttribute('data-feedback'),'info');assert.doesNotMatch(await page.locator('#studentPinMessage').textContent(),/\+5/);
     await page.locator('#pinCode').blur();
     await page.locator('#studentInstallButton').click();await utilityOpen();
+    assert.equal(await page.locator('.student-install-brand strong').textContent(),'ระบบเช็คชื่อ');
     await page.locator('#installAndroidTab').click();assert.equal(await page.locator('#studentInstallNow').count(),0,'manual guidance when prompt unavailable');await shot('install-android-manual');
     await page.evaluate(()=>{window.fakeInstallCount=0;const event=new Event('beforeinstallprompt',{cancelable:true});event.prompt=async()=>{fakeInstallCount++;return {outcome:'dismissed'};};window.dispatchEvent(event);});
     await page.locator('#studentInstallNow').click();assert.equal(await page.evaluate(()=>fakeInstallCount),1);assert.equal(await page.locator('#studentInstallNow').count(),0,'one-use event consumed');

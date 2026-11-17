@@ -134,11 +134,17 @@ function setScanSobInboxStatus(message, error) {
   status.hidden = !message;
 }
 
+function scanSobRequestDestination() {
+  var data = scanSobInbox && scanSobInbox.data;
+  return resolveAppName((data && data.destination_label) || document.getElementById('tHdrSchool').textContent);
+}
+
 function renderScanSobInbox(run) {
   var data = run.data;
   var list = document.getElementById('scansobRequests');
   setScanSobInboxStatus(data.count ? 'รออนุมัติ ' + data.count + ' รายการ' : '');
-  var key = JSON.stringify(data.requests);
+  var destination = scanSobRequestDestination();
+  var key = JSON.stringify([destination, data.requests]);
   if (key !== run.rendered) {
     var focus = list.contains(document.activeElement) ? document.activeElement : null;
     var focusId = focus && focus.dataset.requestId;
@@ -147,7 +153,8 @@ function renderScanSobInbox(run) {
       var id = escHtml(row.id);
       var sender = row.sender_email ? (row.sender_name ? escHtml(row.sender_name) + ' · ' : '') + escHtml(row.sender_email) : 'คำขอด้วยรหัสจับคู่';
       return '<div class="scansob-connection"><div class="scansob-connection-copy"><strong>' + escHtml(row.workspace_label) + '</strong><small>' + sender +
-        '</small><small>Workspace ' + escHtml(row.workspace_id) + '</small><small>ส่ง ' + escHtml(scanSobDate(row.created_at)) + ' · หมดอายุ ' + escHtml(scanSobDate(row.expires_at)) +
+        '</small><small>Workspace ' + escHtml(row.workspace_id) + '</small><small>ปลายทาง: ' + escHtml(destination) +
+        '</small><small>ส่ง ' + escHtml(scanSobDate(row.created_at)) + ' · หมดอายุ ' + escHtml(scanSobDate(row.expires_at)) +
         '</small></div><div class="scansob-row-actions"><button type="button" class="btn btn-primary-action" data-request-id="' + id + '" data-request-action="approve">อนุมัติ</button>' +
         '<button type="button" class="btn btn-outline-secondary" data-request-id="' + id + '" data-request-action="reject">ปฏิเสธ</button></div></div>';
     }).join('') : scanSobEmpty('ไม่มีคำขอรออนุมัติ');
@@ -211,10 +218,16 @@ function openScanSobInbox() {
 
 function renderScanSobPolicy(data) {
   scanSobPolicy = data;
+  var review = data.policy === 'review_each_request';
   document.getElementById('scansobSignedPolicy').hidden = false;
   document.getElementById('scansobPolicyState').textContent = data.enabled ? 'เปิดรับ' : 'ปิดรับ';
+  document.getElementById('scansobPolicyMode').textContent = review ? 'อนุมัติรายคำขอ' : 'จำกัดตามรายชื่อเดิม';
   document.getElementById('scansobPolicyEnabled').checked = data.enabled;
-  document.getElementById('scansobPolicyEmails').value = data.emails.join('\n');
+  var legacy = document.getElementById('scansobLegacyPolicy');
+  legacy.hidden = review;
+  if (review) legacy.open = false;
+  document.getElementById('scansobPolicyEmails').value = review ? '' : data.emails.join('\n');
+  document.getElementById('scansobPolicyUseReview').hidden = data.policy !== 'email_allowlist';
   document.getElementById('scansobPolicyReload').hidden = true;
 }
 
@@ -225,7 +238,7 @@ function scanSobPolicyStatus(message, error) {
 
 function setScanSobPolicyBusy(busy) {
   scanSobPolicyBusy = busy;
-  ['scansobPolicySave','scansobPolicyReload','scansobPolicyEnabled','scansobPolicyEmails'].forEach(function(id) {
+  ['scansobPolicySave','scansobPolicyReload','scansobPolicyEnabled','scansobPolicyEmails','scansobPolicyUseReview'].forEach(function(id) {
     document.getElementById(id).disabled = busy;
   });
 }
@@ -249,6 +262,11 @@ async function saveScanSobPolicy(event) {
   var run = scanSobInbox;
   if (!activeScanSobInbox(run) || !scanSobPolicy || scanSobPolicyBusy) return;
   var enabled = document.getElementById('scansobPolicyEnabled').checked;
+  var args = {enabled: enabled, revision: scanSobPolicy.revision};
+  if (scanSobPolicy.policy === 'review_each_request') {
+    await persistScanSobPolicy(run, args, 'บันทึกการรับคำขอแล้ว');
+    return;
+  }
   var emails = Array.from(new Set(document.getElementById('scansobPolicyEmails').value.split(/\r?\n/).map(function(email) {
     return email.trim().toLowerCase();
   }).filter(Boolean)));
@@ -258,16 +276,39 @@ async function saveScanSobPolicy(event) {
     scanSobPolicyStatus('ตรวจอีเมลครูอีกครั้ง ระบุได้ไม่เกิน 100 อีเมล และต้องมีอย่างน้อยหนึ่งอีเมลเมื่อเปิดรับ', true);
     return;
   }
+  args.emails = emails;
+  await persistScanSobPolicy(run, args, 'บันทึกการรับคำขอแล้ว');
+}
+
+async function switchScanSobPolicyToReview() {
+  var run = scanSobInbox;
+  var policy = scanSobPolicy;
+  if (!activeScanSobInbox(run) || !policy || policy.policy !== 'email_allowlist' || scanSobPolicyBusy) return;
+  var answer = await Swal.fire({
+    icon: 'question',
+    title: 'เปลี่ยนเป็นอนุมัติรายคำขอ?',
+    text: 'ไม่ต้องลงรายชื่ออีเมลล่วงหน้า และจะสร้างหรือใช้รหัสเปิดคำขอใหม่ไม่ได้ ระบบจะพักรับคำขอใหม่ไว้ก่อน การเชื่อมต่อเดิมยังใช้งานได้',
+    showCancelButton: true, confirmButtonText: 'เปลี่ยนวิธีรับคำขอ', cancelButtonText: 'ยกเลิก'
+  });
+  if (!answer.isConfirmed || !activeScanSobInbox(run) || policy !== scanSobPolicy || scanSobPolicyBusy) return;
+  if (await persistScanSobPolicy(run, {enabled: false, policy: 'review_each_request', revision: policy.revision},
+    'เปลี่ยนเป็นอนุมัติรายคำขอแล้ว ขณะนี้ปิดรับคำขอใหม่')) {
+    document.getElementById('scansobPolicyEnabled').focus();
+  }
+}
+
+async function persistScanSobPolicy(run, args, message) {
   setScanSobPolicyBusy(true);
   try {
-    var data = await scanSobInboxRpc('configure', {enabled: enabled, emails: emails, revision: scanSobPolicy.revision});
+    var data = await scanSobInboxRpc('configure', args);
     if (!activeScanSobInbox(run)) return;
     renderScanSobPolicy(data);
-    scanSobPolicyStatus('บันทึกการรับคำขอแล้ว', false);
+    scanSobPolicyStatus(message, false);
+    return true;
   } catch (error) {
     if (!activeScanSobInbox(run)) return;
     var conflict = (error.message || '').includes('PAIRING_POLICY_CHANGED');
     document.getElementById('scansobPolicyReload').hidden = !conflict;
-    scanSobPolicyStatus(conflict ? 'การตั้งค่าถูกเปลี่ยนแล้ว กรุณาโหลดค่าล่าสุดก่อนบันทึกอีกครั้ง' : 'บันทึกไม่สำเร็จ กรุณาตรวจอีเมลแล้วลองอีกครั้ง', true);
+    scanSobPolicyStatus(conflict ? 'การตั้งค่าถูกเปลี่ยนแล้ว กรุณาโหลดค่าล่าสุดก่อนบันทึกอีกครั้ง' : 'บันทึกการรับคำขอไม่สำเร็จ กรุณาลองใหม่', true);
   } finally { if (activeScanSobInbox(run)) setScanSobPolicyBusy(false); }
 }

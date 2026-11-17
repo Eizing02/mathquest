@@ -69,12 +69,15 @@ async function saveScanSobSettings() {
   finally { scanSobSetBusy(false); await loadScanSobSettings(); }
 }
 async function createScanSobCode() {
-  if (scanSobBusy) return;
+  if (scanSobBusy || !scanSobPolicy || scanSobPolicy.policy === 'review_each_request') return;
   scanSobSetBusy(true);
   try {
     var result = await scanSobAdmin('create_code');
     await Swal.fire({ title: 'รหัสจับคู่ ScanSob', html: '<code class="scansob-code">' + escHtml(result.code) + '</code><p>ใช้ได้ครั้งเดียว หมดอายุ ' + escHtml(scanSobDate(result.expires_at)) + '</p>', confirmButtonText: 'ปิด' });
-  } catch (error) { onErr(error); }
+  } catch (error) {
+    if ((error.message || '').includes('LEGACY_PAIRING_DISABLED')) await loadScanSobPolicy(true);
+    else onErr(error);
+  }
   finally { scanSobSetBusy(false); }
 }
 async function decideScanSobRequest(id, approve) {
@@ -85,7 +88,7 @@ async function decideScanSobRequest(id, approve) {
   var contextToken = teacherAdminToken;
   var sender = request.sender_email ? '<p>' + escHtml(request.sender_name || request.sender_email) +
     (request.sender_name ? '<br>' + escHtml(request.sender_email) : '') + '</p>' : '';
-  var school = document.getElementById('tHdrSchool').textContent;
+  var school = scanSobRequestDestination();
   var consent = approve ? '<p>สิทธิ์: ส่งคะแนนจาก Workspace นี้ไปยัง ' + escHtml(school) + ' เท่านั้น</p>' : '';
   var history = approve && request.held_score_count ? '<p>มีคะแนนค้าง ' + escHtml(request.held_score_count) + ' รายการ คะแนนจากการเชื่อมต่อเดิมจะยังถูกซ่อนไว้</p>' : '';
   var answer = await Swal.fire({ icon: 'question', title: approve ? 'อนุมัติการเชื่อมต่อ?' : 'ปฏิเสธคำขอนี้?',
