@@ -226,10 +226,18 @@
     </div>
     <div class="teacher-header-actions">
       <span id="teacherTermLabel" class="term-label">ภาคเรียนยังไม่ระบุ</span>
+      <button id="scansobInboxBell" type="button" class="teacher-settings scansob-bell" onclick="openScanSobInbox()" aria-label="คำขอเชื่อมต่อ ScanSob" title="คำขอเชื่อมต่อ ScanSob" hidden><i class="fa-regular fa-bell" aria-hidden="true"></i><span id="scansobInboxBadge" hidden aria-hidden="true"></span></button>
       <button type="button" class="teacher-settings" onclick="switchTab('settings')" aria-label="ตั้งค่าระบบ" title="ตั้งค่าระบบ"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
     <button class="teacher-logout"
             aria-label="ออกจากระบบ" onclick="logout()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
     </div>
+  </div>
+
+  <div id="scansobInboxAnnouncement" class="visually-hidden" role="status"></div>
+  <div id="scansobInboxToast" class="scansob-inbox-toast" hidden>
+    <i class="fa-solid fa-link" aria-hidden="true"></i>
+    <div><strong>คำขอเชื่อมต่อ ScanSob ใหม่</strong><span id="scansobInboxToastText"></span><button type="button" class="btn btn-outline-secondary" onclick="openScanSobInbox()">ดูคำขอ</button></div>
+    <button type="button" class="btn-close" aria-label="ปิดแจ้งเตือน ScanSob" onclick="dismissScanSobInboxToast(true)"></button>
   </div>
 
   <div class="container-fluid teacher-workspace">
@@ -260,6 +268,21 @@
         <fieldset class="scansob-modes"><legend class="visually-hidden">ข้อมูลที่แสดง</legend><label><input type="radio" name="externalExamMode" value="scores" checked onchange="loadTeacherExamRows(false)"> คะแนน</label><label><input type="radio" name="externalExamMode" value="issues" onchange="loadTeacherExamRows(false)"> รหัสที่ต้องตรวจสอบ</label></fieldset>
         <button id="externalScoreExport" class="btn btn-outline-secondary" type="button" onclick="exportExternalScores()"><i class="fa-solid fa-file-csv me-1" aria-hidden="true"></i>CSV</button>
       </div>
+      <section id="scansobReceipt" class="scansob-receipt" aria-labelledby="scansobReceiptTitle" hidden>
+        <h3 id="scansobReceiptTitle">ใบตอบรับคะแนน</h3>
+        <p id="scansobReceiptStatus" role="status"></p>
+        <div id="scansobReceiptData" hidden>
+          <dl class="scansob-receipt-counts">
+            <div><dt>รับสำเร็จ</dt><dd id="scansobReceiptAccepted"></dd></div>
+            <div><dt>จับคู่รหัสไม่ได้</dt><dd id="scansobReceiptUnmatched"></dd></div>
+            <div><dt>ข้อมูลไม่ถูกต้อง</dt><dd id="scansobReceiptInvalid"></dd></div>
+          </dl>
+          <details class="scansob-receipt-reference">
+            <summary>รหัสอ้างอิงสำหรับเทียบกับ ScanSob</summary>
+            <dl><div><dt>ชุดสอบ</dt><dd id="scansobReceiptExam"></dd></div><div><dt>Workspace</dt><dd id="scansobReceiptWorkspace"></dd></div></dl>
+          </details>
+        </div>
+      </section>
       <p id="externalExamStatus" role="status" aria-live="polite"></p><div id="externalExamRows"></div>
       <button id="externalExamMore" class="btn btn-outline-secondary mt-3" type="button" onclick="loadTeacherExamRows(true)" hidden>โหลดเพิ่ม</button>
     </section>
@@ -681,7 +704,7 @@
     <!-- ── TAB: SETTINGS ── -->
     <div class="t-pane" id="tab-settings" role="region" aria-labelledby="teacher-tab-settings" hidden>
       <section class="scansob-settings" aria-labelledby="scansobSettingsTitle">
-        <div class="scansob-heading"><h2 id="scansobSettingsTitle" class="teacher-section-title">เชื่อมต่อ ScanSob</h2><button type="button" class="btn btn-outline-secondary" onclick="loadScanSobSettings()" aria-label="รีเฟรชการเชื่อมต่อ"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button></div>
+        <div class="scansob-heading"><h2 id="scansobSettingsTitle" class="teacher-section-title">เชื่อมต่อ ScanSob</h2><button type="button" class="btn btn-outline-secondary" onclick="refreshScanSobSettings()" aria-label="รีเฟรชการเชื่อมต่อ"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button></div>
         <p id="scansobSettingsStatus" role="status" aria-live="polite">ยังไม่ได้โหลดการเชื่อมต่อ</p>
         <div class="scansob-toolbar">
           <label class="scansob-switch"><input id="scansobIngestToggle" type="checkbox" role="switch" disabled>รับคะแนนจาก ScanSob</label>
@@ -689,7 +712,29 @@
           <button id="scansobSave" type="button" class="btn btn-primary-action" onclick="saveScanSobSettings()" disabled><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึก</button>
           <button id="scansobCreate" type="button" class="btn btn-outline-secondary" onclick="createScanSobCode()" disabled><i class="fa-solid fa-link me-1" aria-hidden="true"></i>สร้างรหัสจับคู่</button>
         </div>
-        <h3 class="scansob-subheading">คำขอเชื่อมต่อ</h3><div id="scansobRequests"></div>
+        <section aria-labelledby="scansobInboxTitle">
+          <h3 id="scansobInboxTitle" class="scansob-subheading" tabindex="-1">คำขอเชื่อมต่อ</h3>
+          <p id="scansobInboxStatus" class="scansob-inbox-status" role="status" hidden></p>
+          <div id="scansobRequests"></div>
+          <div id="scansobInboxPagination" class="scansob-inbox-pagination" hidden>
+            <button id="scansobInboxPrev" class="btn btn-outline-secondary" type="button" aria-label="หน้าก่อนหน้า" onclick="changeScanSobInboxPage(-1)"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+            <span id="scansobInboxPageText"></span>
+            <button id="scansobInboxNext" class="btn btn-outline-secondary" type="button" aria-label="หน้าถัดไป" onclick="changeScanSobInboxPage(1)"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+          </div>
+        </section>
+        <details id="scansobSignedPolicy" class="scansob-signed-policy" hidden>
+          <summary>คำขอแบบไม่ใช้รหัส <span id="scansobPolicyState"></span></summary>
+          <form id="scansobPolicyForm" onsubmit="saveScanSobPolicy(event)">
+            <label class="scansob-switch"><input id="scansobPolicyEnabled" type="checkbox" role="switch">เปิดรับคำขอใหม่</label>
+            <label class="form-label" for="scansobPolicyEmails">อีเมลครูที่ส่งคำขอได้ (หนึ่งอีเมลต่อบรรทัด)</label>
+            <textarea id="scansobPolicyEmails" class="form-control" rows="3" maxlength="25500" inputmode="email" autocomplete="off" spellcheck="false" placeholder="teacher@school.example"></textarea>
+            <div class="scansob-policy-actions">
+              <button id="scansobPolicySave" type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>บันทึกการรับคำขอ</button>
+              <button id="scansobPolicyReload" type="button" class="btn btn-outline-secondary" onclick="loadScanSobPolicy(true)" hidden>โหลดค่าล่าสุด</button>
+            </div>
+            <p id="scansobPolicyStatus" role="status" hidden></p>
+          </form>
+        </details>
         <h3 class="scansob-subheading">Workspace ที่เชื่อมไว้</h3><div id="scansobConnections"></div>
       </section>
       <section class="semester-settings" aria-labelledby="semesterTitle">
@@ -1140,6 +1185,7 @@
 <script defer src="./school-admin.js"></script>
 <script defer src="./google-auth.js"></script>
 <script defer src="./scansob.js"></script>
+<script defer src="./scansob-inbox.js"></script>
 <script defer src="./attendance-location.js"></script>
 <script defer src="./profile-frames.js"></script>
 <script defer src="./student-home.js"></script>

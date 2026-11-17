@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
 const net=require('node:net');
 const {pathToFileURL}=require('node:url');
-const {setup,event,hash}=require('./test-scansob.cjs');
+const {setup,event,hash,read}=require('./test-scansob.cjs');
 async function main(){
   const qa=process.env.SQL_QA_MODULE_ROOT||path.join(os.tmpdir(),'mathquest-sql-qa','node_modules');
   const {default:EmbeddedPostgres}=await import(pathToFileURL(path.join(qa,'embedded-postgres/dist/index.js')));
@@ -18,6 +18,8 @@ async function main(){
     await cluster.initialise();await cluster.start();const owner=cluster.getPgClient();await owner.connect();clients.push(owner);
     const db={exec:sql=>owner.query(sql),query:(sql,args)=>owner.query(sql,args)};
     const {teacher,actor}=await setup(db);
+    await db.exec(read('20261117_01_scansob_publication_receipts.sql'));
+    await db.exec(read('20261116_01_scansob_code_free_pairing.sql'));
     await actor(teacher);const token=(await owner.query('select mq_open_teacher_session() as value')).rows[0].value;
     await owner.query("select mq_scansob_admin($1,'configure',$2)",[token,{enabled:true,student_view_enabled:true,accept_self_claim_risk:true}]);
     await owner.query('reset role');
@@ -66,6 +68,37 @@ async function main(){
         workspace_label:'Concurrency fixture',request_secret:crypto.randomBytes(32).toString('base64url'),pairing_code:code.code};
     };
     const statusOf=r=>({schema_version:'1.0',action:'status',request_id:r.request_id,source_workspace_id:r.source_workspace_id,request_secret:r.request_secret});
+    const policy=async(action,args={})=>{
+      await actor(teacher);
+      return (await owner.query('select mq_scansob_pairing_inbox($1,$2,$3) as value',[adminToken,action,args])).rows[0].value;
+    };
+    const allowed='teacher@fixture.invalid';
+    const currentPolicy=await policy('policy');
+    await policy('configure',{revision:currentPolicy.revision,enabled:true,emails:[allowed]});
+    for(let attempt=0;attempt<4;attempt++){
+      const legacyRequest=await makeRequest();
+      const source={schema_version:'1.0',action:'prepare_signed',request_id:crypto.randomUUID(),destination_school_id:school,
+        source_workspace_id:legacyRequest.source_workspace_id,sender_auth_id:crypto.randomUUID(),sender_verified_email:allowed};
+      const prepared=(await clients[1].query('select mq_scansob_prepare_signed($1) as value',[source])).rows[0].value.body;
+      const signed={...source,action:'request_signed',pairing_window_id:prepared.pairing_window_id,
+        workspace_label:'Signed fixture',requested_at:new Date().toISOString()};
+      // Test the database boundary on independent connections; Edge signatures are covered separately.
+      const signedCall=()=>clients[2].query('select mq_scansob_request_signed($1,$2,$3,$4) as value',
+        [signed,hash(JSON.stringify(signed)),hash(crypto.randomBytes(32)),hash(crypto.randomBytes(32))])
+        .then(r=>({status:r.rows[0].value.http_status,body:r.rows[0].value.body}));
+      const legacyCall=()=>pair(clients[1],legacyRequest);
+      const result=await Promise.all(attempt%2?[signedCall(),legacyCall()]:[legacyCall(),signedCall()]);
+      assert.deepEqual(result.map(r=>r.status).sort(),[200,409]);
+      assert.equal(result.find(r=>r.status===409).body.error,'PAIRING_WORKSPACE_BUSY');
+      await owner.query('reset role');
+      const pending=await owner.query("select id from mathquest_private.scansob_requests where workspace_id=$1 and status='pending_approval'",[source.source_workspace_id]);
+      assert.equal(pending.rows.length,1);
+      const winner=pending.rows[0].id;
+      const codeUsed=(await owner.query('select used_at is not null as used from mathquest_private.scansob_codes where code_hash=$1',
+        [hash(legacyRequest.pairing_code)])).rows[0].used;
+      assert.equal(codeUsed,winner===legacyRequest.request_id);
+      await admin('reject',{request_id:winner});
+    }
     for(let attempt=0;attempt<3;attempt++){
       const request=await makeRequest();assert.equal((await pair(clients[1],request)).status,200);
       const race=await Promise.allSettled([admin('approve',{request_id:request.request_id}),pair(clients[2],{...statusOf(request),action:'revoke'})]);
@@ -102,7 +135,7 @@ async function main(){
     await owner.query('reset role');
     assert.equal((await owner.query("select count(*)::int as n from mathquest_private.scansob_audit where action='ack_purged_withdrawal'")).rows[0].n,1);
     assert.equal((await owner.query('select count(*)::int as n from mathquest_private.scansob_scores')).rows[0].n,0);
-    console.log('PASS real PostgreSQL: duplicate/revision/withdrawal races, approval/cancel and registration races, purge ACK replay, 1,005 scores, late-failure rollback');
+    console.log('PASS real PostgreSQL: cross-method pairing, duplicate/revision/withdrawal and approval/cancel races, purge ACK replay, 1,005 scores, late rollback');
   }finally{for(const c of clients.reverse())await c.end().catch(()=>{});await cluster.stop().catch(()=>{});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

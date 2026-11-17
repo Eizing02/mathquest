@@ -9,6 +9,27 @@ async function deliveryToken(key, body) {
   const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', imported, new TextEncoder().encode(message)));
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+const signedPairPath = '/functions/v1/pair-scansob-workspace';
+const keyIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
+function decodeBase64Url32(value) {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(value || '')) return null;
+  const raw = atob(value.replace(/-/g, '+').replace(/_/g, '/') + '=');
+  if (btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') !== value) return null;
+  return Uint8Array.from(raw, char => char.charCodeAt(0));
+}
+async function verifyPairSignature(headers, bytes, key, keyId) {
+  const id = headers.get('X-ScanSob-Key-Id');
+  const stamp = headers.get('X-ScanSob-Timestamp');
+  const signature = decodeBase64Url32(headers.get('X-ScanSob-Signature'));
+  if (id !== keyId || !signature || !/^[1-9][0-9]{0,11}$/.test(stamp || '') ||
+    Math.abs(Math.floor(Date.now() / 1000) - Number(stamp)) > 300) return false;
+  const prefix = new TextEncoder().encode(`mq-scansob-pair-v1\nPOST\n${signedPairPath}\n${id}\n${stamp}\n`);
+  const message = new Uint8Array(prefix.length + bytes.length);
+  message.set(prefix);
+  message.set(bytes, prefix.length);
+  const imported = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+  return crypto.subtle.verify('HMAC', imported, signature, message);
+}
 function response(status, body, retry) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(retry ? { 'Retry-After': String(retry) } : {}) } });
 }
@@ -22,7 +43,7 @@ async function readBody(request, limit) {
   for (const part of parts) { bytes.set(part, cursor); cursor += part.length; }
   return bytes;
 }
-export function createScanSobHandler(kind, { rpc, pairingKey = '' }) {
+export function createScanSobHandler(kind, { rpc, pairingKey = '', signingKey, signingKeyId, signingSchoolId }) {
   return async request => {
     if (request.method !== 'POST') return response(405, { error: 'METHOD_NOT_ALLOWED' });
     if ((request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase() !== 'application/json') return response(415, { error: 'JSON_REQUIRED' });
@@ -40,14 +61,31 @@ export function createScanSobHandler(kind, { rpc, pairingKey = '' }) {
       } else {
         validatePairRequest(body);
         if (!pairingKey || pairingKey.length < 32) return response(503, { error: 'PAIRING_NOT_CONFIGURED' });
-        token = body.request_secret ? await deliveryToken(pairingKey, body) : '';
-        result = await rpc('mq_scansob_pair', {
-          p_action: body.action, p_request_id: body.request_id, p_workspace_id: body.source_workspace_id,
-          p_request_hash: body.request_secret ? await sha256(body.request_secret) : '',
-          p_code_hash: body.pairing_code ? await sha256(body.pairing_code.toUpperCase()) : '',
-          p_workspace_label: body.workspace_label || '', p_delivery_hash: token ? await sha256(token) : '',
-          p_connection_id: body.connection_id || null, p_bearer_hash: tokenPattern.test(bearer) ? await sha256(bearer) : ''
-        });
+        if (body.action === 'request_signed' || body.action === 'prepare_signed') {
+          const key = decodeBase64Url32(signingKey);
+          if (!key || !keyIdPattern.test(signingKeyId || '') || !signingSchoolId) return response(503, { error: 'SIGNED_PAIRING_NOT_CONFIGURED' });
+          if (!await verifyPairSignature(request.headers, bytes, key, signingKeyId)) return response(401, { error: 'UNAUTHORIZED' });
+          if (body.destination_school_id.toLowerCase() !== signingSchoolId.toLowerCase()) return response(403, { error: 'UNAUTHORIZED' });
+          if (body.action === 'prepare_signed') {
+            result = await rpc('mq_scansob_prepare_signed', { p_payload: body });
+          } else {
+            const { request_secret, ...metadata } = body;
+            token = await deliveryToken(pairingKey, body);
+            result = await rpc('mq_scansob_request_signed', {
+              p_payload: metadata, p_raw_hash: await sha256(bytes),
+              p_request_hash: await sha256(request_secret), p_delivery_hash: await sha256(token)
+            });
+          }
+        } else {
+          token = body.request_secret ? await deliveryToken(pairingKey, body) : '';
+          result = await rpc('mq_scansob_pair', {
+            p_action: body.action, p_request_id: body.request_id, p_workspace_id: body.source_workspace_id,
+            p_request_hash: body.request_secret ? await sha256(body.request_secret) : '',
+            p_code_hash: body.pairing_code ? await sha256(body.pairing_code.toUpperCase()) : '',
+            p_workspace_label: body.workspace_label || '', p_delivery_hash: token ? await sha256(token) : '',
+            p_connection_id: body.connection_id || null, p_bearer_hash: tokenPattern.test(bearer) ? await sha256(bearer) : ''
+          });
+        }
       }
       if (!result || !Number.isInteger(result.http_status) || result.http_status < 200 || result.http_status > 599 || !result.body) throw new Error('INVALID_DATABASE_RESPONSE');
       if (kind === 'pair' && result.http_status === 200 && result.body.status === 'active') {

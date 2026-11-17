@@ -193,6 +193,7 @@ async function enterGoogleAccount(account) {
     document.getElementById('studentNavCount').hidden = true;
     await loadCurrentSession(); await loadSettings(); await loadTeacherShopItems();
     startShopOrderNotifications();
+    startScanSobInbox();
   } else {
     document.getElementById('googleStudentAccountButton').hidden = false;
     document.getElementById('studentExamButton').hidden = false;
@@ -253,7 +254,7 @@ async function bootstrapGoogleLogin() {
     if (!isGuestMode()) await enterGoogleAccount(account);
     setGoogleLoginStatus('');
   } catch (error) {
-    stopSchoolSync(); stopStudentGiftNotifications(); stopShopOrderNotifications();
+    stopSchoolSync(); stopStudentGiftNotifications(); stopShopOrderNotifications(); stopScanSobInbox();
     stopGoogleAccountGuard(); teacherAdminToken = '';
     hideGoogleAppViews(); CU = {}; googleAccount = null;
     document.getElementById('loginSection').classList.remove('hidden');

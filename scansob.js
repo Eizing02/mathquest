@@ -4,6 +4,7 @@ var scanSobBusy = false;
 var scanSobExamCursor = null;
 var scanSobExamRows = [];
 var scanSobLoadVersion = 0;
+var scanSobReceiptVersion = 0;
 var scanSobStudentCursor = null;
 var scanSobStudentRows = [];
 var scanSobStudentLoading = false;
@@ -29,7 +30,9 @@ function scanSobEmpty(text) { return '<div class="scansob-empty">' + escHtml(tex
 function scanSobStatus(id, text, error) { var el = document.getElementById(id); if (el) { el.textContent = text; el.classList.toggle('scansob-error', !!error); } }
 function scanSobSetBusy(busy) {
   scanSobBusy = busy;
-  document.querySelectorAll('#scansobSave,#scansobCreate,#scansobIngestToggle,#scansobViewToggle,.scansob-row-actions button').forEach(function(el) { el.disabled = busy || !scanSobState; });
+  document.querySelectorAll('#scansobSave,#scansobCreate,#scansobIngestToggle,#scansobViewToggle,.scansob-row-actions button').forEach(function(el) {
+    el.disabled = busy || (!scanSobState && !el.dataset.requestId);
+  });
 }
 async function loadScanSobSettings() {
   if (CU.role !== 'TEACHER' || scanSobBusy) return;
@@ -40,7 +43,7 @@ async function loadScanSobSettings() {
     document.getElementById('scansobViewToggle').checked = scanSobState.student_view_enabled;
     scanSobStatus('scansobSettingsStatus', (scanSobState.enabled ? 'เปิดรับคะแนน' : 'ปิดรับคะแนน') + ' · ' + (scanSobState.student_view_enabled ? 'นักเรียนดูคะแนนได้' : 'ยังไม่เปิดให้นักเรียนดู') + ' · คะแนนสอบ ' + scanSobState.score_count + ' รายการ' + (scanSobState.held_score_count ? ' · ซ่อนจากรอบเผยแพร่ ' + scanSobState.held_score_count + ' รายการ' : ''));
     var pending = scanSobState.requests.filter(function(row) { return row.status === 'pending_approval'; });
-    document.getElementById('scansobRequests').innerHTML = pending.length ? pending.map(function(row) {
+    if (!(scanSobInbox && scanSobInbox.data)) document.getElementById('scansobRequests').innerHTML = pending.length ? pending.map(function(row) {
       return '<div class="scansob-connection"><div class="scansob-connection-copy"><strong>' + escHtml(row.workspace_label) + '</strong><small>Workspace ' + escHtml(row.workspace_id)
         + '</small><small>หมดอายุ ' + escHtml(scanSobDate(row.expires_at)) + '</small></div><div class="scansob-row-actions"><button type="button" class="btn btn-primary-action" onclick="decideScanSobRequest(\'' + row.id + '\',true)">อนุมัติ</button><button type="button" class="btn btn-outline-secondary" onclick="decideScanSobRequest(\'' + row.id + '\',false)">ปฏิเสธ</button></div></div>';
     }).join('') : scanSobEmpty('ไม่มีคำขอรออนุมัติ');
@@ -76,13 +79,27 @@ async function createScanSobCode() {
 }
 async function decideScanSobRequest(id, approve) {
   if (scanSobBusy) return;
-  var request = scanSobState.requests.find(function(row) { return row.id === id; });
+  var inboxRows = scanSobInbox && scanSobInbox.data && scanSobInbox.data.requests;
+  var request = (inboxRows || (scanSobState && scanSobState.requests) || []).find(function(row) { return row.id === id; });
   if (!request) return;
-  var answer = await Swal.fire({ icon: 'question', title: approve ? 'อนุมัติ Workspace นี้?' : 'ปฏิเสธคำขอนี้?', text: request.workspace_label + ' · ' + request.workspace_id + (approve && request.held_score_count ? ' มีคะแนนค้าง ' + request.held_score_count + ' รายการ คะแนนจากการเชื่อมต่อเดิมจะยังถูกซ่อนไว้' : ''), showCancelButton: true, confirmButtonText: approve ? 'อนุมัติ' : 'ปฏิเสธ', cancelButtonText: 'ยกเลิก' });
-  if (!answer.isConfirmed) return;
+  var contextToken = teacherAdminToken;
+  var sender = request.sender_email ? '<p>' + escHtml(request.sender_name || request.sender_email) +
+    (request.sender_name ? '<br>' + escHtml(request.sender_email) : '') + '</p>' : '';
+  var school = document.getElementById('tHdrSchool').textContent;
+  var consent = approve ? '<p>สิทธิ์: ส่งคะแนนจาก Workspace นี้ไปยัง ' + escHtml(school) + ' เท่านั้น</p>' : '';
+  var history = approve && request.held_score_count ? '<p>มีคะแนนค้าง ' + escHtml(request.held_score_count) + ' รายการ คะแนนจากการเชื่อมต่อเดิมจะยังถูกซ่อนไว้</p>' : '';
+  var answer = await Swal.fire({ icon: 'question', title: approve ? 'อนุมัติการเชื่อมต่อ?' : 'ปฏิเสธคำขอนี้?',
+    html: '<div class="scansob-decision">' + sender + '<p><strong>' + escHtml(request.workspace_label) +
+      '</strong><br>Workspace ' + escHtml(request.workspace_id) + '</p>' + consent + history + '</div>',
+    showCancelButton: true, confirmButtonText: approve ? 'อนุมัติ' : 'ปฏิเสธ', cancelButtonText: 'ยกเลิก' });
+  if (!answer.isConfirmed || scanSobBusy || CU.role !== 'TEACHER' || teacherAdminToken !== contextToken) return;
   scanSobSetBusy(true);
   try { await scanSobAdmin(approve ? 'approve' : 'reject', { request_id: id }); } catch (error) { onErr(error); }
-  finally { scanSobSetBusy(false); await loadScanSobSettings(); }
+  finally {
+    scanSobSetBusy(false);
+    await refreshScanSobInbox();
+    await loadScanSobSettings();
+  }
 }
 async function revokeScanSobConnection(id) {
   if (scanSobBusy) return;
@@ -109,14 +126,58 @@ async function loadTeacherExams() {
     }).join('');
     if (rows.some(function(row) { return String(row.id) === previous; })) select.value = previous;
     await loadTeacherExamRows(false);
-  } catch (error) { scanSobStatus('externalExamStatus', error.message, true); document.getElementById('externalExamRows').innerHTML = ''; }
+  } catch (error) { scanSobStatus('externalExamStatus', error.message, true); document.getElementById('externalExamRows').innerHTML = ''; loadScanSobReceipt(''); }
   finally { select.disabled = false; }
 }
 function teacherExamMode() { return document.querySelector('[name="externalExamMode"]:checked').value; }
+async function loadScanSobReceipt(exam) {
+  var version = ++scanSobReceiptVersion;
+  var identity = scanSobIdentity();
+  var region = document.getElementById('scansobReceipt');
+  var details = document.getElementById('scansobReceiptData');
+  details.hidden = true;
+  region.hidden = !exam;
+  if (!exam) return;
+  scanSobStatus('scansobReceiptStatus', 'กำลังโหลดใบตอบรับ...', false);
+  var current = function() {
+    return version === scanSobReceiptVersion && identity === scanSobIdentity() && CU.role === 'TEACHER';
+  };
+  try {
+    var receipt = await runQuery(getSupabase().rpc('mq_scansob_publication_receipt',
+      Object.assign(teacherTokenArgs(), {p_exam_id: exam})));
+    if (!current()) return;
+    if (!receipt || String(receipt.exam_id) !== exam || !receipt.revision) {
+      scanSobStatus('scansobReceiptStatus', 'ไม่พบรอบเผยแพร่ของข้อสอบนี้', false);
+      return;
+    }
+    var heading = 'รอบ ' + receipt.revision;
+    if (!receipt.verified_batches) {
+      scanSobStatus('scansobReceiptStatus', heading + ' · ยังไม่มีใบตอบรับที่ตรวจสอบได้', false);
+      return;
+    }
+    scanSobStatus('scansobReceiptStatus', heading + ' · ' + (receipt.withdrawn ? 'ถอนคะแนนแล้ว' :
+      'รับ ' + receipt.verified_batches + ' / ' + receipt.expected_batches + ' ชุด'), false);
+    document.getElementById('scansobReceiptAccepted').textContent = receipt.accepted;
+    document.getElementById('scansobReceiptUnmatched').textContent = receipt.unmatched;
+    document.getElementById('scansobReceiptInvalid').textContent = receipt.invalid;
+    document.getElementById('scansobReceiptExam').textContent = receipt.source_exam_id;
+    document.getElementById('scansobReceiptWorkspace').textContent = receipt.source_workspace_id;
+    details.hidden = false;
+  } catch (error) {
+    if (!current()) return;
+    if (error && (error.code === 'PGRST202' || /Could not find the function/.test(error.message || ''))) region.hidden = true;
+    else scanSobStatus('scansobReceiptStatus', 'โหลดใบตอบรับไม่สำเร็จ กรุณารีเฟรชคะแนนสอบ', true);
+  }
+}
 async function loadTeacherExamRows(more) {
   if (CU.role !== 'TEACHER') return;
   var sequence = ++scanSobLoadVersion; var identity = scanSobIdentity();
-  if (!more) { scanSobExamCursor = null; scanSobExamRows = []; document.getElementById('externalExamRows').innerHTML = ''; }
+  if (!more) {
+    scanSobExamCursor = null;
+    scanSobExamRows = [];
+    document.getElementById('externalExamRows').innerHTML = '';
+    loadScanSobReceipt(document.getElementById('externalExamSelect').value);
+  }
   var button = document.getElementById('externalExamMore'); button.disabled = true;
   scanSobStatus('externalExamStatus', 'กำลังโหลด...');
   try {

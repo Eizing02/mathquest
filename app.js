@@ -4096,7 +4096,7 @@ function switchTab(name, btn) {
   if (name === 'shop') loadTeacherShopItems();
   if (name === 'reward-report') loadRewardReport();
   if (name === 'exams') loadTeacherExams();
-  if (name === 'settings') loadScanSobSettings();
+  if (name === 'settings') refreshScanSobSettings();
 }
 
 /* ══ Teacher Session ═════════════════════════════════ */
@@ -5099,6 +5099,7 @@ async function logout() {
   if (typeof cancelAttendanceLocation === 'function') cancelAttendanceLocation();
   var googleLogout = !isGuestMode() || !!googleAccount;
   stopGoogleAccountGuard();
+  stopScanSobInbox();
   stopSchoolSync();
   teacherAdminToken = '';
   if (isGuestMode()) clearGuestSession();

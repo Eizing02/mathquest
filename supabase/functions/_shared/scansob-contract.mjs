@@ -43,8 +43,32 @@ export function validateScoreEvent(value) {
   return value;
 }
 export function validatePairRequest(value) {
-  if (!value || !['request','status','revoke'].includes(value.action)) fail();
+  if (!value || !['request','prepare_signed','request_signed','status','revoke'].includes(value.action)) fail();
   const base = ['schema_version','action','request_id','source_workspace_id'];
+  if (value.action === 'prepare_signed' || value.action === 'request_signed') {
+    const submit = value.action === 'request_signed';
+    const identity = ['destination_school_id','sender_auth_id','sender_verified_email'];
+    object(value, base.concat(identity, submit ? ['workspace_label','requested_at','request_secret','pairing_window_id'] : []),
+      submit ? ['sender_display_name'] : []);
+    if (value.schema_version !== '1.0') fail();
+    for (const key of ['request_id','source_workspace_id','destination_school_id','sender_auth_id']) {
+      id(value[key]);
+      if (value[key] !== value[key].toLowerCase()) fail();
+    }
+    if (typeof value.sender_verified_email !== 'string' || value.sender_verified_email.length > 254 ||
+      !/^[^@\s\p{Cc}]+@[^@\s\p{Cc}]+\.[^@\s\p{Cc}]+$/u.test(value.sender_verified_email.trim())) fail();
+    if (!submit) return value;
+    id(value.pairing_window_id);
+    if (value.pairing_window_id !== value.pairing_window_id.toLowerCase() || typeof value.workspace_label !== 'string') fail();
+    text(value.workspace_label.trim(), 160);
+    if (Object.hasOwn(value, 'sender_display_name')) {
+      if (typeof value.sender_display_name !== 'string') fail();
+      text(value.sender_display_name.trim(), 120);
+    }
+    if (typeof value.request_secret !== 'string' || !secret.test(value.request_secret)) fail();
+    timestamp(value.requested_at);
+    return value;
+  }
   object(value, base.concat(value.action === 'request' ? ['workspace_label','request_secret','pairing_code'] : value.action === 'status' ? ['request_secret'] : []),
     value.action === 'revoke' ? ['request_secret','connection_id'] : []);
   if (value.schema_version !== '1.0') fail();

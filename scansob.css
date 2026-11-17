@@ -31,6 +31,46 @@
 .scansob-empty{padding:24px 0;color:var(--ink-muted)}
 .scansob-code{display:block;font-size:1.5rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;padding:16px;color:var(--ink);background:var(--surface-soft);border-radius:8px}
 .scansob-error{color:var(--danger)}
+.scansob-bell{position:relative;min-width:44px;min-height:44px}
+.scansob-bell span{position:absolute;inset-block-start:-5px;inset-inline-end:-5px;min-width:19px;padding:1px 4px;border-radius:12px;background:#b4233b;color:#fff;font-size:.7rem;font-weight:800;line-height:1.5;font-variant-numeric:tabular-nums}
+.scansob-bell[hidden],.scansob-bell span[hidden],.scansob-inbox-toast[hidden],.scansob-inbox-pagination[hidden],.scansob-signed-policy[hidden]{display:none}
+.scansob-bell:focus-visible,.scansob-inbox-toast button:focus-visible,.scansob-signed-policy summary:focus-visible{outline:3px solid var(--pri);outline-offset:3px}
+.scansob-inbox-toast{position:fixed;z-index:1030;inset-inline-end:12px;inset-block-end:max(12px,env(safe-area-inset-bottom));width:min(360px,calc(100% - 24px));display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px;background:var(--surface,#fff);color:var(--ink);border-radius:8px;box-shadow:0 8px 26px #18284126}
+.scansob-inbox-toast>i{margin-block-start:5px;color:var(--pri)}
+.scansob-inbox-toast strong,.scansob-inbox-toast span{display:block;overflow-wrap:anywhere}
+.scansob-inbox-toast span{margin-block:3px 8px;color:var(--ink-muted)}
+.scansob-inbox-toast button{min-height:44px}
+.scansob-inbox-toast .btn-close{width:44px;padding:0}
+.scansob-inbox-status{margin-block:0 8px;color:var(--ink-muted)}
+.scansob-inbox-status.scansob-error{color:var(--danger)}
+#scansobInboxTitle{width:fit-content;scroll-margin-block-start:12px}
+#scansobInboxTitle:focus{outline:2px solid var(--pri);outline-offset:3px;border-radius:2px}
+.scansob-inbox-pagination,.scansob-policy-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-block:12px}
+.scansob-inbox-pagination button{min-width:44px;min-height:44px}
+.scansob-signed-policy{margin-block:20px;border-block:1px solid var(--border-soft)}
+.scansob-signed-policy summary{cursor:pointer;min-height:44px;padding-block:10px;font-weight:700}
+.scansob-signed-policy summary span{margin-inline-start:8px;color:var(--ink-muted);font-weight:500}
+.scansob-signed-policy form{max-width:580px;padding-block-end:8px}
+.scansob-signed-policy button{min-height:44px}
+.scansob-signed-policy p{margin:8px 0}
+.scansob-decision{text-align:start;overflow-wrap:anywhere}
+.scansob-decision p:last-child{margin-bottom:0}
+.scansob-receipt{border-block:1px solid var(--border-soft);padding-block:12px;margin-block:0 16px}
+.scansob-receipt h3{font:700 1.0625rem/1.4 Sarabun,sans-serif;margin:0 0 4px}
+.scansob-receipt p{margin:0;color:var(--ink-muted)}
+.scansob-receipt p.scansob-error{color:var(--danger)}
+.scansob-receipt-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:540px;margin:12px 0 0}
+.scansob-receipt-counts dt{font-weight:600}
+.scansob-receipt-counts dd{margin:2px 0 0;font-variant-numeric:tabular-nums;font-size:1.125rem;font-weight:700}
+.scansob-receipt-reference{margin-top:6px;overflow-wrap:anywhere}
+.scansob-receipt-reference summary{display:list-item;min-height:44px;width:fit-content;cursor:pointer;padding-block:10px;color:var(--ink-muted)}
+.scansob-receipt-reference summary:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.scansob-receipt-reference dl{margin:0 0 6px}
+.scansob-receipt-reference dl div{display:flex;flex-wrap:wrap;gap:0 8px}
+.scansob-receipt-reference dd{margin:0}
+@media(max-width:768px){
+  .scansob-inbox-toast{position:static;width:auto;margin:8px 12px 0;box-shadow:none;border:1px solid var(--border-soft)}
+}
 .scansob-mobile-scores{display:grid;gap:0;text-align:left}
 .scansob-student-result{padding:20px 0;border-bottom:1px solid var(--border-soft)}
 .scansob-student-result h3{font-family:'Sarabun',sans-serif;font-size:1.0625rem;line-height:1.5;margin:0 0 6px;overflow-wrap:anywhere}
