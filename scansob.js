@@ -5,10 +5,7 @@ var scanSobExamCursor = null;
 var scanSobExamRows = [];
 var scanSobLoadVersion = 0;
 var scanSobReceiptVersion = 0;
-var scanSobStudentCursor = null;
-var scanSobStudentRows = [];
-var scanSobStudentLoading = false;
-var scanSobStudentVersion = 0;
+var scanSobStudentPage = null;
 
 async function scanSobRpc(name, args) {
   try {
@@ -208,28 +205,137 @@ function scanSobVisibilityLabel(row) {
   if (row.student_visible) return 'พร้อมแสดง';
   return { connection_revoked: 'เพิกถอนแล้ว', previous_connection: 'รอเผยแพร่ใหม่', unverified_origin: 'รอตรวจประวัติ', incomplete: 'รอรับข้อมูลครบ', withdrawn: 'ถอนคะแนนแล้ว' }[row.visibility_reason] || 'ซ่อนไว้';
 }
-async function openStudentExamScores() {
-  if (!isGoogleLoginActive() || CU.role !== 'STUDENT') return;
-  scanSobStudentRows = []; scanSobStudentCursor = null;
-  scanSobStudentVersion++; scanSobStudentLoading = false;
-  await Swal.fire({ title: 'คะแนนสอบของฉัน', html: '<p id="studentExamStatus" role="status" aria-live="polite">กำลังโหลดคะแนน...</p><div id="studentExamScores" class="scansob-mobile-scores"></div><button id="studentExamMore" class="btn btn-outline-secondary" type="button" onclick="loadStudentExamScores(true)" hidden>โหลดเพิ่ม</button>', width: 720, confirmButtonText: 'ปิด', didOpen: function() { loadStudentExamScores(false); } });
+function resetStudentExamView() {
+  var view = document.getElementById('studentExamView');
+  var wasOpen = !view.hidden;
+  scanSobStudentPage = null;
+  view.hidden = true;
+  document.getElementById('studentHomeView').hidden = false;
+  document.getElementById('studentExamButton').removeAttribute('aria-current');
+  document.querySelector('.student-home-link').setAttribute('aria-current', 'page');
+  if (wasOpen) {
+    setStudentExamSubjects([], '');
+    clearStudentExamResults();
+    scanSobStatus('studentExamStatus', '');
+  }
+  return wasOpen;
 }
-async function loadStudentExamScores(more) {
-  if (scanSobStudentLoading) return;
-  scanSobStudentLoading = true; var identity = scanSobIdentity(); var version = scanSobStudentVersion;
-  var button = document.getElementById('studentExamMore'); if (button) button.disabled = true;
+function setStudentExamSubjects(subjects, selected) {
+  var select = document.getElementById('studentExamSubject');
+  select.options.length = 1;
+  subjects.forEach(function(name) { select.add(new Option(name, name)); });
+  if (selected && !subjects.includes(selected)) select.add(new Option(selected, selected));
+  select.value = selected;
+  document.getElementById('studentExamFilters').hidden = !subjects.length && !selected;
+}
+function clearStudentExamResults() {
+  var list = document.getElementById('studentExamScores');
+  list.replaceChildren();
+  list.setAttribute('aria-busy', 'false');
+  document.getElementById('studentExamTerm').hidden = true;
+  var button = document.getElementById('studentExamMore');
+  button.hidden = true;
+  button.removeAttribute('aria-disabled');
+  scanSobStatus('studentExamPageStatus', '');
+}
+function openStudentExamScores() {
+  if (!isGoogleLoginActive() || CU.role !== 'STUDENT') return;
+  var view = document.getElementById('studentExamView');
+  window.scrollTo(0, 0);
+  if (!view.hidden) {
+    document.getElementById('studentExamTitle').focus({preventScroll:true});
+    return;
+  }
+  view.hidden = false;
+  document.getElementById('studentHomeView').hidden = true;
+  document.querySelector('.student-home-link').removeAttribute('aria-current');
+  document.getElementById('studentExamButton').setAttribute('aria-current', 'page');
+  document.getElementById('studentExamTitle').focus({preventScroll:true});
+  if (typeof updateStudentInstallVisibility === 'function') updateStudentInstallVisibility();
+  filterStudentExamScores('');
+}
+function filterStudentExamScores(subject) {
+  if (document.getElementById('studentExamView').hidden || !isGoogleLoginActive() || CU.role !== 'STUDENT') return;
+  scanSobStudentPage = {identity:scanSobIdentity(),subject:subject,cursor:null,total:0,count:0,singleTerm:null,busy:false};
+  clearStudentExamResults();
+  return continueStudentExamScores();
+}
+function studentExamRow(row, singleTerm) {
+  var exam = row.metadata, result = row.result;
+  var term = 'ภาคเรียน ' + exam.term + '/' + exam.academic_year;
+  var meta = exam.exam_type + (singleTerm ? '' : ' · ' + term) + ' · อัปเดต ' + scanSobDate(row.updated_at);
+  return '<article class="scansob-student-result" tabindex="-1"><p class="student-exam-subject">' + escHtml(exam.subject)
+    + '</p><h2>' + escHtml(exam.title) + '</h2><div class="scansob-student-score"><strong>'
+    + escHtml(result.score + ' / ' + result.max_score)
+    + '</strong><span class="student-exam-outcome" data-passed="' + (result.passed ? 'true' : 'false') + '">'
+    + escHtml(result.percent + '% · ' + (result.passed ? 'ผ่าน' : 'ไม่ผ่าน'))
+    + '</span></div><p class="student-exam-meta">' + escHtml(meta) + '</p></article>';
+}
+async function continueStudentExamScores() {
+  var page = scanSobStudentPage;
+  if (!page || page.busy || page.identity !== scanSobIdentity()) return;
+  var cursor = page.cursor, more = !!cursor;
+  var list = document.getElementById('studentExamScores');
+  var button = document.getElementById('studentExamMore');
+  var select = document.getElementById('studentExamSubject');
+  var title = document.getElementById('studentExamTitle');
+  function current() {
+    return page === scanSobStudentPage && CU.role === 'STUDENT' && page.identity === scanSobIdentity();
+  }
+  page.busy = true;
+  button.setAttribute('aria-disabled', 'true');
+  list.setAttribute('aria-busy', 'true');
+  scanSobStatus(more ? 'studentExamPageStatus' : 'studentExamStatus', more ? 'กำลังโหลดคะแนนเพิ่มเติม…' : 'กำลังโหลดคะแนน…');
   try {
-    var result = await scanSobRpc('mq_scansob_read', { p_kind: 'scores', p_after: more ? scanSobStudentCursor : 0, p_limit: 30 });
-    if (version !== scanSobStudentVersion || identity !== scanSobIdentity() || !document.getElementById('studentExamScores')) return;
-    scanSobStudentRows = result.enabled ? scanSobStudentRows.concat(result.rows) : []; scanSobStudentCursor = result.enabled ? result.next_cursor : null;
-    scanSobStatus('studentExamStatus', result.enabled ? (scanSobStudentRows.length ? 'แสดง ' + scanSobStudentRows.length + ' รายการ' : 'ยังไม่มีคะแนนที่เผยแพร่ถึงคุณ') : 'ครูยังไม่เปิดให้ดูคะแนนสอบ');
-    document.getElementById('studentExamScores').innerHTML = scanSobStudentRows.map(function(row) {
-      return '<article class="scansob-student-result"><h3>' + escHtml(row.metadata.title) + '</h3><p>' + escHtml(row.metadata.subject + ' · ' + row.metadata.exam_type + ' · ภาคเรียน ' + row.metadata.term + '/' + row.metadata.academic_year)
-        + '</p><div class="scansob-student-score"><strong>' + escHtml(row.result.score + ' / ' + row.result.max_score) + '</strong><span>' + escHtml(row.result.percent + '% · ' + (row.result.passed ? 'ผ่าน' : 'ไม่ผ่าน')) + '</span></div><p>อัปเดต ' + escHtml(scanSobDate(row.updated_at)) + '</p></article>';
-    }).join('');
-    button.hidden = !scanSobStudentCursor;
-  } catch (error) { if (identity === scanSobIdentity()) scanSobStatus('studentExamStatus', error.message, true); }
-  finally { if (version === scanSobStudentVersion) { scanSobStudentLoading = false; if (button) button.disabled = false; } }
+    var result = await runQuery(getSupabase().rpc('mq_scansob_student_scores', {
+      p_subject:page.subject || null, p_before_at:more ? cursor.updated_at : null,
+      p_before_id:more ? cursor.id : null, p_limit:30
+    }));
+    if (!current()) return;
+    if (!result || typeof result.enabled !== 'boolean' || !Array.isArray(result.rows)) throw new Error('INVALID_SCORE_PAGE');
+    if (!result.enabled) {
+      page.cursor = null;
+      page.count = 0;
+      if (document.activeElement === button || document.activeElement === select) title.focus();
+      setStudentExamSubjects([], '');
+      clearStudentExamResults();
+      scanSobStatus('studentExamStatus', 'ครูยังไม่เปิดให้ดูคะแนนสอบ');
+      return;
+    }
+    if (!more) {
+      setStudentExamSubjects(result.subjects, page.subject);
+      page.total = result.total;
+      page.singleTerm = result.single_term;
+      var term = document.getElementById('studentExamTerm');
+      if (page.singleTerm) term.textContent = 'ภาคเรียน ' + page.singleTerm.term + '/' + page.singleTerm.academic_year;
+      term.hidden = !page.singleTerm;
+    }
+    page.cursor = result.next_cursor;
+    var start = list.children.length;
+    list.insertAdjacentHTML('beforeend', result.rows.map(function(row){ return studentExamRow(row, page.singleTerm); }).join(''));
+    page.count += result.rows.length;
+    var focusWasOnButton = document.activeElement === button;
+    if (focusWasOnButton && (list.children[start] || !page.cursor)) (list.children[start] || title).focus();
+    button.hidden = !page.cursor;
+    button.textContent = 'โหลดเพิ่ม';
+    scanSobStatus('studentExamPageStatus', '');
+    scanSobStatus('studentExamStatus', page.count ? 'แสดง ' + page.count
+      + (page.cursor && page.total > page.count ? ' จาก ' + page.total : '') + ' รายการ'
+      : (page.subject ? 'ยังไม่มีผลสอบในวิชานี้' : 'ยังไม่มีคะแนนที่เผยแพร่ถึงคุณ'));
+  } catch (error) {
+    if (!current()) return;
+    scanSobStatus(more ? 'studentExamPageStatus' : 'studentExamStatus',
+      error.code === 'PGRST202' || error.code === '42883' ? 'คะแนนสอบยังไม่พร้อมใช้งาน กรุณาติดต่อครู'
+        : (more ? 'โหลดคะแนนเพิ่มเติมไม่สำเร็จ' : 'โหลดคะแนนไม่สำเร็จ'), true);
+    button.textContent = 'ลองอีกครั้ง';
+    button.hidden = false;
+  } finally {
+    if (current()) {
+      page.busy = false;
+      button.removeAttribute('aria-disabled');
+      list.setAttribute('aria-busy', 'false');
+    }
+  }
 }
 async function exportExternalScores() {
   if (CU.role !== 'TEACHER' || schoolResetBusy || reportExportBusy) return;

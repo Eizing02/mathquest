@@ -8,6 +8,7 @@ async function main(){
   const server=await startServer();const browser=await chromium.launch({channel:'msedge',headless:true});const page=await browser.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   let fail=false,studentView=true,oldProfile=false,studentGate=null,studentStarted=null;
+  let studentFault=null;
   let receiptMode='partial';
   let inboxMode=false,inboxRows=[],inboxClock=Date.now(),policyConflict=false;
   const policy={school_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',enabled:false,emails:[],revision:'0',policy:'email_allowlist'};
@@ -18,12 +19,30 @@ async function main(){
   const meta={title:'แบบทดสอบเรื่องสมการเชิงเส้นตัวแปรเดียว ชื่อยาวสำหรับตรวจการจัดวาง',subject:'คณิตศาสตร์',exam_type:'เก็บคะแนน',term:1,academic_year:2569};
   const rows=[{id:1,exam_id:1,student_code:'00001',student_visible:true,visibility_reason:'current',student_name:'นักเรียนจำลอง ชื่อยาวสำหรับหน้าจอมือถือ',grade:'ม.2/1',metadata:meta,result:{score:17.5,max_score:25,percent:70,passed:true},updated_at:'2026-10-15T00:00:00Z'},
     {id:2,exam_id:1,student_code:'00002',student_visible:false,visibility_reason:'connection_revoked',student_name:'นักเรียนจำลอง ข',grade:'ม.2/2',metadata:meta,result:{score:15,max_score:25,percent:60,passed:true},updated_at:'2026-10-15T00:00:00Z'}];
+  const studentRows=Array.from({length:37},(_,i)=>({
+    id:String(100-i),
+    metadata:{...meta,title:i===0?'ผลสอบล่าสุด':i===36?'พลังงานและการเปลี่ยนรูป':meta.title+' '+(i+1),
+      subject:i===36?'วิทยาศาสตร์':i<4?'คณิตศาสตร์':i%2?'คณิตศาสตร์':'ภาษาอังกฤษ',term:2},
+    result:i===2?{score:11,max_score:25,percent:44,passed:false}:rows[0].result,
+    updated_at:i===0?'2026-11-18T09:00:00Z':'2026-11-17T08:00:00Z'
+  }));
   const calls=[];
   await page.route('**/*.supabase.co/**',route=>route.fulfill({contentType:'application/json',body:'[]'}));
   await page.route('**/__scansob_fixture',async route=>{
     const {name,args,student}=route.request().postDataJSON();calls.push({name,args});let data;
-    if(student&&studentGate){if(studentStarted)studentStarted();await studentGate;}
     if(fail)return route.fulfill({contentType:'application/json',body:JSON.stringify({data:null,error:{code:'PGRST202',message:'Could not find the function'}})});
+    if(name==='mq_scansob_student_scores'){
+      assert.equal(student,true);
+      const fault=studentFault;
+      if(studentGate){if(studentStarted)studentStarted();await studentGate;}
+      const filtered=studentRows.filter(row=>!args.p_subject||row.metadata.subject===args.p_subject);
+      const after=args.p_before_id===null?0:filtered.findIndex(row=>row.id===args.p_before_id)+1;
+      const pageRows=studentView?filtered.slice(after,after+args.p_limit):[];
+      const last=pageRows.at(-1);
+      return route.fulfill({json:{data:{enabled:studentView,rows:pageRows,subjects:[...new Set(studentRows.map(r=>r.metadata.subject))],
+        total:filtered.length,single_term:{term:2,academic_year:2569},
+        next_cursor:last&&after+args.p_limit<filtered.length?{id:last.id,updated_at:last.updated_at}:null},error:fault}});
+    }
     if(name==='mq_scansob_admin'){
       if(args.p_action==='create_code')data={code:'1234ABCD1234ABCD',expires_at:'2026-10-15T08:00:00Z'};
       else{if(args.p_action==='approve'||args.p_action==='reject'){config.requests=[];inboxRows=inboxRows.filter(row=>row.id!==args.p_args.request_id);}
@@ -102,23 +121,73 @@ async function main(){
     const csvText=fs.readFileSync(await csv.path(),'utf8');assert.ok(csvText.includes('การเผยแพร่'));assert.ok(csvText.includes('เพิกถอนแล้ว'));
     await page.locator('[name="externalExamMode"][value="issues"]').check();await page.waitForFunction(()=>document.querySelector('#externalExamRows').textContent.includes('00999'));
     assert.ok((await page.locator('#externalExamRows').textContent()).includes('ไม่พบรหัสในทะเบียน'));
-    await page.evaluate(()=>{document.getElementById('teacherSection').classList.add('hidden');document.getElementById('studentSection').classList.remove('hidden');CU={id:'00001',name:'จำลอง',role:'STUDENT',authMode:'google'};openStudentExamScores();});
-    await page.waitForSelector('.scansob-student-result');await page.waitForFunction(()=>getComputedStyle(document.querySelector('.swal2-popup')).opacity==='1');assert.equal(await page.locator('.scansob-student-result').count(),1);
-    for(const width of [320,390,768,1280]){
-      await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'student scores overflow '+width);
-      if([390,1280].includes(width))await capture('student-'+width);
+    await page.evaluate(()=>{document.getElementById('teacherSection').classList.add('hidden');document.getElementById('studentSection').classList.remove('hidden');CU={id:'00001',name:'จำลอง',role:'STUDENT',authMode:'google'};studentExamButton.hidden=false;});
+    const tab=page.locator('#studentExamButton'),home=page.locator('.student-home-link'),subject=page.locator('#studentExamSubject'),more=page.locator('#studentExamMore');
+    const results=page.locator('.scansob-student-result');
+    const waitCount=count=>page.waitForFunction(n=>document.querySelectorAll('.scansob-student-result').length===n&&studentExamScores.getAttribute('aria-busy')==='false',count);
+    await tab.click();await waitCount(30);assert.equal(await tab.getAttribute('aria-current'),'page');
+    assert.equal(await page.locator('#studentHomeView').isHidden(),true);
+    assert.equal(await page.locator('#studentInstallButton').isHidden(),true);
+    assert.equal(await page.locator('.swal2-popup').count(),0,'scores are not an alert dialog');
+    assert.equal(await results.first().locator('h2').textContent(),'ผลสอบล่าสุด');
+    assert.match(await page.locator('#studentExamStatus').textContent(),/30 จาก 37/);
+    assert.equal(await page.locator('#studentExamTerm').textContent(),'ภาคเรียน 2/2569');
+    assert.equal(await page.locator('.student-exam-meta').filter({hasText:'ภาคเรียน'}).count(),0);
+    for(const [width,height] of [[320,568],[390,844],[768,1024],[1280,900]]){
+      await page.setViewportSize({width,height});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1||['studentExamView','studentExamSubject','studentExamScores'].some(id=>document.getElementById(id).getBoundingClientRect().right>innerWidth)),false,'student scores overflow '+width);
+      if([320,390,1280].includes(width)&&!process.argv.includes('--no-capture')){
+        await page.evaluate(()=>document.fonts.ready);
+        await page.screenshot({path:path.join(output,'student-score-tab-'+width+'.png')});
+      }
     }
-    assert.ok(calls.filter(c=>c.name==='mq_scansob_read').every(c=>!Object.hasOwn(c.args,'student_id')),'no caller-selected student identity');
-    studentView=false;await page.evaluate(()=>loadStudentExamScores(true));assert.equal(await page.locator('.scansob-student-result').count(),0,'disabled read clears previously loaded rows');
-    await page.locator('.swal2-confirm').click();studentView=true;
-    let release;studentGate=new Promise(resolve=>{release=resolve;});const started=new Promise(resolve=>{studentStarted=resolve;});
-    await page.evaluate(()=>{openStudentExamScores();});await started;
-    await page.evaluate(()=>{CU.id='00002';googleAccount.linkVersion='switched';});release();studentGate=null;
-    await page.waitForFunction(()=>!scanSobStudentLoading);assert.equal(await page.locator('.scansob-student-result').count(),0,'late old-identity scores discarded');
-    await page.locator('.swal2-confirm').click();studentView=false;await page.evaluate(()=>{openStudentExamScores();});await page.waitForFunction(()=>document.querySelector('#studentExamStatus').textContent.includes('ยังไม่เปิด'));
-    assert.equal(await page.locator('.scansob-student-result').count(),0);await page.locator('.swal2-confirm').click();
-    fail=true;await page.evaluate(()=>{openStudentExamScores();});await page.waitForFunction(()=>document.querySelector('#studentExamStatus').textContent.includes('ยังไม่พร้อม'));
-    await page.locator('.swal2-confirm').click();fail=false;oldProfile=true;
+    await page.setViewportSize({width:320,height:568});
+    await page.evaluate(()=>document.documentElement.style.fontSize='200%');
+    assert.equal(await page.evaluate(()=>studentExamScores.scrollWidth>studentExamScores.clientWidth+1),false,'larger Thai text stays inside the result list');
+    await page.evaluate(()=>document.documentElement.style.fontSize='');
+    assert.equal(await results.filter({hasText:'วิทยาศาสตร์'}).count(),0,'requested subject starts beyond page one');
+    await subject.selectOption('วิทยาศาสตร์');await waitCount(1);
+    assert.equal(await results.first().locator('h2').textContent(),'พลังงานและการเปลี่ยนรูป');
+    await subject.selectOption('');await waitCount(30);
+    studentFault={message:'Synthetic network error'};
+    await more.press('Enter');
+    await page.waitForFunction(()=>studentExamMore.textContent==='ลองอีกครั้ง');
+    assert.equal(await results.count(),30,'paging error preserves displayed scores');
+    assert.equal(await more.evaluate(el=>document.activeElement===el),true,'paging keeps focus during error');
+    assert.match(await page.locator('#studentExamPageStatus').textContent(),/โหลดคะแนนเพิ่มเติมไม่สำเร็จ/);
+    studentFault=null;await more.press('Enter');await waitCount(37);
+    assert.equal(await more.isHidden(),true);
+    assert.equal(await results.nth(30).evaluate(el=>el===document.activeElement),true,'focus moves to first appended result');
+    const studentReads=calls.filter(c=>c.name==='mq_scansob_student_scores');
+    assert.ok(studentReads.every(c=>!Object.hasOwn(c.args,'student_id')),'no caller-selected student identity');
+    assert.equal(studentReads.at(-1).args.p_before_id,'71');
+    assert.equal(studentReads.at(-2).args.p_before_id,studentReads.at(-1).args.p_before_id,'retry uses the same cursor');
+    await home.click();assert.equal(await results.count(),0);assert.equal(await home.getAttribute('aria-current'),'page');
+    await tab.click();await waitCount(30);studentView=false;
+    await more.click();await waitCount(0);
+    assert.equal(await subject.isHidden(),true,'a disabled read clears displayed scores and subjects');
+    assert.match(await page.locator('#studentExamStatus').textContent(),/ยังไม่เปิด/);
+    await home.click();studentView=true;
+    let release;
+    const hold=()=>{studentGate=new Promise(resolve=>{release=resolve;});return new Promise(resolve=>{studentStarted=resolve;});};
+    studentFault={message:'Synthetic old request failed'};
+    const started=hold();await tab.click();await started;
+    await home.click();studentGate=null;studentFault=null;await tab.click();await waitCount(30);
+    const response=page.waitForResponse(async r=>r.url().endsWith('/__scansob_fixture') && (await r.json()).error?.message==='Synthetic old request failed');
+    release();await response;
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.match(await page.locator('#studentExamStatus').textContent(),/30 จาก 37/,'late old error cannot overwrite current results');
+    await home.click();
+    const switching=hold();await tab.click();await switching;
+    await page.evaluate(()=>{CU.id='00002';googleAccount.linkVersion='switched';resetStudentHome();});
+    const switchedResponse=page.waitForResponse(r=>r.url().endsWith('/__scansob_fixture'));
+    release();studentGate=null;await switchedResponse;
+    assert.equal(await tab.getAttribute('aria-current'),null);
+    assert.equal(await results.count(),0,'late old-identity scores discarded');
+    studentView=false;await tab.click();await page.waitForFunction(()=>studentExamStatus.textContent.includes('ยังไม่เปิด'));
+    assert.equal(await results.count(),0);assert.equal(await subject.isHidden(),true);await home.click();
+    fail=true;await tab.click();await page.waitForFunction(()=>studentExamStatus.textContent.includes('ยังไม่พร้อม'));
+    fail=false;studentView=true;await more.click();await waitCount(30);await home.click();oldProfile=true;
     await page.evaluate(()=>{CU={id:'teacher',role:'TEACHER',authMode:'google'};loadScanSobSettings();});
     await page.waitForFunction(()=>document.querySelector('#scansobSettingsStatus').textContent.includes('20261015_03'));
     assert.equal(await page.locator('#scansobCreate').isDisabled(),true,'old SQL cannot enable pairing in the new UI');

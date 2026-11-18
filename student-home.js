@@ -126,7 +126,15 @@ function openStudentPetDetails() {
     +'</div><div class="trophy-row" id="trophies">'+[0,10,20,30,40,50].map(function(level){return '<span class="trophy'+(getCurrentStudentLevel()>=level?' earned':'')+'" data-t="'+level+'" title="Level '+level+'"><i class="fa-solid fa-'+(level===50?'crown':level>=30?'trophy':'medal')+'" aria-hidden="true"></i><span class="visually-hidden">Level '+level+'</span></span>';}).join('')+'</div>','pet');
   updateGamiUI._trophies=null;
 }
-function studentGoHome() { window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}); }
+function studentGoHome() {
+  if (typeof resetStudentExamView === 'function' && resetStudentExamView()) {
+    window.scrollTo(0,0);
+    document.getElementById('studentHomeTitle').focus({preventScroll:true});
+    if(typeof updateStudentInstallVisibility==='function')updateStudentInstallVisibility();
+    return;
+  }
+  window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+}
 
 function studentConfirmDiscard(event,modal,dirty) {
   if(!dirty || modal.dataset.discardApproved==='true') { delete modal.dataset.discardApproved;return false; }
@@ -154,6 +162,7 @@ function studentProfileDraftDirty() {
     || document.getElementById('profileFrameMotion').checked!==profileStyle.motionEnabled);
 }
 function resetStudentHome() {
+  if(typeof resetStudentExamView==='function')resetStudentExamView();
   if(typeof cancelStudentAttendanceHistory==='function')cancelStudentAttendanceHistory();
   if(typeof resetStudentBanner==='function')resetStudentBanner();
   resetStudentPinFeedback();studentCheckInBusy=false;

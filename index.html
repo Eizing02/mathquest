@@ -88,8 +88,9 @@
 
 <!-- ════════ STUDENT ════════ -->
 <main id="studentSection" class="hidden" data-tier="0">
-  <h1 class="visually-hidden">หน้าหลักนักเรียน</h1>
   <div class="container student-shell">
+    <div id="studentHomeView">
+    <h1 id="studentHomeTitle" class="visually-hidden" tabindex="-1">หน้าหลักนักเรียน</h1>
     <div class="student-menu-actions" hidden>
       <button id="googleStudentAccountButton" type="button" class="google-student-account me-2" onclick="openGoogleAccount()" hidden><i class="fa-solid fa-user me-1" aria-hidden="true"></i>บัญชี</button>
       <button class="refresh-btn" id="refreshBtn" onclick="refreshStudentData()" aria-label="รีเฟรชข้อมูลนักเรียน">
@@ -197,6 +198,28 @@
       </button>
     </div>
 
+    </div>
+
+    <section id="studentExamView" aria-labelledby="studentExamTitle" hidden>
+      <header class="student-exam-header">
+        <h1 id="studentExamTitle" tabindex="-1">คะแนนสอบของฉัน</h1>
+        <p id="studentExamTerm" hidden></p>
+      </header>
+      <div id="studentExamFilters" class="student-exam-filters" hidden>
+        <label for="studentExamSubject">วิชา</label>
+        <select id="studentExamSubject" class="form-select" onchange="filterStudentExamScores(this.value)">
+          <option value="">ทุกวิชา</option>
+        </select>
+        <span class="student-exam-order">อัปเดตล่าสุดก่อน</span>
+      </div>
+      <p id="studentExamStatus" class="student-exam-status" role="status" aria-atomic="true"></p>
+      <div id="studentExamScores" class="student-exam-list" aria-busy="false"></div>
+      <footer class="student-exam-footer">
+        <p id="studentExamPageStatus" role="status" aria-atomic="true"></p>
+        <button id="studentExamMore" class="btn btn-outline-secondary" type="button" onclick="continueStudentExamScores()" hidden>โหลดเพิ่ม</button>
+      </footer>
+    </section>
+
     <nav class="student-actions" aria-label="เมนูนักเรียน">
       <button class="student-home-link" type="button" aria-current="page" onclick="studentGoHome()"><i class="fa-solid fa-house" aria-hidden="true"></i><span>หน้าหลัก</span></button>
       <button class="btn-shop" id="studentShopButton" onclick="openShop()" aria-label="เปิดร้านค้า ไม่มีของขวัญใหม่">
@@ -204,7 +227,7 @@
         <span>ร้านค้า</span>
         <span class="student-gift-count hidden" id="studentShopGiftCount" aria-hidden="true">0</span>
       </button>
-      <button id="studentExamButton" type="button" onclick="openStudentExamScores()" hidden><i class="fa-solid fa-file-circle-check" aria-hidden="true"></i><span>คะแนนสอบ</span></button>
+      <button id="studentExamButton" type="button" aria-controls="studentExamView" onclick="openStudentExamScores()" hidden><i class="fa-solid fa-file-circle-check" aria-hidden="true"></i><span>คะแนนสอบ</span></button>
       <button type="button" onclick="showStudentHistory()">
         <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>ประวัติ</span>
       </button>

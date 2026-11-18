@@ -11,7 +11,7 @@ function updateStudentInstallVisibility() {
   var editing=document.activeElement===document.getElementById('pinCode');
   document.getElementById('studentSection').dataset.pinEditing=String(editing);
   button.hidden=studentInstallObserved || studentIsStandalone() || CU.role!=='STUDENT' || editing || studentCheckInBusy
-    || !!document.querySelector('.modal.show,.shop-overlay.open,.student-gift-toast') || Swal.isVisible();
+    || !!document.querySelector('#studentExamView:not([hidden]),.modal.show,.shop-overlay.open,.student-gift-toast') || Swal.isVisible();
   if(!button.hidden){
     var nav=document.querySelector('.student-actions').getBoundingClientRect();
     button.style.bottom=(innerHeight-nav.top+8)+'px';

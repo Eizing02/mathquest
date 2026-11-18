@@ -73,11 +73,32 @@
 @media(max-width:768px){
   .scansob-inbox-toast{position:static;width:auto;margin:8px 12px 0;box-shadow:none;border:1px solid var(--border-soft)}
 }
-.scansob-mobile-scores{display:grid;gap:0;text-align:left}
-.scansob-student-result{padding:20px 0;border-bottom:1px solid var(--border-soft)}
-.scansob-student-result h3{font-family:'Sarabun',sans-serif;font-size:1.0625rem;line-height:1.5;margin:0 0 6px;overflow-wrap:anywhere}
-.scansob-student-result p{margin:4px 0;color:var(--ink-muted);font-size:1rem}
-.scansob-student-score{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:12px;font-variant-numeric:tabular-nums}
-.scansob-student-score strong{font-family:'Sarabun',sans-serif;font-size:1.375rem}
+#studentHomeView[hidden],#studentExamView [hidden]{display:none!important}
+#studentExamView{padding-block:12px 8px;overflow-wrap:anywhere}
+.student-exam-header{padding:2px 0 14px;border-bottom:1px solid var(--border-soft)}
+.student-exam-header h1{margin:0;font:700 1.5rem/1.4 Sarabun,sans-serif}
+#studentExamTerm{margin:2px 0 0;color:var(--ink-muted);font-size:.875rem;line-height:1.5}
+.student-exam-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);align-items:center;gap:4px 12px;padding:12px 0 0}
+.student-exam-filters label{grid-column:1/-1;margin:0;font-weight:700;font-size:.875rem}
+.student-exam-filters select{width:100%;min-width:0;min-height:44px;font:inherit}
+.student-exam-order{color:var(--ink-muted);font-size:.8125rem;text-align:end}
+.student-exam-status{margin:12px 0 6px;color:var(--ink-muted);font-size:.875rem;line-height:1.5}
+.student-exam-list{background:var(--card);border-radius:8px}
+.scansob-student-result{padding:11px 12px;scroll-margin-block-start:12px;color:var(--ink)}
+.scansob-student-result+.scansob-student-result{border-top:1px solid var(--border-soft)}
+.scansob-student-result h2{margin:0 0 2px;font:700 1rem/1.5 Sarabun,sans-serif;text-wrap:initial}
+.student-exam-subject{margin:0 0 1px;color:#24594f;font-size:.875rem;font-weight:700;line-height:1.45}
+.student-exam-meta{margin:2px 0 0;color:var(--ink-muted);font-size:.8125rem;line-height:1.5}
+.scansob-student-score{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:3px 8px;font-variant-numeric:tabular-nums}
+.scansob-student-score strong{font-size:1.25rem;line-height:1.3}
+.student-exam-outcome{color:#216349;font-size:.875rem;font-weight:600}
+.student-exam-outcome[data-passed="false"]{color:#a03142}
+.student-exam-footer p{margin:0;color:var(--ink-muted);font-size:.875rem}
+.student-exam-footer p:not(:empty){margin:12px 0 6px}
+#studentExamView .scansob-error{color:var(--danger)}
+#studentExamMore{min-height:44px;max-width:100%;margin-top:10px;background:var(--card);color:var(--ink-soft)}
+#studentExamMore:hover,#studentExamMore[aria-disabled="true"]{background:#e4f1e9}
+#studentExamMore[aria-disabled="true"]{cursor:wait}
+#studentExamView :is(button,select,article):focus-visible{outline:2px solid #176b60;outline-offset:2px}
 .scansob-settings button:focus-visible,.scansob-toolbar input:focus-visible{outline:3px solid var(--pri);outline-offset:3px}
 @media(max-width:600px){.scansob-connection{align-items:start;flex-direction:column}.scansob-row-actions{width:100%}.scansob-row-actions button{flex:1}.scansob-toolbar{gap:12px}.scansob-field{width:100%;max-width:none}.scansob-switch{width:100%}}
